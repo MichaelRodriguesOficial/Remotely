@@ -3,6 +3,7 @@ using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -22,6 +23,7 @@ using Remotely.Shared.Entities;
 using Remotely.Shared.Services;
 using Serilog;
 using System.Net;
+using System.Threading.RateLimiting;
 using RatePolicyNames = Remotely.Server.RateLimiting.PolicyNames;
 using Remotely.Server.Filters;
 
@@ -108,6 +110,12 @@ services.AddIdentityCore<RemotelyUser>(options =>
 {
     options.Stores.MaxLengthForKeys = 128;
     options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 8;
+
+    // Protect against brute-force/password-spraying attacks.
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
     .AddEntityFrameworkStores<AppDb>()
     .AddSignInManager()
@@ -199,8 +207,41 @@ services.AddSignalR(options =>
     })
     .AddMessagePackProtocol();
 
+// Persist Data Protection keys (used for auth cookies, antiforgery tokens, etc.)
+// in AppData so they survive container restarts and upgrades.  Without this,
+// every restart would generate new keys and sign out all users.
+var dataProtectionKeysDir = Path.Combine(builder.Environment.ContentRootPath, "AppData", "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysDir);
+services
+    .AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysDir));
+
 services.AddRateLimiter(options =>
 {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    var authPermitLimit = appOptions is { AuthRateLimitPerMinute: > 0 } ?
+        appOptions.AuthRateLimitPerMinute :
+        20;
+
+    // Throttle authentication endpoints per client IP to slow down
+    // brute-force and credential-stuffing attempts.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        if (!IsAuthenticationRequest(httpContext.Request))
+        {
+            return RateLimitPartition.GetNoLimiter("unlimited");
+        }
+
+        var clientIp = $"{httpContext.Connection.RemoteIpAddress}";
+        return RateLimitPartition.GetFixedWindowLimiter($"auth:{clientIp}", _ => new FixedWindowRateLimiterOptions()
+        {
+            PermitLimit = authPermitLimit,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+
     options.AddConcurrencyLimiter(RatePolicyNames.AgentUpdateDownloads, clOptions =>
     {
         clOptions.QueueLimit = int.MaxValue;
@@ -265,6 +306,29 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["X-Permitted-Cross-Domain-Policies"] = "none";
+
+    // Clickjacking protection.  Remotely can only be framed by itself unless
+    // additional origins are explicitly allowed in ApplicationOptions.
+    var frameAncestors = appOptions?.AllowedFrameAncestors?.Trim();
+    if (string.IsNullOrWhiteSpace(frameAncestors))
+    {
+        headers["X-Frame-Options"] = "SAMEORIGIN";
+        headers["Content-Security-Policy"] = "frame-ancestors 'self'";
+    }
+    else
+    {
+        headers["Content-Security-Policy"] = $"frame-ancestors 'self' {frameAncestors}";
+    }
+
+    await next();
+});
+
 app.UseRateLimiter();
 
 if (settings.UseHttpLogging)
@@ -290,16 +354,20 @@ else
     }
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment() || appOptions?.EnableSwagger == true)
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 ConfigureStaticFiles();
 
 app.UseRouting();
 
+// CORS must run after routing and before authentication/authorization.
+app.UseCors("TrustedOriginPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("TrustedOriginPolicy");
 
 app.UseAntiforgery();
 
@@ -324,6 +392,27 @@ using (var scope = app.Services.CreateScope())
 }
 
 await app.RunAsync();
+
+static bool IsAuthenticationRequest(HttpRequest request)
+{
+    if (!HttpMethods.IsPost(request.Method))
+    {
+        return false;
+    }
+
+    var path = request.Path;
+    return
+        path.StartsWithSegments("/Account/Login", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/LoginWith2fa", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/LoginWithRecoveryCode", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/Register", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/ForgotPassword", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/ResetPassword", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/Account/ResendEmailConfirmation", StringComparison.OrdinalIgnoreCase) ||
+        path.StartsWithSegments("/api/Login", StringComparison.OrdinalIgnoreCase) ||
+        // Legacy remote control endpoint that accepts email/password in the body.
+        path.Equals("/api/RemoteControl", StringComparison.OrdinalIgnoreCase);
+}
 
 void ConfigureStaticFiles()
 {

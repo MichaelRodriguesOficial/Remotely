@@ -285,7 +285,8 @@ public partial class DeviceCard : AuthComponentBase
 
         void modalBody(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
         {
-            builder.AddMarkupContent(0, $"<div style='white-space: pre'>{disksString}</div>");
+            // Drive info comes from the device, so it must be HTML-encoded.
+            builder.AddMarkupContent(0, $"<div style='white-space: pre'>{System.Net.WebUtility.HtmlEncode(disksString)}</div>");
         }
 
         ModalService.ShowModal($"All Disks for {Device.DeviceName}", modalBody);

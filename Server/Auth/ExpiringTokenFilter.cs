@@ -32,6 +32,9 @@ public class ExpiringTokenFilter : ActionFilterAttribute, IAsyncAuthorizationFil
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while authorizing expiring token.");
+            // Fail closed.  An exception must never result in an authorized request.
+            context.HttpContext.Request.Headers["OrganizationID"] = string.Empty;
+            context.Result = new UnauthorizedResult();
         }
     }
 

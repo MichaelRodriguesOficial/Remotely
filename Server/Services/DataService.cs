@@ -544,7 +544,7 @@ public class DataService : IDataService
         var fileName = file.Name;
 
         var fileContents = new byte[fileSize];
-        var stream = file.OpenReadStream(AppConstants.MaxUploadFileSize);
+        using var stream = file.OpenReadStream(AppConstants.MaxUploadFileSize);
 
         var bytesRead = 0;
         while (bytesRead < fileSize)
@@ -566,11 +566,20 @@ public class DataService : IDataService
 
     public async Task<string> AddSharedFile(IFormFile file, string organizationId)
     {
-        var fileContents = new byte[file.Length];
         using var stream = file.OpenReadStream();
-        await stream.ReadAsync(fileContents.AsMemory(0, (int)file.Length));
+        using var ms = new MemoryStream();
+        // A single ReadAsync call isn't guaranteed to read the whole stream.
+        await stream.CopyToAsync(ms);
+        var fileContents = ms.ToArray();
 
-        return await AddSharedFileImpl(file.Name, fileContents, file.ContentType, organizationId);
+        // IFormFile.Name is the form field name.  FileName is the actual file name.
+        var fileName = Path.GetFileName(file.FileName);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = file.Name;
+        }
+
+        return await AddSharedFileImpl(fileName, fileContents, file.ContentType, organizationId);
     }
 
     public bool AddUserToDeviceGroup(string orgId, string groupId, string userName, out string resultMessage)
@@ -749,10 +758,16 @@ public class DataService : IDataService
 
         try
         {
+            var normalizedEmail = userEmail.Trim().ToLower();
             var user = new RemotelyUser()
             {
-                UserName = userEmail.Trim().ToLower(),
-                Email = userEmail.Trim().ToLower(),
+                UserName = normalizedEmail,
+                Email = normalizedEmail,
+                // Users are added directly to the DbContext here (bypassing UserManager),
+                // so the normalized values must be set manually.  Otherwise lookups like
+                // UserManager.FindByEmailAsync/FindByNameAsync won't find the new user.
+                NormalizedUserName = normalizedEmail.ToUpperInvariant(),
+                NormalizedEmail = normalizedEmail.ToUpperInvariant(),
                 IsAdministrator = isAdmin,
                 OrganizationID = organizationId,
                 UserOptions = new RemotelyUserOptions(),

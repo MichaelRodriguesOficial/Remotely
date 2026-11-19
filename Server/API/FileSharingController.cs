@@ -29,6 +29,16 @@ public class FileSharingController : ControllerBase
         }
 
         var sharedFile = sharedFileResult.Value;
+
+        // When the caller is tied to an organization (logged-in user or API key),
+        // don't allow access to files that belong to another organization.
+        if (Request.Headers.TryGetOrganizationId(out var orgId) &&
+            !string.IsNullOrWhiteSpace(sharedFile.OrganizationID) &&
+            sharedFile.OrganizationID != orgId)
+        {
+            return NotFound();
+        }
+
         var contentType = sharedFile.ContentType ?? "application/octet-stream";
         return File(sharedFile.FileContents, contentType, sharedFile.FileName);
     }
@@ -38,7 +48,7 @@ public class FileSharingController : ControllerBase
     [RequestSizeLimit(AppConstants.MaxUploadFileSize)]
     public async Task<IEnumerable<string>> Post()
     {
-        if (Request.Form.Files.Count !> 0)
+        if (Request.Form.Files.Count == 0)
         {
             return Array.Empty<string>();
         }

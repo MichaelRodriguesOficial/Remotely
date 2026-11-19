@@ -225,11 +225,9 @@ public class OrganizationManagementController : ControllerBase
 
         var code = await _userManager.GeneratePasswordResetTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = Url.Page(
-            "/Account/ResetPassword",
-            pageHandler: null,
-            values: new { area = "Identity", code },
-            protocol: Request.Scheme);
+        // The Identity UI is implemented with Blazor components (not Razor Pages),
+        // so Url.Page(...) would return null here.  Build the URL directly.
+        var callbackUrl = $"{Request.Scheme}://{Request.Host}/Account/ResetPassword?code={Uri.EscapeDataString(code)}";
 
         return Ok(callbackUrl);
 

@@ -76,7 +76,8 @@ public class RemoteControlController : ControllerBase
         var userResult = await _dataService.GetUserByName(rcRequest.Email);
         if (!userResult.IsSuccess)
         {
-            return NotFound();
+            // Same response as a bad password to avoid user enumeration.
+            return BadRequest();
         }
 
         var orgId = userResult.Value.OrganizationID;
@@ -90,12 +91,12 @@ public class RemoteControlController : ControllerBase
         }
         else if (result.IsLockedOut)
         {
-            _logger.LogInformation("API login successful for {rcRequestEmail}.", rcRequest.Email);
+            _logger.LogInformation("API login unsuccessful due to lockout for {rcRequestEmail}.", rcRequest.Email);
             return Unauthorized("Account is locked.");
         }
         else if (result.RequiresTwoFactor)
         {
-            _logger.LogInformation("API login successful for {rcRequestEmail}.", rcRequest.Email);
+            _logger.LogInformation("API login unsuccessful due to 2FA for {rcRequestEmail}.", rcRequest.Email);
             return Unauthorized("Account requires two-factor authentication.");
         }
         _logger.LogInformation("API login unsuccessful due to bad attempt for {rcRequestEmail}.", rcRequest.Email);

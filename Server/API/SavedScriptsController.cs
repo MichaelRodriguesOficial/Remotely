@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Remotely.Server.Auth;
+using Remotely.Server.Extensions;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
 
@@ -22,6 +23,14 @@ public class SavedScriptsController : ControllerBase
     {
         var result =  await _dataService.GetSavedScript(scriptId);
         if (!result.IsSuccess)
+        {
+            return NotFound();
+        }
+
+        // Logged-in users and API keys may only read scripts from their own organization.
+        // Agents authenticate with an expiring token and have no organization header.
+        if (Request.Headers.TryGetOrganizationId(out var orgId) &&
+            result.Value.OrganizationID != orgId)
         {
             return NotFound();
         }

@@ -28,6 +28,9 @@ public class ApiAuthorizationFilter : IAsyncAuthorizationFilter
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while authorizing API key.");
+            // Fail closed.  An exception must never result in an authorized request.
+            context.HttpContext.Request.Headers["OrganizationID"] = string.Empty;
+            context.Result = new UnauthorizedResult();
         }
     }
 
@@ -39,7 +42,10 @@ public class ApiAuthorizationFilter : IAsyncAuthorizationFilter
         if (http.User.Identity?.IsAuthenticated == true)
         {
             var userResult = await _dataService.GetUserByName($"{http.User.Identity.Name}");
-            if (userResult.IsSuccess && userResult.Value.IsAdministrator)
+            var settings = await _dataService.GetSettings();
+            if (userResult.IsSuccess &&
+                userResult.Value.IsAdministrator &&
+                (!settings.Require2FA || userResult.Value.TwoFactorEnabled))
             {
                 http.Request.Headers["OrganizationID"] = userResult.Value.OrganizationID;
                 return;

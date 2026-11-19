@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Remotely.Server.Auth;
 using Remotely.Server.Services;
 
@@ -19,7 +20,9 @@ public class ServerLogsController : ControllerBase
         _logger = logger;
     }
 
-    [ServiceFilter(typeof(ApiAuthorizationFilter))]
+    // Server logs contain data from every organization on the server, so they
+    // must only be available to server admins (not org admins or org API keys).
+    [Authorize(Policy = PolicyNames.ServerAdminRequired)]
     [HttpGet("Download")]
     public async Task<IActionResult> Download()
     {

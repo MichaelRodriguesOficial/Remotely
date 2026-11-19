@@ -1,9 +1,10 @@
-using Remotely.Server.Enums;
+﻿using Remotely.Server.Enums;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Enums;
 using Remotely.Shared.Interfaces;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Cryptography;
 
 namespace Remotely.Server.Hubs;
 
@@ -70,16 +71,13 @@ public class DesktopHub : Hub<IDesktopHubClient>
 
         SessionInfo.Mode = RemoteControlMode.Attended;
 
-        var random = new Random();
         var sessionId = string.Empty;
 
         while (true)
         {
-            sessionId = "";
-            for (var i = 0; i < 3; i++)
-            {
-                sessionId += random.Next(0, 999).ToString().PadLeft(3, '0');
-            }
+            // Use a cryptographically secure RNG so session IDs can't be predicted.
+            // (System.Random is not suitable for security-sensitive values.)
+            sessionId = RandomNumberGenerator.GetInt32(0, 1_000_000_000).ToString("D9");
 
             SessionInfo.AttendedSessionId = sessionId;
             if (_sessionCache.TryAdd(sessionId, SessionInfo))
@@ -166,7 +164,8 @@ public class DesktopHub : Hub<IDesktopHubClient>
             !SessionInfo.StreamerState.HasFlag(StreamerState.DisconnectExpected))
         {
             // Don't restart if consent wasn't granted on the first request.
-            if (ViewerList.Count > 0 && SessionInfo.RequireConsent)
+            // (RequireConsent is cleared once the user grants access.)
+            if (ViewerList.Count > 0 && !SessionInfo.RequireConsent)
             {
                 await RestartScreenCaster();
             }

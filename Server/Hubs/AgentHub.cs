@@ -261,18 +261,33 @@ public class AgentHub : Hub<IAgentHubClient>
 
     public Task DisplayMessage(string consoleMessage, string popupMessage, string className, string requesterId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new DisplayNotificationMessage(consoleMessage, popupMessage, className);
         return _messenger.Send(message, requesterId);
     }
 
     public Task DownloadFile(string fileID, string requesterId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new DownloadFileMessage(fileID);
         return _messenger.Send(message, requesterId);
     }
 
     public Task DownloadFileProgress(int progressPercent, string requesterId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new DownloadFileProgressMessage(progressPercent);
         return _messenger.Send(message, requesterId);
     }
@@ -322,15 +337,35 @@ public class AgentHub : Hub<IAgentHubClient>
 
     public Task ReturnPowerShellCompletions(PwshCommandCompletion completion, CompletionIntent intent, string senderConnectionId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new PowerShellCompletionsMessage(completion, intent);
         return _messenger.Send(message, senderConnectionId);
     }
 
     public async Task ScriptResult(string scriptResultId)
     {
+        if (Device is null)
+        {
+            return;
+        }
+
         var result = await _dataService.GetScriptResult(scriptResultId);
         if (!result.IsSuccess)
         {
+            return;
+        }
+
+        // Only the device that produced the result may announce it.
+        if (result.Value.DeviceID != Device.ID)
+        {
+            _logger.LogWarning(
+                "Device {deviceId} tried to send script result {resultId} that belongs to another device.",
+                Device.ID,
+                scriptResultId);
             return;
         }
 
@@ -340,16 +375,31 @@ public class AgentHub : Hub<IAgentHubClient>
 
     public void ScriptResultViaApi(string commandID, string requestID)
     {
+        if (Device is null)
+        {
+            return;
+        }
+
         ApiScriptResults.Set(requestID, commandID, DateTimeOffset.Now.AddHours(1));
     }
 
     public Task SendConnectionFailedToViewers(List<string> viewerIDs)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         return _viewerHubContext.Clients.Clients(viewerIDs).SendAsync("ConnectionFailed");
     }
 
     public Task SendLogs(string logChunk, string requesterConnectionId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new ReceiveLogsMessage(logChunk);
         return _messenger.Send(message, requesterConnectionId);
     }
@@ -366,6 +416,11 @@ public class AgentHub : Hub<IAgentHubClient>
 
     public Task TransferCompleted(string transferId, string requesterId)
     {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
         var message = new TransferCompleteMessage(transferId);
         return _messenger.Send(message, requesterId);
     }

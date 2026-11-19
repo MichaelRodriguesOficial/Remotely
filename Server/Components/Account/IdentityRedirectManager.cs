@@ -26,6 +26,15 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
             uri = navigationManager.ToBaseRelativePath(uri);
         }
 
+        // Protocol-relative URLs (e.g. "//evil.com" or "/\evil.com") are
+        // "well-formed relative" but browsers treat them as external hosts.
+        if (uri.StartsWith("//", StringComparison.Ordinal) ||
+            uri.StartsWith("/\\", StringComparison.Ordinal) ||
+            uri.StartsWith("\\", StringComparison.Ordinal))
+        {
+            uri = "";
+        }
+
         // During static rendering, NavigateTo throws a NavigationException which is handled by the framework as a redirect.
         // So as long as this is called from a statically rendered Identity component, the InvalidOperationException is never thrown.
         navigationManager.NavigateTo(uri);

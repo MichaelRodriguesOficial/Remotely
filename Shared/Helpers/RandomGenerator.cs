@@ -1,15 +1,17 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 
 namespace Remotely.Shared.Helpers;
 
 public class RandomGenerator
 {
-    private const string AllowableCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIGKLMNOPQRSTUVWXYZ0123456789";
+    // Note: the previous alphabet had a typo ("HIGK"), which repeated "G" and omitted "J".
+    private const string AllowableCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
     public static string GenerateString(int length)
     {
-        var bytes = RandomNumberGenerator.GetBytes(length);
-        return new string(bytes.Select(x => AllowableCharacters[x % AllowableCharacters.Length]).ToArray());
+        // GetString picks characters uniformly, avoiding the modulo bias
+        // of mapping random bytes onto a 62-character alphabet.
+        return RandomNumberGenerator.GetString(AllowableCharacters, length);
     }
 
     public static string GenerateAccessKey()

@@ -6,6 +6,7 @@ using Remotely.Shared.Extensions;
 using Remotely.Shared.Models;
 using Remotely.Shared.Services;
 using System.Text;
+using System.Text.RegularExpressions;
 using FileIO = System.IO.File;
 
 namespace Remotely.Server.API;
@@ -14,9 +15,11 @@ namespace Remotely.Server.API;
 [ApiController]
 public class ClientDownloadsController : ControllerBase
 {
+    // Controllers are created per request, so the lock must be static to
+    // actually serialize access to the installer files.
+    private static readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly IDataService _dataService;
     private readonly IEmbeddedServerDataProvider _embeddedDataSearcher;
-    private readonly SemaphoreSlim _fileLock = new(1, 1);
     private readonly IWebHostEnvironment _hostEnv;
     private readonly ILogger<ClientDownloadsController> _logger;
 
@@ -71,6 +74,11 @@ public class ClientDownloadsController : ControllerBase
     [HttpGet("desktop/{platformId}/{organizationId}")]
     public async Task<IActionResult> GetDesktop(string platformId, string organizationId)
     {
+        if (!await IsValidOrganizationId(organizationId))
+        {
+            return NotFound();
+        }
+
         switch (platformId)
         {
             case "WindowsDesktop-x64":
@@ -91,12 +99,12 @@ public class ClientDownloadsController : ControllerBase
             case "MacOS-x64":
                 {
                     var filePath = Path.Combine("Content", "MacOS-x64", "Remotely_Desktop");
-                    return await GetDesktopFile(filePath);
+                    return await GetDesktopFile(filePath, organizationId);
                 }
             case "MacOS-arm64":
                 {
                     var filePath = Path.Combine("Content", "MacOS-arm64", "Remotely_Desktop");
-                    return await GetDesktopFile(filePath);
+                    return await GetDesktopFile(filePath, organizationId);
                 }
             default:
                 return NotFound();
@@ -117,6 +125,13 @@ public class ClientDownloadsController : ControllerBase
     [HttpGet("{platformId}/{organizationId}")]
     public async Task<IActionResult> GetInstaller(string platformId, string organizationId)
     {
+        // The organization ID is written verbatim into the installer scripts,
+        // so it must be validated to prevent script injection via crafted links.
+        if (!await IsValidOrganizationId(organizationId))
+        {
+            return NotFound();
+        }
+
         return await GetInstallFile(organizationId, platformId);
     }
 
@@ -127,6 +142,12 @@ public class ClientDownloadsController : ControllerBase
 
         var hostIndex = fileContents.IndexOf("HostName=");
         var orgIndex = fileContents.IndexOf("Organization=");
+
+        if (hostIndex < 0 || orgIndex < 0)
+        {
+            _logger.LogError("Installer template {fileName} is missing HostName/Organization placeholders.", fileName);
+            return NotFound();
+        }
 
         var settings = await _dataService.GetSettings();
         var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
@@ -232,6 +253,20 @@ public class ClientDownloadsController : ControllerBase
         {
             _fileLock.Release();
         }
+    }
+
+    private static readonly Regex _organizationIdRegex = new("^[A-Za-z0-9-]{1,64}$", RegexOptions.Compiled);
+
+    private async Task<bool> IsValidOrganizationId(string? organizationId)
+    {
+        if (string.IsNullOrWhiteSpace(organizationId) ||
+            !_organizationIdRegex.IsMatch(organizationId))
+        {
+            return false;
+        }
+
+        var orgResult = await _dataService.GetOrganizationNameById(organizationId);
+        return orgResult.IsSuccess;
     }
 
     private async Task LogRequest(string methodName)

@@ -1,4 +1,4 @@
-using Remotely.Server.Enums;
+﻿using Remotely.Server.Enums;
 using Remotely.Server.Filters;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
@@ -6,6 +6,7 @@ using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Remotely.Server.Hubs;
 
@@ -53,6 +54,25 @@ public class ViewerHub : Hub<IViewerHubClient>
         {
             Context.Items[nameof(RequesterDisplayName)] = value;
         }
+    }
+
+    // Failed session ID/access key attempts are tracked per client IP, since an
+    // attacker can simply open new hub connections to reset per-connection state.
+    private const int MaxFailedSessionAttempts = 20;
+    private static readonly TimeSpan _failedAttemptsWindow = TimeSpan.FromMinutes(10);
+    private static readonly MemoryCache _failedAttemptsByIp = new(new MemoryCacheOptions());
+
+    private string ClientIp => $"{Context.GetHttpContext()?.Connection?.RemoteIpAddress}";
+
+    private int GetFailedSessionAttempts()
+    {
+        return _failedAttemptsByIp.TryGetValue(ClientIp, out int count) ? count : 0;
+    }
+
+    private void RegisterFailedSessionAttempt()
+    {
+        var count = GetFailedSessionAttempts() + 1;
+        _failedAttemptsByIp.Set(ClientIp, count, _failedAttemptsWindow);
     }
 
     private RemoteControlSession SessionInfo
@@ -202,14 +222,40 @@ public class ViewerHub : Hub<IViewerHubClient>
             return Result.Fail("Session ID cannot be empty.");
         }
 
+        // Throttle session ID/access key guessing on a single connection.
+        if (GetFailedSessionAttempts() >= MaxFailedSessionAttempts)
+        {
+            _logger.LogWarning(
+                "Too many failed remote control session attempts.  Connection: {connectionId}.  IP: {ip}",
+                Context.ConnectionId,
+                ClientIp);
+            return Result.Fail("Too many failed attempts.  Please try again later.");
+        }
+
         if (!_desktopSessionCache.TryGetValue(sessionId, out var session))
         {
+            RegisterFailedSessionAttempt();
             return Result.Fail("Session ID not found.");
+        }
+
+        // MVC filters (like ViewerAuthorizationFilter) don't apply to SignalR hubs,
+        // so the "Remote control requires authentication" setting has to be
+        // enforced here as well.  Unattended sessions are already protected by
+        // their random access key, which is only handed out to authorized users.
+        if (session.Mode != RemoteControlMode.Unattended &&
+            Context.User?.Identity?.IsAuthenticated != true)
+        {
+            var settings = await _dataService.GetSettings();
+            if (settings.RemoteControlRequiresAuthentication)
+            {
+                return Result.Fail("You must be logged in to connect to a session.");
+            }
         }
 
         if (session.Mode == RemoteControlMode.Unattended &&
             accessKey != session.AccessKey)
         {
+            RegisterFailedSessionAttempt();
             _logger.LogError("Access key does not match for unattended session.  " +
                 "Session ID: {sessionId}.  " +
                 "Requester Name: {requesterName}.  " +

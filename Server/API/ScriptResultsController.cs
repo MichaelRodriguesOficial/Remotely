@@ -5,6 +5,7 @@ using Remotely.Server.Auth;
 using Remotely.Server.Extensions;
 using Remotely.Server.Services;
 using Remotely.Shared.Dtos;
+using System.Net;
 using System.Text;
 
 namespace Remotely.Server.API;
@@ -43,15 +44,21 @@ public class ScriptResultsController : ControllerBase
 
     [HttpGet("{scriptId}")]
     [ServiceFilter(typeof(ApiAuthorizationFilter))]
-    public ActionResult<FileResult> DownloadResults(string scriptId)
+    public async Task<ActionResult> DownloadResults(string scriptId)
     {
         if (!Request.Headers.TryGetOrganizationId(out var orgId))
         {
             return Unauthorized();
         }
 
-        var commandResult = _dataService.GetScriptResult(scriptId, orgId);
-        var content = System.Text.Json.JsonSerializer.Serialize(commandResult);
+        // Previously this serialized the un-awaited Task instead of the result.
+        var commandResult = await _dataService.GetScriptResult(scriptId, orgId);
+        if (!commandResult.IsSuccess)
+        {
+            return NotFound();
+        }
+
+        var content = System.Text.Json.JsonSerializer.Serialize(commandResult.Value);
         return File(Encoding.UTF8.GetBytes(content), "application/octet-stream", "ScriptResults.json");
     }
 
@@ -102,16 +109,20 @@ public class ScriptResultsController : ControllerBase
 
                 if (!string.IsNullOrWhiteSpace(savedScript.SendErrorEmailTo))
                 {
+                    // All values come from the device or users, so they must be
+                    // HTML-encoded to prevent HTML injection in the alert email.
+                    static string Enc(string? value) => WebUtility.HtmlEncode(value ?? string.Empty);
+
                     await _emailSender.SendEmailAsync(savedScript.SendErrorEmailTo,
                         "Script Run Alert",
-                        $"An alert was triggered while running script {savedScript.Name} on device {device.DeviceName}. <br /><br />" +
-                            $"Device ID: {device.ID} <br /> " +
-                            $"Device Name: {device.DeviceName} <br /> " +
-                            $"Device Alias: {device.Alias} <br /> " +
-                            $"Device Group (if any): {device.DeviceGroup?.Name} <br /> " +
+                        $"An alert was triggered while running script {Enc(savedScript.Name)} on device {Enc(device.DeviceName)}. <br /><br />" +
+                            $"Device ID: {Enc(device.ID)} <br /> " +
+                            $"Device Name: {Enc(device.DeviceName)} <br /> " +
+                            $"Device Alias: {Enc(device.Alias)} <br /> " +
+                            $"Device Group (if any): {Enc(device.DeviceGroup?.Name)} <br /> " +
 
                             $"Error Output: <br /> <br /> " +
-                            $"{string.Join("<br /> <br />", errorOut)}");
+                            $"{string.Join("<br /> <br />", errorOut.Select(Enc))}");
                 }
             }
         }
