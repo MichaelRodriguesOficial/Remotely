@@ -70,14 +70,18 @@ jobs:
 
     - name: List vulnerable packages
       id: vulnerable
+      # Informational: reported as warnings on the PR, doesn't fail the build.
+      continue-on-error: true
       shell: pwsh
       run: |
         dotnet list Remotely.sln package --vulnerable --include-transitive 2>&1 | Tee-Object -FilePath vulnerable.log
         $vulnerable = Select-String -Path vulnerable.log -Pattern "has the following vulnerable packages" -Quiet
         if ($vulnerable) {
-          Select-String -Path vulnerable.log -Pattern "^\s+>" |
-            Select-Object -ExpandProperty Line -Unique -First 40 |
-            ForEach-Object { Write-Output "::warning title=Vulnerable package::$($_.Trim())" }
+          $project = ""
+          foreach ($line in Get-Content vulnerable.log) {
+            if ($line -match "Project .(.+). has the following vulnerable packages") { $project = $Matches[1] }
+            elseif ($line -match "^\s+>") { Write-Output "::warning title=Vulnerable package ($project)::$($line.Trim())" }
+          }
         }
 
     - name: Summary
