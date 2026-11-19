@@ -84,9 +84,13 @@ jobs:
             [ "$code" = "200" ] && break
             sleep 3
           done
-          docker logs remotely-test | tail -n 60
+          docker logs remotely-test 2>&1 | tail -n 60
           if [ "$code" != "200" ]; then
             echo "::error title=Smoke test::Servidor não respondeu 200 em / (último código: $code)"
+            # Últimas linhas do container como anotação (visível no PR)
+            LOGS=$(docker logs remotely-test 2>&1 | tail -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Container log::$LOGS"
+            docker inspect remotely-test --format '{{.State.Status}} exit={{.State.ExitCode}}' || true
             exit 1
           fi
           grep -q "Remotely" /tmp/index.html || { echo "::error title=Smoke test::Página inicial inesperada"; exit 1; }
