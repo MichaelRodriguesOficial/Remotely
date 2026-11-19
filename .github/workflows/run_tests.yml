@@ -39,9 +39,11 @@ jobs:
         dotnet-version: 8.0.x
 
     - name: Restore
+      id: restore
       run: dotnet restore
 
     - name: Build
+      id: build
       shell: pwsh
       run: |
         dotnet build --no-restore -c $env:Configuration 2>&1 | Tee-Object -FilePath build.log
@@ -54,6 +56,7 @@ jobs:
         }
 
     - name: Execute unit tests
+      id: test
       shell: pwsh
       run: |
         dotnet test --no-build -c $env:Configuration --verbosity normal 2>&1 | Tee-Object -FilePath test.log
@@ -66,4 +69,19 @@ jobs:
         }
 
     - name: List vulnerable packages
-      run: dotnet list package --vulnerable --include-transitive
+      id: vulnerable
+      shell: pwsh
+      run: |
+        dotnet list Remotely.sln package --vulnerable --include-transitive 2>&1 | Tee-Object -FilePath vulnerable.log
+        $vulnerable = Select-String -Path vulnerable.log -Pattern "has the following vulnerable packages" -Quiet
+        if ($vulnerable) {
+          Select-String -Path vulnerable.log -Pattern "^\s+>" |
+            Select-Object -ExpandProperty Line -Unique -First 40 |
+            ForEach-Object { Write-Output "::warning title=Vulnerable package::$($_.Trim())" }
+        }
+
+    - name: Summary
+      if: always()
+      shell: pwsh
+      run: |
+        Write-Output "::notice title=Steps::restore=${{ steps.restore.outcome }} build=${{ steps.build.outcome }} test=${{ steps.test.outcome }} vulnerable=${{ steps.vulnerable.outcome }}"
