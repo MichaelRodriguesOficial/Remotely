@@ -139,9 +139,11 @@ Os arquivos `.ts` do viewer (`Server/wwwroot/src`) são compilados para `.js` no
 ### CI e releases
 
 - **Tests:** compila a solução e roda os testes a cada push e PR.
-- **Release:** em PRs, compila a imagem Docker e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões e cabeçalhos.
-  - Ao publicar um release, o workflow publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
-  - Também anexa `Remotely_Server_Linux-x64.zip` e o SHA-256 ao release.
+- **Release:** em PRs e pushes, compila a imagem Docker e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões e cabeçalhos.
+- **Publicar uma nova versão:**
+  1. Altere o arquivo `VERSION` (ex.: `1.0.1`).
+  2. Adicione a seção `## v1.0.1` no `CHANGELOG.md`.
+  3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` + SHA-256 e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
   - O Docker Hub exige os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
 
 ## Créditos e licença

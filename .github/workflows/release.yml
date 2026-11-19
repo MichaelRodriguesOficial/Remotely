@@ -1,12 +1,16 @@
 name: Release
 
 # - Pull requests: compila a imagem Docker e faz um teste de fumaça (sem publicar).
-# - Release publicado (ou execução manual): publica a imagem no Docker Hub
-#   (se os secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN existirem) e no GHCR, e
-#   anexa o pacote do servidor ao release do GitHub.
+# - Push no master com uma versão nova no arquivo VERSION (ex.: 1.0.1): cria a tag
+#   vX.Y.Z e o release com as notas do CHANGELOG.md, publica a imagem no Docker Hub
+#   (se os secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN existirem) e no GHCR, e anexa
+#   o pacote do servidor ao release.
+# - Release publicado manualmente ou execução manual: publica imagem e pacote.
 
 on:
   pull_request:
+    branches: [ master ]
+  push:
     branches: [ master ]
   release:
     types: [ published ]
@@ -33,23 +37,61 @@ jobs:
       tag: ${{ steps.v.outputs.tag }}
       version: ${{ steps.v.outputs.version }}
       publish: ${{ steps.v.outputs.publish }}
+      create_release: ${{ steps.v.outputs.create_release }}
+      ref: ${{ steps.v.outputs.ref }}
     steps:
+      - uses: actions/checkout@v4
       - id: v
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          CREATE=false; REF="${{ github.sha }}"
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"; PUBLISH=true
+            TAG="${{ github.event.release.tag_name }}"; PUBLISH=true; REF="$TAG"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"; PUBLISH=true
+            TAG="${{ inputs.tag }}"; PUBLISH=true; REF="$TAG"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            TAG="v$(tr -d '[:space:]' < VERSION)"
+            if gh release view "$TAG" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+              echo "Release $TAG já existe; nada a publicar."
+              PUBLISH=false
+            else
+              PUBLISH=true; CREATE=true
+            fi
           else
             TAG="v0.0.0-pr${{ github.event.number }}"; PUBLISH=false
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "create_release=$CREATE" >> "$GITHUB_OUTPUT"
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+
+  create-release:
+    needs: version
+    if: needs.version.outputs.create_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Criar tag e release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TAG="${{ needs.version.outputs.tag }}"
+          VERSION="${{ needs.version.outputs.version }}"
+          sed "s/{{VERSION}}/$VERSION/g" .github/RELEASE_TEMPLATE.md > notes.md
+          # Seção desta versão no CHANGELOG.md (até o próximo "## v")
+          awk -v v="## $TAG" 'index($0, v)==1 {f=1; next} /^## v/ {f=0} f' CHANGELOG.md >> notes.md
+          gh release create "$TAG" --target "${{ github.sha }}" \
+            --title "Remotely $TAG" --notes-file notes.md --latest \
+            --repo "${{ github.repository }}"
+          echo "::notice title=Release::Release $TAG criado"
 
   docker:
-    needs: version
+    needs: [ version, create-release ]
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     env:
       DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -57,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.version.outputs.publish == 'true' && needs.version.outputs.tag || github.sha }}
+          ref: ${{ needs.version.outputs.ref }}
 
       - uses: docker/setup-buildx-action@v3
 
@@ -184,13 +226,13 @@ jobs:
         run: echo "::notice title=Imagem publicada::${{ steps.tags.outputs.tags }}"
 
   server-package:
-    needs: version
-    if: needs.version.outputs.publish == 'true'
+    needs: [ version, create-release ]
+    if: ${{ !failure() && !cancelled() && needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.version.outputs.tag }}
+          ref: ${{ needs.version.outputs.ref }}
 
       - uses: actions/setup-dotnet@v4
         with:
