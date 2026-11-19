@@ -130,8 +130,10 @@ jobs:
               exit 1
             }
           }
-          $total = (Get-ChildItem agents-content -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
-          Write-Output ("::notice title=Agents::Versão {0}, {1:N0} MB no total" -f (Get-Content agents-content/AgentVersion.txt), $total)
+          $files = Get-ChildItem agents-content -Recurse -File | Where-Object Length -gt 1MB | Sort-Object Length -Descending
+          $total = ($files | Measure-Object Length -Sum).Sum / 1MB
+          $detail = ($files | ForEach-Object { "{0} {1:N0} MB" -f $_.Name, ($_.Length / 1MB) }) -join " | "
+          Write-Output ("::notice title=Agents::Versão {0}, {1:N0} MB no total: {2}" -f (Get-Content agents-content/AgentVersion.txt), $total, $detail)
 
       - uses: actions/upload-artifact@v4
         with:
