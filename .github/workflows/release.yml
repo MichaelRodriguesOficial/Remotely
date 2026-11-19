@@ -111,7 +111,24 @@ jobs:
           echo "$hdr" | grep -qi '^x-content-type-options: nosniff' || { echo "::error title=Smoke test::Cabeçalhos de segurança ausentes"; exit 1; }
           docker exec remotely-test test -f /app/wwwroot/Content/Remotely-Win-x64.zip \
             || { echo "::error title=Smoke test::Instaladores dos agents ausentes"; exit 1; }
-          echo "::notice title=Smoke test::OK - imagem iniciou, migrou o banco e respondeu"
+          # Cadastro do primeiro usuário (vira admin do servidor) e login via cookie:
+          # exercita Identity + EF Core no .NET 10 de ponta a ponta.
+          curl -s -c jar -b jar http://localhost:5000/Account/Register -o reg.html
+          TOKEN=$(python3 -c "import re,sys;h=open('reg.html').read();m=re.search(r'<input[^>]*name=\"__RequestVerificationToken\"[^>]*>',h);print(re.search(r'value=\"([^\"]+)\"',m.group(0)).group(1) if m else '')")
+          [ -n "$TOKEN" ] || { echo "::error title=Smoke test::Token antiforgery não encontrado no cadastro"; exit 1; }
+          c=$(curl -s -c jar -b jar -o /dev/null -w '%{http_code}' -X POST http://localhost:5000/Account/Register \
+            --data-urlencode "_handler=register" \
+            --data-urlencode "__RequestVerificationToken=$TOKEN" \
+            --data-urlencode "Input.Email=admin@teste.local" \
+            --data-urlencode "Input.Password=Teste@12345" \
+            --data-urlencode "Input.ConfirmPassword=Teste@12345")
+          echo "register -> $c"
+          [ "$c" = "302" ] || { echo "::error title=Smoke test::Cadastro retornou $c"; docker logs remotely-test 2>&1 | tail -n 20; exit 1; }
+          home=$(curl -s -b jar http://localhost:5000/)
+          echo "$home" | grep -q "Dispositivos" || { echo "::error title=Smoke test::Página inicial logada não exibiu os dispositivos"; exit 1; }
+          c=$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:5000/server-config)
+          [ "$c" = "200" ] || { echo "::error title=Smoke test::Admin não acessou /server-config ($c)"; exit 1; }
+          echo "::notice title=Smoke test::OK - imagem iniciou, migrou o banco, cadastro/login funcionaram e páginas responderam"
 
       - name: Login no GHCR
         if: needs.version.outputs.publish == 'true'
