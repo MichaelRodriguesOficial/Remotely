@@ -1,4 +1,11 @@
-version: '3.4'
+# Remotely Server (fork MichaelRodriguesOficial) - Docker Compose
+#
+# Uso:
+#   cp .env.example .env      # ajuste os valores
+#   docker compose up -d
+#
+# Acesse http://SEU_IP:5000 (ou o domínio configurado no proxy reverso).
+# A primeira conta registrada vira administrador do servidor.
 
 networks:
   remotely:
@@ -9,36 +16,43 @@ networks:
         - subnet: 172.28.0.0/16
           gateway: 172.28.0.1
 
+volumes:
+  remotely-data:
+    name: remotely-data
+
 services:
   remotely:
-    image: immybot/remotely:latest
+    image: ${REMOTELY_IMAGE:-michechel10/remotely}:${REMOTELY_TAG:-1.0.0}
     container_name: remotely
-    volumes:
-      - /var/www/remotely:/app/AppData
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      # Em produção, prefira "127.0.0.1:5000:5000" e publique via proxy reverso com HTTPS.
+      - "${REMOTELY_BIND:-0.0.0.0}:${REMOTELY_PORT:-5000}:5000"
     networks:
       - remotely
+    volumes:
+      # Banco SQLite, logs, gravações e chaves de criptografia.
+      # Para usar uma pasta do host em vez do volume nomeado, troque por
+      # "/var/www/remotely:/app/AppData" e rode: sudo chown -R 1654:1654 /var/www/remotely
+      - remotely-data:/app/AppData
     environment:
-      # ASPNETCORE environment variables should *not* be changed.
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_HTTP_PORTS=5000
+      - TZ=${TZ:-America/Sao_Paulo}
 
-      # Other ASP.NET Core configurations can be overridden here, such as Logging.
-      # See https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0
       - Serilog__MinimumLevel__Override__Microsoft.AspNetCore=Warning
       - Serilog__MinimumLevel__Override__System=Warning
 
-      # Values for DbProvider are SQLite, SQLServer, and PostgreSQL.
-      - Remotely_ApplicationOptions__DbProvider=SQLite
-      # The Docker gateway will be used in Forwarded Headers, which is necessary to
-      # to correctly determine request hostname and scheme within the app.  If you change
-      # the network config, you must update this value as well.
-      - Remotely_ApplicationOptions__DockerGatewayIp=172.28.0.1
-      # This path shouldn't be changed.  It points to the Docker volume.
+      # Banco de dados: SQLite (padrão), SQLServer ou PostgreSQL.
+      - Remotely_ApplicationOptions__DbProvider=${REMOTELY_DB_PROVIDER:-SQLite}
       - Remotely_ConnectionStrings__SQLite=Data Source=/app/AppData/Remotely.db
-      # If using SQL Server, change the connection string to point to your SQL Server instance.
-      - Remotely_ConnectionStrings__SQLServer=Server=(localdb)\\mssqllocaldb;Database=Remotely-Server-53bc9b9d-9d6a-45d4-8429-2a2761773502;Trusted_Connection=True;MultipleActiveResultSets=true
-      # If using PostgreSQL, change the connection string to point to your PostgreSQL instance.
-      - Remotely_ConnectionStrings__PostgreSQL=Host=localhost;Database=Remotely;Username=postgres;Password=changeme;
+      - Remotely_ConnectionStrings__SQLServer=${REMOTELY_SQLSERVER_CONNECTION:-}
+      - Remotely_ConnectionStrings__PostgreSQL=${REMOTELY_POSTGRES_CONNECTION:-}
+
+      # Gateway desta rede Docker: liberado para enviar cabeçalhos X-Forwarded-*.
+      - Remotely_ApplicationOptions__DockerGatewayIp=172.28.0.1
+
+      # Opções de segurança deste fork.
+      - Remotely_ApplicationOptions__EnableSwagger=${REMOTELY_ENABLE_SWAGGER:-false}
+      - Remotely_ApplicationOptions__AllowedFrameAncestors=${REMOTELY_ALLOWED_FRAME_ANCESTORS:-}
+      - Remotely_ApplicationOptions__AuthRateLimitPerMinute=${REMOTELY_AUTH_RATE_LIMIT:-20}

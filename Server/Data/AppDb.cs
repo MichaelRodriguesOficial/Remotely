@@ -43,7 +43,12 @@ public class AppDb : IdentityDbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-        options.ConfigureWarnings(x => x.Ignore(RelationalEventId.MultipleCollectionIncludeWarning));
+        // PendingModelChangesWarning (EF Core 9+) would make Migrate() throw when a
+        // provider upgrade produces cosmetic model differences.  The migrations
+        // themselves are unchanged, so it's safe to ignore.
+        options.ConfigureWarnings(x => x.Ignore(
+            RelationalEventId.MultipleCollectionIncludeWarning,
+            RelationalEventId.PendingModelChangesWarning));
         options.LogTo((message) => System.Diagnostics.Debug.Write(message));
 
         if (_hostEnv.IsDevelopment())

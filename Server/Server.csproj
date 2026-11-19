@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <UserSecretsId>aspnet-Server-F297B939-4A64-4B42-8C70-E142EBDAA131</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileTag>remotely</DockerfileTag>
@@ -17,20 +17,20 @@
     <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.3.2" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
     <PackageReference Include="MailKit" Version="4.16.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.*" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="8.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.*">
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.*" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.*" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.*">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.*" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.*" />
-    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="10.0.*" />
     <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <PackageReference Include="Microsoft.TypeScript.MSBuild" Version="5.6.2">
       <PrivateAssets>all</PrivateAssets>
@@ -38,7 +38,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Microsoft.Web.LibraryManager.Build" Version="2.1.175" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.*" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.*" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
     <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
@@ -46,8 +46,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageReference Include="System.CommandLine.NamingConventionBinder" Version="2.0.0-beta4.22272.1" />
-    <!-- MimeKit pulls System.Security.Cryptography.Pkcs 8.0.1 (CVE-2026-84008); 8.0.2 is patched. -->
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.2" />
+    <!-- MimeKit pulls an older System.Security.Cryptography.Pkcs (CVE-2026-84008). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.*" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,201 @@
+name: Release
+
+# - Pull requests: compila a imagem Docker e faz um teste de fumaça (sem publicar).
+# - Release publicado (ou execução manual): publica a imagem no Docker Hub
+#   (se os secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN existirem) e no GHCR, e
+#   anexa o pacote do servidor ao release do GitHub.
+
+on:
+  pull_request:
+    branches: [ master ]
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag do release (ex.: v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  DOCKERHUB_IMAGE: michechel10/remotely
+  GHCR_IMAGE: ghcr.io/michaelrodriguesoficial/remotely
+  AGENTS_URL: https://github.com/immense/Remotely/releases/latest/download/Remotely_Server_Linux-x64.zip
+
+jobs:
+
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"; PUBLISH=true
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"; PUBLISH=true
+          else
+            TAG="v0.0.0-pr${{ github.event.number }}"; PUBLISH=false
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+
+  docker:
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+      DH_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.publish == 'true' && needs.version.outputs.tag || github.sha }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Server/Dockerfile
+          load: true
+          tags: remotely:test
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+            AGENTS_URL=${{ env.AGENTS_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          docker volume create remotely-test
+          docker run -d --name remotely-test -p 5000:5000 -v remotely-test:/app/AppData remotely:test
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /tmp/index.html -w '%{http_code}' http://localhost:5000/ || true)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          docker logs remotely-test | tail -n 60
+          if [ "$code" != "200" ]; then
+            echo "::error title=Smoke test::Servidor não respondeu 200 em / (último código: $code)"
+            exit 1
+          fi
+          grep -q "Remotely" /tmp/index.html || { echo "::error title=Smoke test::Página inicial inesperada"; exit 1; }
+          docker exec remotely-test curl -fs http://localhost:5000/api/healthcheck \
+            || { echo "::error title=Smoke test::/api/healthcheck falhou"; exit 1; }
+          for path in /Account/Login /downloads /css/modern.css; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000$path")
+            echo "$path -> $c"
+            [ "$c" = "200" ] || { echo "::error title=Smoke test::$path retornou $c"; exit 1; }
+          done
+          # Páginas protegidas devem redirecionar para o login quando anônimo.
+          for path in /server-config /manage-organization /Viewer; do
+            c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000$path")
+            echo "$path -> $c"
+            [ "$c" = "302" ] || { echo "::error title=Smoke test::$path deveria exigir login (retornou $c)"; exit 1; }
+          done
+          hdr=$(curl -sI http://localhost:5000/ | tr -d '\r')
+          echo "$hdr" | grep -qi '^x-content-type-options: nosniff' || { echo "::error title=Smoke test::Cabeçalhos de segurança ausentes"; exit 1; }
+          docker exec remotely-test test -f /app/wwwroot/Content/Remotely-Win-x64.zip \
+            || { echo "::error title=Smoke test::Instaladores dos agents ausentes"; exit 1; }
+          echo "::notice title=Smoke test::OK - imagem iniciou, migrou o banco e respondeu"
+
+      - name: Login no GHCR
+        if: needs.version.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login no Docker Hub
+        if: needs.version.outputs.publish == 'true' && env.DH_USER != ''
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DH_USER }}
+          password: ${{ env.DH_TOKEN }}
+
+      - name: Tags da imagem
+        if: needs.version.outputs.publish == 'true'
+        id: tags
+        shell: bash
+        run: |
+          V="${{ needs.version.outputs.version }}"
+          MINOR="${V%.*}"
+          TAGS="${GHCR_IMAGE}:${V},${GHCR_IMAGE}:${MINOR},${GHCR_IMAGE}:latest"
+          if [ -n "$DH_USER" ]; then
+            TAGS="${TAGS},${DOCKERHUB_IMAGE}:${V},${DOCKERHUB_IMAGE}:${MINOR},${DOCKERHUB_IMAGE}:latest"
+          else
+            echo "::warning title=Docker Hub::Secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN não configurados; imagem publicada só no GHCR."
+          fi
+          echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar imagem
+        if: needs.version.outputs.publish == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Server/Dockerfile
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            VERSION=${{ needs.version.outputs.version }}
+            AGENTS_URL=${{ env.AGENTS_URL }}
+          cache-from: type=gha
+
+      - name: Resumo
+        if: needs.version.outputs.publish == 'true'
+        run: echo "::notice title=Imagem publicada::${{ steps.tags.outputs.tags }}"
+
+  server-package:
+    needs: version
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publicar servidor
+        run: |
+          dotnet publish Server/Server.csproj -c Release -o publish \
+            -p:TypeScriptCompileBlocked=true \
+            -p:Version=${{ needs.version.outputs.version }} \
+            -p:InformationalVersion=${{ needs.version.outputs.version }}
+
+      - name: Adicionar instaladores dos agents
+        run: |
+          curl -fsSL "$AGENTS_URL" -o upstream.zip
+          unzip -q upstream.zip "wwwroot/Content/*" -d upstream
+          mkdir -p publish/wwwroot
+          cp -r upstream/wwwroot/Content publish/wwwroot/
+          test -f publish/wwwroot/Content/Remotely-Win-x64.zip
+
+      - name: Empacotar
+        run: |
+          cd publish
+          zip -qr ../Remotely_Server_Linux-x64.zip .
+          cd ..
+          sha256sum Remotely_Server_Linux-x64.zip > Remotely_Server_Linux-x64.zip.sha256
+          cat Remotely_Server_Linux-x64.zip.sha256
+
+      - name: Anexar ao release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.version.outputs.tag }}" \
+            Remotely_Server_Linux-x64.zip Remotely_Server_Linux-x64.zip.sha256 \
+            --clobber --repo "${{ github.repository }}"
