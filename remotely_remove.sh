@@ -97,12 +97,19 @@ if [ -d "/var/www/remotely" ]; then
     BACKUP_NAME="remotely.final-backup.$(date +%Y%m%d_%H%M%S)"
     BACKUP_PATH="/app/$BACKUP_NAME"
     
-    tar -czf "${BACKUP_PATH}.tar.gz" -C /var/www remotely 2>/dev/null
-    if [ $? -eq 0 ]; then
+    mkdir -p /app
+    # O backup contém o banco de dados: cria o arquivo já com acesso só do root.
+    if (umask 077 && tar -czf "${BACKUP_PATH}.tar.gz" -C /var/www remotely 2>/dev/null); then
         log_success "Backup criado: ${BACKUP_PATH}.tar.gz"
         log_info "Tamanho: $(du -h ${BACKUP_PATH}.tar.gz | cut -f1)"
     else
-        log_warning "Falha ao criar backup (continuando...)"
+        log_warning "Falha ao criar backup do banco de dados e dos arquivos!"
+        read -p "Remover /var/www/remotely mesmo SEM backup? (s/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Ss]$ ]]; then
+            log_info "Remoção cancelada. Nenhum arquivo foi apagado."
+            exit 1
+        fi
     fi
     
     log_info "Removendo diretório /var/www/remotely..."
@@ -113,17 +120,18 @@ else
 fi
 
 # Remover backups antigos
-BACKUP_COUNT=$(find /var/www -maxdepth 1 -name "remotely.backup.*" 2>/dev/null | wc -l)
+# O instalador cria os backups em /app (versões antigas usavam /var/www)
+BACKUP_COUNT=$(find /var/www /app -maxdepth 1 -name "remotely.backup.*" 2>/dev/null | wc -l)
 if [ $BACKUP_COUNT -gt 0 ]; then
     log_info "Encontrados $BACKUP_COUNT backup(s) antigo(s)"
     echo ""
     read -p "Deseja remover os backups antigos? (s/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Ss]$ ]]; then
-        rm -rf /var/www/remotely.backup.*
+        rm -rf /var/www/remotely.backup.* /app/remotely.backup.*
         log_success "Backups antigos removidos"
     else
-        log_info "Backups preservados em /var/www/"
+        log_info "Backups preservados em /app/ (e /var/www/, se houver)"
     fi
 fi
 

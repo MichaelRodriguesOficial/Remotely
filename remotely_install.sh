@@ -105,8 +105,6 @@ check_renew_ssl() {
     fi
     
     echo ""
-    read -p "Pressione Enter para continuar com a instalação ou Ctrl+C para sair..."
-    echo
 }
 
 # Banner
@@ -151,10 +149,10 @@ echo
 
 if [[ $REPLY =~ ^[2]$ ]]; then
     check_renew_ssl
-    # Continuar com a instalação após a verificação SSL
-    echo ""
-    log_info "Continuando com a instalação completa..."
-    echo ""
+    # A opção 2 só verifica/renova o SSL. Continuar aqui reinstalaria o
+    # servidor (movendo /var/www/remotely para backup), o que não é esperado.
+    log_info "Verificação de SSL concluída. Nenhuma alteração foi feita na instalação."
+    exit 0
 fi
 
 # Solicitar configurações de domínio e SSL
@@ -296,6 +294,9 @@ if [ -d "/app/Remotely" ]; then
     log_warning "Repositório já existe em /app/Remotely"
     log_info "Atualizando repositório..."
     cd /app/Remotely
+    # Versões antigas deste script alteravam o libman.json localmente, o que
+    # impedia o "git pull". Descarta só essa alteração antes de atualizar.
+    git checkout -- Server/libman.json 2>/dev/null || true
     git pull
     git submodule update --init --recursive
 else
@@ -332,55 +333,14 @@ fi
 log_success "LibMan configurado"
 
 # ============================================================================
-log_step "10/16 - CORREÇÃO DO LIBMAN.JSON"
+log_step "10/16 - VERIFICAÇÃO DO LIBMAN.JSON"
 # ============================================================================
-log_info "Criando libman.json otimizado..."
+# O libman.json do repositório já usa o jsDelivr. Ele não é mais sobrescrito
+# aqui, para não deixar o repositório com alterações locais (o que travava o
+# script de atualização).
 cd /app/Remotely/Server
-
-# Backup do original
-[ -f libman.json ] && cp libman.json libman.json.backup
-
-# Criar libman.json corrigido com estrutura atualizada
-cat > libman.json <<'LIBMAN_EOF'
-{
-  "version": "1.0",
-  "defaultProvider": "cdnjs",
-  "libraries": [
-    {
-      "library": "microsoft-signalr@8.0.7",
-      "destination": "wwwroot/lib/microsoft-signalr/"
-    },
-    {
-      "library": "@msgpack/msgpack@3.0.0",
-      "destination": "wwwroot/lib/msgpack/",
-      "provider": "jsdelivr",
-      "files": [
-        "dist.umd/msgpack.js",
-        "dist.umd/msgpack.min.js",
-        "dist.umd/msgpack.js.map",
-        "dist.umd/msgpack.min.js.map"
-      ]
-    },
-    {
-      "provider": "jsdelivr",
-      "library": "@microsoft/signalr-protocol-msgpack@8.0.0",
-      "destination": "wwwroot/lib/microsoft/signalr-protocol-msgpack/",
-      "files": [
-        "dist/browser/signalr-protocol-msgpack.js",
-        "dist/browser/signalr-protocol-msgpack.js.map",
-        "dist/browser/signalr-protocol-msgpack.min.js",
-        "dist/browser/signalr-protocol-msgpack.min.js.map"
-      ]
-    },
-    {
-      "library": "font-awesome@6.5.2",
-      "destination": "wwwroot/lib/fontawesome/"
-    }
-  ]
-}
-LIBMAN_EOF
-
-log_success "libman.json otimizado criado"
+git checkout -- libman.json 2>/dev/null || true
+log_success "libman.json do repositório será usado"
 
 # ============================================================================
 log_step "11/16 - RESTAURAÇÃO DE DEPENDÊNCIAS"
@@ -479,12 +439,25 @@ log_step "14/16 - CÓPIA PARA PRODUÇÃO"
 log_info "Preparando diretório de produção..."
 
 # Backup se existir
+KEEP_EXISTING_DATA=false
 if [ -d "/var/www/remotely" ]; then
     BACKUP_NAME="remotely.backup.$(date +%Y%m%d_%H%M%S)"
     BACKUP_PATH="/app/$BACKUP_NAME"
     log_warning "Criando backup: $BACKUP_PATH"
     mv /var/www/remotely "$BACKUP_PATH"
+    chmod 700 "$BACKUP_PATH"
     log_info "Backup criado em: $BACKUP_PATH"
+
+    # Sem esta etapa, a reinstalação começaria com um banco de dados vazio
+    # (usuários, dispositivos e configurações ficariam apenas no backup).
+    if [ -d "$BACKUP_PATH/AppData" ]; then
+        echo ""
+        read -p "Deseja manter o banco de dados e as configurações existentes? (S/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            KEEP_EXISTING_DATA=true
+        fi
+    fi
 fi
 
 log_info "Copiando arquivos para /var/www/remotely..."
@@ -495,9 +468,24 @@ check_error "Falha ao copiar arquivos"
 log_info "Criando diretório de dados..."
 mkdir -p /var/www/remotely/AppData
 
+if [ "$KEEP_EXISTING_DATA" = true ]; then
+    log_info "Restaurando banco de dados e configurações do backup..."
+    cp -a "$BACKUP_PATH/AppData/." /var/www/remotely/AppData/
+    if [ -f "$BACKUP_PATH/appsettings.json" ]; then
+        cp /var/www/remotely/appsettings.json /var/www/remotely/appsettings.json.new
+        cp "$BACKUP_PATH/appsettings.json" /var/www/remotely/appsettings.json
+    fi
+    log_success "Dados existentes preservados"
+fi
+
 log_info "Ajustando permissões..."
 chown -R www-data:www-data /var/www/remotely
 chmod -R 755 /var/www/remotely
+# AppData contém o banco (hashes de senha, chaves de API, senha SMTP) e as
+# chaves de criptografia: somente o usuário do serviço pode ler.
+chmod 750 /var/www/remotely/AppData
+find /var/www/remotely/AppData -type d -exec chmod 750 {} \;
+find /var/www/remotely/AppData -type f -exec chmod 640 {} \;
 
 log_success "Arquivos copiados para produção"
 
@@ -524,7 +512,7 @@ KillSignal=SIGINT
 SyslogIdentifier=remotely
 User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
-Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
 TimeoutStartSec=180
 TimeoutStopSec=30
@@ -592,7 +580,12 @@ if [ "$CONFIGURE_SSL" = true ]; then
     systemctl stop nginx
     
     # Obter certificado em modo standalone
-    if certbot certonly --standalone -d $DOMAIN_NAME --non-interactive --agree-tos --email $SSL_EMAIL --preferred-challenges http; then
+    # Os hooks ficam salvos na configuração de renovação. Sem eles, o
+    # "certbot renew" automático falharia (porta 80 ocupada pelo Nginx) e o
+    # certificado expiraria em 90 dias.
+    if certbot certonly --standalone -d "$DOMAIN_NAME" --non-interactive --agree-tos --email "$SSL_EMAIL" --preferred-challenges http \
+        --pre-hook "systemctl stop nginx" \
+        --post-hook "systemctl start nginx"; then
         log_success "✅ Certificado SSL obtido com sucesso via standalone!"
     else
         log_error "❌ Falha ao obter certificado SSL"
@@ -629,9 +622,10 @@ server {
     ssl_prefer_server_ciphers off;
 
     # Configurações de segurança
-    add_header X-Frame-Options DENY;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-XSS-Protection "1; mode=block";
+    # (X-Frame-Options, nosniff e Referrer-Policy já são enviados pelo Remotely;
+    # duplicá-los aqui gera valores conflitantes que o navegador ignora.)
+    server_tokens off;
+    add_header Strict-Transport-Security "max-age=31536000" always;
 
     # Proxy para aplicação Remotely
     location / {
@@ -813,7 +807,7 @@ if [ "$CONFIGURE_SSL" = true ]; then
     echo "│ 🌐 URL Principal:  https://$DOMAIN_NAME                    "
     echo "│ 🔄 Redireciona:    http → https automaticamente             │"
 else
-    echo "│ 🌐 URL Local:      http://$SERVER_IP:5000                  "
+    echo "│ 🌐 URL Local:      http://$SERVER_IP                       "
     if [ "$EXTERNAL_IP" != "Não detectado" ] && [ -n "$EXTERNAL_IP" ]; then
         echo "│ 🌐 URL Externa:    http://$EXTERNAL_IP                    "
     else
@@ -880,7 +874,7 @@ if [ "$CONFIGURE_SSL" = true ]; then
     echo "│ 1. Acesse: https://$DOMAIN_NAME                           "
     echo "│ 2. Configure DNS para apontar para: $EXTERNAL_IP         │"
 else
-    echo "│ 1. Acesse: http://$SERVER_IP:5000                         "
+    echo "│ 1. Acesse: http://$SERVER_IP                              "
     echo "│ 2. Para SSL, execute o script novamente                  │"
 fi
 echo "│ 3. Clique em 'Register' para criar sua conta                │"

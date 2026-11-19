@@ -22,6 +22,8 @@ BACKUP_NAME="remotely_backup_${TIMESTAMP}"
 REPO_DIR="/app/Remotely"
 PRODUCTION_DIR="/var/www/remotely"
 REPO_URL="https://github.com/MichaelRodriguesOficial/Remotely.git"
+# Indica se a pasta de produção já foi alterada (usado em check_error)
+PRODUCTION_TOUCHED=false
 
 # Função para log de sucesso
 log_success() {
@@ -57,7 +59,14 @@ check_error() {
         log_error "$1"
         echo ""
         log_error "Atualização abortada!"
-        log_warning "Execute o rollback: sudo ./update-remotely.sh --rollback $BACKUP_NAME"
+        if [ "$PRODUCTION_TOUCHED" = false ]; then
+            # A falha ocorreu antes de mexer em produção (ex.: erro de build):
+            # basta religar o serviço com a versão anterior.
+            log_info "A instalação atual não foi alterada. Religando o serviço..."
+            systemctl start remotely 2>/dev/null || true
+        else
+            log_warning "Execute o rollback: sudo ./update-remotely.sh --rollback $BACKUP_NAME"
+        fi
         exit 1
     fi
 }
@@ -154,6 +163,7 @@ rollback() {
     
     # Restaurar
     log_info "Restaurando arquivos de $BACKUP_TO_RESTORE..."
+    PRODUCTION_TOUCHED=true
     rm -rf "$PRODUCTION_DIR"
     cp -r "$BACKUP_DIR/$BACKUP_TO_RESTORE" "$PRODUCTION_DIR"
     check_error "Falha ao restaurar arquivos"
@@ -162,6 +172,11 @@ rollback() {
     log_info "Ajustando permissões..."
     chown -R www-data:www-data "$PRODUCTION_DIR"
     chmod -R 755 "$PRODUCTION_DIR"
+    if [ -d "$PRODUCTION_DIR/AppData" ]; then
+        chmod 750 "$PRODUCTION_DIR/AppData"
+        find "$PRODUCTION_DIR/AppData" -type d -exec chmod 750 {} \;
+        find "$PRODUCTION_DIR/AppData" -type f -exec chmod 640 {} \;
+    fi
     
     # Reiniciar serviço
     log_info "Reiniciando serviço..."
@@ -279,34 +294,9 @@ if [[ ! $REPLY =~ ^[Ss]$ ]]; then
 fi
 
 # ============================================================================
-log_step "1/8 - CRIANDO BACKUP COMPLETO"
-# ============================================================================
-
-log_info "Criando diretório de backup..."
-mkdir -p "$BACKUP_DIR"
-
-log_info "Criando backup: $BACKUP_NAME"
-log_warning "Isso pode demorar alguns minutos..."
-
-# Copiar tudo de produção
-cp -r "$PRODUCTION_DIR" "$BACKUP_DIR/$BACKUP_NAME"
-check_error "Falha ao criar backup"
-
-# Criar manifesto do backup
-cat > "$BACKUP_DIR/$BACKUP_NAME/backup_info.txt" <<EOF
-Backup criado em: $(date)
-Versão: $CURRENT_VERSION
-Status do serviço: $SERVICE_STATUS
-Tamanho do banco: ${DB_SIZE:-N/A}
-Comando para restaurar: sudo ./update-remotely.sh --rollback $BACKUP_NAME
-EOF
-
-BACKUP_SIZE=$(du -sh "$BACKUP_DIR/$BACKUP_NAME" | cut -f1)
-log_success "Backup criado com sucesso! ($BACKUP_SIZE)"
-log_info "Localização: $BACKUP_DIR/$BACKUP_NAME"
-
-# ============================================================================
-log_step "2/8 - PARANDO SERVIÇO"
+# O serviço é parado ANTES do backup: copiar o SQLite com o servidor rodando
+# pode gerar um backup inconsistente.
+log_step "1/8 - PARANDO SERVIÇO"
 # ============================================================================
 
 log_info "Parando serviço Remotely..."
@@ -325,12 +315,46 @@ fi
 log_success "Serviço parado"
 
 # ============================================================================
+log_step "2/8 - CRIANDO BACKUP COMPLETO"
+# ============================================================================
+
+log_info "Criando diretório de backup..."
+mkdir -p "$BACKUP_DIR"
+# Os backups contêm o banco de dados e chaves: acesso só para o root.
+chmod 700 "$BACKUP_DIR"
+
+log_info "Criando backup: $BACKUP_NAME"
+log_warning "Isso pode demorar alguns minutos..."
+
+# Copiar tudo de produção
+if ! cp -a "$PRODUCTION_DIR" "$BACKUP_DIR/$BACKUP_NAME"; then
+    log_error "Falha ao criar backup. Nada foi alterado."
+    log_info "Reiniciando o serviço..."
+    systemctl start remotely
+    exit 1
+fi
+
+# Criar manifesto do backup
+cat > "$BACKUP_DIR/$BACKUP_NAME/backup_info.txt" <<EOF
+Backup criado em: $(date)
+Versão: $CURRENT_VERSION
+Status do serviço: $SERVICE_STATUS
+Tamanho do banco: ${DB_SIZE:-N/A}
+Comando para restaurar: sudo ./update-remotely.sh --rollback $BACKUP_NAME
+EOF
+
+BACKUP_SIZE=$(du -sh "$BACKUP_DIR/$BACKUP_NAME" | cut -f1)
+log_success "Backup criado com sucesso! ($BACKUP_SIZE)"
+log_info "Localização: $BACKUP_DIR/$BACKUP_NAME"
+
+
+# ============================================================================
 log_step "3/8 - PRESERVANDO DADOS CRÍTICOS"
 # ============================================================================
 
 log_info "Criando backup temporário de dados..."
-TEMP_DATA="/tmp/remotely_data_${TIMESTAMP}"
-mkdir -p "$TEMP_DATA"
+TEMP_DATA=$(mktemp -d /tmp/remotely_data_XXXXXX)
+chmod 700 "$TEMP_DATA"
 
 # Preservar banco de dados
 if [ -f "$PRODUCTION_DIR/AppData/Remotely.db" ]; then
@@ -339,6 +363,15 @@ if [ -f "$PRODUCTION_DIR/AppData/Remotely.db" ]; then
     log_success "Banco de dados preservado"
 else
     log_warning "Banco de dados não encontrado (primeira instalação?)"
+fi
+
+# Preservar instaladores/agents (wwwroot/Content). Eles foram baixados na
+# instalação e não fazem parte do build: sem isso, a página de Downloads e a
+# atualização automática dos agents quebravam após cada atualização.
+if [ -d "$PRODUCTION_DIR/wwwroot/Content" ]; then
+    log_info "Preservando instaladores (wwwroot/Content)..."
+    mkdir -p "$TEMP_DATA/wwwroot"
+    cp -a "$PRODUCTION_DIR/wwwroot/Content" "$TEMP_DATA/wwwroot/"
 fi
 
 # Preservar appsettings.json customizado (se existir)
@@ -363,6 +396,10 @@ if [ -d "$REPO_DIR" ]; then
     log_info "Repositório já existe, atualizando..."
     cd "$REPO_DIR"
     
+    # Versões antigas do instalador alteravam o libman.json localmente.
+    # Essa alteração não é mais necessária e é descartada automaticamente.
+    git checkout -- Server/libman.json 2>/dev/null || true
+
     # Verificar se há modificações locais
     if ! git diff --quiet || ! git diff --cached --quiet; then
         log_warning "Há modificações locais não commitadas"
@@ -447,6 +484,7 @@ log_step "7/8 - INSTALANDO NOVA VERSÃO"
 # ============================================================================
 
 log_info "Removendo versão antiga..."
+PRODUCTION_TOUCHED=true
 rm -rf "$PRODUCTION_DIR"/*
 check_error "Falha ao limpar diretório de produção"
 
@@ -462,10 +500,19 @@ if [ -d "$TEMP_DATA/AppData" ]; then
     log_success "Banco de dados restaurado"
 fi
 
+if [ -d "$TEMP_DATA/wwwroot/Content" ]; then
+    mkdir -p "$PRODUCTION_DIR/wwwroot"
+    cp -a "$TEMP_DATA/wwwroot/Content" "$PRODUCTION_DIR/wwwroot/"
+    log_success "Instaladores restaurados"
+fi
+
 if [ -f "$TEMP_DATA/appsettings.json.backup" ]; then
-    # Mesclar configurações antigas com novas (se necessário)
-    log_info "Configurações customizadas detectadas"
-    log_warning "Revise manualmente: $PRODUCTION_DIR/appsettings.json"
+    # Mantém a configuração em uso; a versão nova fica ao lado para comparação.
+    if ! cmp -s "$TEMP_DATA/appsettings.json.backup" "$PRODUCTION_DIR/appsettings.json"; then
+        cp "$PRODUCTION_DIR/appsettings.json" "$PRODUCTION_DIR/appsettings.json.new"
+        cp "$TEMP_DATA/appsettings.json.backup" "$PRODUCTION_DIR/appsettings.json"
+        log_warning "appsettings.json anterior mantido. Novo modelo salvo em appsettings.json.new"
+    fi
 fi
 
 if [ -d "$TEMP_DATA/DataProtection-Keys" ]; then
@@ -477,6 +524,12 @@ fi
 log_info "Ajustando permissões..."
 chown -R www-data:www-data "$PRODUCTION_DIR"
 chmod -R 755 "$PRODUCTION_DIR"
+# AppData contém o banco e as chaves de criptografia: só o serviço lê.
+if [ -d "$PRODUCTION_DIR/AppData" ]; then
+    chmod 750 "$PRODUCTION_DIR/AppData"
+    find "$PRODUCTION_DIR/AppData" -type d -exec chmod 750 {} \;
+    find "$PRODUCTION_DIR/AppData" -type f -exec chmod 640 {} \;
+fi
 
 log_success "Nova versão instalada"
 
