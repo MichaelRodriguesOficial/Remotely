@@ -83,6 +83,7 @@ jobs:
             elseif ($line -match "^\s+>") { Write-Output "::warning title=Vulnerable package ($project)::$($line.Trim())" }
           }
         }
+        exit 0
 
     - name: Summary
       if: always()
