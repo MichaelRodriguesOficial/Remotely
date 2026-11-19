@@ -116,14 +116,20 @@ jobs:
           curl -s -c jar -b jar http://localhost:5000/Account/Register -o reg.html
           TOKEN=$(python3 -c "import re,sys;h=open('reg.html').read();m=re.search(r'<input[^>]*name=\"__RequestVerificationToken\"[^>]*>',h);print(re.search(r'value=\"([^\"]+)\"',m.group(0)).group(1) if m else '')")
           [ -n "$TOKEN" ] || { echo "::error title=Smoke test::Token antiforgery não encontrado no cadastro"; exit 1; }
-          c=$(curl -s -c jar -b jar -o /dev/null -w '%{http_code}' -X POST http://localhost:5000/Account/Register \
+          c=$(curl -s -c jar -b jar -o reg_post.html -w '%{http_code}' -X POST http://localhost:5000/Account/Register \
             --data-urlencode "_handler=register" \
             --data-urlencode "__RequestVerificationToken=$TOKEN" \
             --data-urlencode "Input.Email=admin@teste.local" \
             --data-urlencode "Input.Password=Teste@12345" \
             --data-urlencode "Input.ConfirmPassword=Teste@12345")
           echo "register -> $c"
-          [ "$c" = "302" ] || { echo "::error title=Smoke test::Cadastro retornou $c"; docker logs remotely-test 2>&1 | tail -n 20; exit 1; }
+          if [ "$c" != "302" ]; then
+            MSG=$(python3 -c "import re,html;t=open('reg_post.html').read();t=re.sub(r'(?s)<(script|style)[^>]*>.*?</\1>','',t);t=html.unescape(re.sub(r'<[^>]+>',' ',t));print(' '.join(t.split())[:1500])")
+            echo "::error title=Smoke test::Cadastro retornou $c. Página: $MSG"
+            LOGS=$(docker logs remotely-test 2>&1 | tail -n 30 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Container log::$LOGS"
+            exit 1
+          fi
           home=$(curl -s -b jar http://localhost:5000/)
           echo "$home" | grep -q "Dispositivos" || { echo "::error title=Smoke test::Página inicial logada não exibiu os dispositivos"; exit 1; }
           c=$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:5000/server-config)
