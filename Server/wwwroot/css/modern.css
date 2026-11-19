@@ -1187,54 +1187,82 @@ label, .form-label {
 .auth-mobile-brand { display: none; margin-bottom: 2rem; }
 .auth-mobile-brand .auth-brand { color: var(--rm-text-strong); }
 
+.auth-downloads {
+    margin-top: 2rem;
+    padding: 1.1rem;
+    border-radius: var(--rm-radius);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    max-width: 30rem;
+}
+
+.auth-downloads-head { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.9rem; }
+.auth-downloads-head strong { color: #fff; font-size: 0.95rem; }
+.auth-downloads-head strong i { color: #a5b4fc; margin-right: 0.35rem; }
+.auth-downloads-head span { color: #94a3b8; font-size: 0.84rem; }
+
+.auth-downloads-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+}
+
+.auth-download {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e2e8f0 !important;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+    .auth-download:hover { background: rgba(99, 102, 241, 0.25); border-color: rgba(165, 180, 252, 0.4); }
+    .auth-download i { font-size: 1.25rem; color: #c7d2fe; }
+    .auth-download span { display: flex; flex-direction: column; line-height: 1.2; }
+    .auth-download strong { font-size: 0.85rem; }
+    .auth-download small { color: #94a3b8; font-size: 0.74rem; }
+
+.auth-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    font-size: 0.84rem;
+    color: #64748b;
+}
+
+    .auth-footer-links a { color: #cbd5e1 !important; }
+    .auth-footer-links a:hover { color: #fff !important; }
+    .auth-footer-links a i { margin-right: 0.3rem; color: #a5b4fc; }
+
+.auth-callout {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    border-radius: var(--rm-radius-sm);
+    background: rgba(var(--rm-accent-rgb), 0.12);
+    border: 1px solid rgba(var(--rm-accent-rgb), 0.3);
+    font-size: 0.88rem;
+}
+
+    .auth-callout i { color: var(--rm-accent); margin-top: 0.15rem; }
+
 @media (max-width: 900px) {
     .auth-shell { grid-template-columns: 1fr; }
-    .auth-aside { display: none; }
+    .auth-main { order: 1; padding-top: 2rem; }
+    .auth-aside { order: 2; padding: 2rem 1.5rem; gap: 1.5rem; }
+    .auth-aside > .auth-brand, .auth-aside h2, .auth-aside > div > p { display: none; }
+    .auth-downloads { margin-top: 0; }
     .auth-mobile-brand { display: block; }
 }
 
-/* =========================================================
-   Landing (deslogado, página inicial)
-   ========================================================= */
-.hero, .jumbotron {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--rm-radius-lg);
-    padding: 3.5rem !important;
-    color: #e2e8f0;
-    background:
-        radial-gradient(800px 400px at 0% 0%, rgba(99, 102, 241, 0.5), transparent 60%),
-        radial-gradient(600px 400px at 100% 100%, rgba(59, 130, 246, 0.35), transparent 60%),
-        #0b1020;
-    box-shadow: var(--rm-shadow);
+@media (max-width: 480px) {
+    .auth-downloads-grid { grid-template-columns: 1fr; }
 }
-
-    .hero h1, .jumbotron h1 { color: #fff; font-size: 2.6rem; font-weight: 750; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
-    .hero p.lead, .jumbotron p.lead { color: #a3b1c6; font-size: 1.1rem; max-width: 40rem; }
-
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 1rem;
-    margin-top: 1.25rem;
-}
-
-.feature {
-    background: var(--rm-surface);
-    border: 1px solid var(--rm-border);
-    border-radius: var(--rm-radius);
-    padding: 1.25rem;
-}
-
-    .feature > i {
-        width: 2.4rem; height: 2.4rem; border-radius: 10px;
-        display: inline-flex; align-items: center; justify-content: center;
-        background: rgba(var(--rm-accent-rgb), 0.12); color: var(--rm-accent);
-        margin-bottom: 0.75rem;
-    }
-
-    .feature h3 { font-size: 1rem; margin-bottom: 0.3rem; }
-    .feature p { color: var(--rm-text-muted); font-size: 0.88rem; margin: 0; }
 
 /* =========================================================
    Downloads / cards de plataforma
@@ -1363,3 +1391,97 @@ label, .form-label {
 .auth-card .form-check { display: flex; align-items: center; gap: 0.5rem; padding-left: 0; }
 .auth-card .form-check .form-check-input { float: none; margin: 0; }
 .auth-card .form-check-label { margin: 0; }
+
+/* =========================================================
+   Conexão em tempo real (aviso e reconexão)
+   ========================================================= */
+.rm-offline-banner {
+    position: fixed;
+    left: 50%;
+    bottom: 1.25rem;
+    transform: translateX(-50%);
+    z-index: 2000;
+    width: min(760px, calc(100vw - 2rem));
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--rm-radius);
+    background: #7c2d12;
+    color: #fff;
+    box-shadow: var(--rm-shadow-lg);
+    font-size: 0.88rem;
+}
+
+    .rm-offline-banner[hidden] { display: none; }
+    .rm-offline-banner > i { font-size: 1.3rem; }
+    .rm-offline-banner > div { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.15rem; }
+    .rm-offline-banner code { background: rgba(255, 255, 255, 0.15); border: none; color: #fff; }
+
+#components-reconnect-modal.rm-reconnect {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    align-items: center;
+    justify-content: center;
+    background: rgba(2, 6, 23, 0.6) !important;
+    backdrop-filter: blur(3px);
+}
+
+    #components-reconnect-modal.components-reconnect-show,
+    #components-reconnect-modal.components-reconnect-retrying,
+    #components-reconnect-modal.components-reconnect-failed,
+    #components-reconnect-modal.components-reconnect-rejected,
+    #components-reconnect-modal.components-reconnect-paused,
+    #components-reconnect-modal.components-reconnect-resume-failed {
+        display: flex;
+    }
+
+.rm-reconnect-card {
+    width: min(420px, calc(100vw - 2rem));
+    padding: 1.75rem;
+    text-align: center;
+    background: var(--rm-surface);
+    color: var(--rm-text);
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-lg);
+    box-shadow: var(--rm-shadow-lg);
+}
+
+    .rm-reconnect-card h2 { font-size: 1.15rem; margin: 0.75rem 0 0.35rem 0; }
+    .rm-reconnect-card p { color: var(--rm-text-muted); margin-bottom: 1.25rem; }
+
+.rm-reconnect-actions { display: flex; justify-content: center; gap: 0.5rem; }
+
+.rm-reconnect-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin: 0 auto;
+    border-radius: 50%;
+    border: 3px solid rgba(var(--rm-accent-rgb), 0.25);
+    border-top-color: var(--rm-accent);
+    animation: rm-spin 0.9s linear infinite;
+}
+
+@keyframes rm-spin { to { transform: rotate(360deg); } }
+
+.rm-reconnect-show-text, .rm-reconnect-failed-text, .rm-reconnect-rejected-text { display: none; }
+
+#components-reconnect-modal.components-reconnect-show .rm-reconnect-show-text,
+#components-reconnect-modal.components-reconnect-retrying .rm-reconnect-show-text,
+#components-reconnect-modal.components-reconnect-paused .rm-reconnect-show-text { display: block; }
+
+#components-reconnect-modal.components-reconnect-failed .rm-reconnect-failed-text,
+#components-reconnect-modal.components-reconnect-resume-failed .rm-reconnect-failed-text { display: block; }
+
+#components-reconnect-modal.components-reconnect-rejected .rm-reconnect-rejected-text { display: block; }
+
+#components-reconnect-modal.components-reconnect-failed .rm-reconnect-spinner,
+#components-reconnect-modal.components-reconnect-rejected .rm-reconnect-spinner,
+#components-reconnect-modal.components-reconnect-resume-failed .rm-reconnect-spinner { display: none; }
+
+.rm-reconnect-actions button.rm-reconnect-failed-text { display: none; }
+#components-reconnect-modal.components-reconnect-failed .rm-reconnect-actions button.rm-reconnect-failed-text { display: inline-flex; }
+
+.auth-footer-links .auth-credit { flex-basis: 100%; color: #64748b; font-size: 0.8rem; }

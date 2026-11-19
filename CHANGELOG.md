@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.1 — 2026-11-19
+
+### Interface
+- **Uma tela só para quem não está logado:** a página inicial pública foi removida e o endereço raiz abre direto o login.
+- O login ganhou a área **"Precisa de suporte agora?"** com os clientes de suporte instantâneo (Windows 64/32 bits e Linux), além de links para entrar em uma sessão, todos os downloads e **Sobre**.
+- Páginas públicas (Downloads, Sobre, Solicitar suporte) usam uma barra superior simples, sem o menu lateral.
+- **"Criar uma conta"** só aparece enquanto o cadastro estiver liberado (pelo padrão, antes da primeira conta). Num servidor novo, o login mostra o aviso de primeiro acesso.
+
+### Conexão em tempo real
+- Quando a conexão em tempo real (`/_blazor`) não sobe, aparece um aviso explicando que os botões não vão responder e o que conferir no proxy. Antes a tela parecia normal, mas nada funcionava.
+- Tela de reconexão em português.
+- README com configuração de Nginx/aaPanel para WebSocket e um roteiro de diagnóstico.
+- Teste de fumaça verifica `/_blazor/negotiate` e o `blazor.web.js`.
+
 ## v1.1.0 — 2026-11-19
 
 ### Interface

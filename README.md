@@ -78,7 +78,7 @@ Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta 
 
 - **Dados:** os dados ficam no volume `remotely-data`, montado em `/app/AppData`. Lá estão o banco SQLite, os logs, as gravações e as chaves de criptografia.
 - **Pasta do host em vez do volume:** monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta`, porque o container roda com o usuário `app`.
-- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.1.0` ou `latest`).
+- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.1.1` ou `latest`).
 - **Atualizar:** `docker compose pull && docker compose up -d`.
 
 A imagem também é publicada em `ghcr.io/michaelrodriguesoficial/remotely`.
@@ -92,7 +92,7 @@ curl -fsSLO https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/m
 chmod +x remotely_install.sh
 sudo ./remotely_install.sh
 # versão específica:
-sudo REMOTELY_VERSION=v1.1.0 ./remotely_install.sh
+sudo REMOTELY_VERSION=v1.1.1 ./remotely_install.sh
 ```
 
 | Script | Para que serve |
@@ -123,6 +123,26 @@ O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
 - **outros proxies**: cadastre o IP em **Configuração do servidor → Proxies conhecidos**.
 
 Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**.
+
+Exemplo para Nginx (também vale para o "Proxy reverso" do aaPanel, colando no arquivo de configuração do site):
+
+```nginx
+location / {
+    proxy_pass         http://127.0.0.1:5000;
+    proxy_http_version 1.1;
+    proxy_set_header   Upgrade $http_upgrade;
+    proxy_set_header   Connection "upgrade";
+    proxy_set_header   Host $host;
+    proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header   X-Forwarded-Proto $scheme;
+    proxy_set_header   X-Forwarded-Host $host;
+    proxy_buffering    off;
+    proxy_cache        off;
+    proxy_read_timeout 1h;
+}
+```
+
+**Botões não respondem?** O painel usa uma conexão em tempo real (WebSocket em `/_blazor`). Se ela não sobe, as páginas abrem mas nenhum botão funciona, e o Remotely mostra um aviso vermelho no rodapé depois de alguns segundos. Confira, nessa ordem: os cabeçalhos `Upgrade`/`Connection` no proxy, cache do proxy desligado para o site e, no Cloudflare, WebSockets ativado e Rocket Loader desativado.
 
 ## Configuração
 

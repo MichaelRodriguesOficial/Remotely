@@ -31,8 +31,53 @@
 
     <HeadOutlet @rendermode="RenderModeForPage" />
 </head>
-<body class="@(_theme == Theme.Dark ? "theme-dark" : "theme-light")">
+<body class="@(_theme == Theme.Dark ? "theme-dark" : "theme-light")" data-interactive="@(RenderModeForPage is null ? "false" : "true")">
     <Routes @rendermode="RenderModeForPage" />
+
+    @* Aviso exibido quando a conexão em tempo real (SignalR/WebSocket em /_blazor) não sobe.
+       Sem ela as páginas carregam, mas nenhum botão responde. *@
+    <div id="rm-offline-banner" class="rm-offline-banner" role="alert" hidden>
+        <i class="fa-solid fa-plug-circle-exclamation"></i>
+        <div>
+            <strong>Sem conexão em tempo real com o servidor.</strong>
+            <span>Os botões não respondem enquanto ela não for estabelecida. Se o Remotely estiver atrás de um proxy
+                (Nginx, aaPanel, Cloudflare), libere WebSocket para <code>/_blazor</code>.</span>
+        </div>
+        <button type="button" class="btn btn-sm btn-light" onclick="location.reload()">Recarregar</button>
+    </div>
+
+    @* Tela de reconexão do Blazor (substitui a padrão, em inglês). *@
+    <div id="components-reconnect-modal" class="rm-reconnect" data-nosnippet>
+        <div class="rm-reconnect-card">
+            <div class="rm-reconnect-spinner" aria-hidden="true"></div>
+            <h2 class="rm-reconnect-show-text">Reconectando ao servidor...</h2>
+            <h2 class="rm-reconnect-failed-text">Conexão perdida</h2>
+            <h2 class="rm-reconnect-rejected-text">Sessão expirada</h2>
+            <p class="rm-reconnect-show-text">A conexão caiu. Tentando de novo automaticamente.</p>
+            <p class="rm-reconnect-failed-text">Não foi possível reconectar.</p>
+            <p class="rm-reconnect-rejected-text">Recarregue a página para continuar.</p>
+            <div class="rm-reconnect-actions">
+                <button type="button" class="btn btn-secondary rm-reconnect-failed-text" onclick="Blazor.reconnect()">Tentar de novo</button>
+                <button type="button" class="btn btn-primary" onclick="location.reload()">Recarregar página</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.remotelyCircuitReady = function () {
+            window.__remotelyCircuit = true;
+            var banner = document.getElementById("rm-offline-banner");
+            if (banner) { banner.hidden = true; }
+        };
+        if (document.body.dataset.interactive === "true") {
+            setTimeout(function () {
+                if (!window.__remotelyCircuit) {
+                    var banner = document.getElementById("rm-offline-banner");
+                    if (banner) { banner.hidden = false; }
+                }
+            }, 12000);
+        }
+    </script>
     <script src="_framework/blazor.web.js"></script>
     <script src="/lib/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
