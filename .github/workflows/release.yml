@@ -244,7 +244,15 @@ jobs:
             echo "::error title=Smoke test::/_blazor/negotiate retornou $c"; head -c 500 negotiate.json; exit 1
           fi
           c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/_framework/blazor.web.js)
-          [ "$c" = "200" ] || { echo "::error title=Smoke test::blazor.web.js retornou $c"; exit 1; }
+          if [ "$c" != "200" ]; then
+            FILES=$(docker exec remotely-test sh -c 'ls -la /app/wwwroot/_framework; ls -la /app/*.endpoints.json /app/*.staticwebassets* 2>&1' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Smoke test::blazor.web.js retornou $c%0A$FILES"
+            exit 1
+          fi
+          # O script referenciado pela página precisa existir (pode ter impressão digital no nome).
+          SCRIPT=$(grep -o '_framework/blazor\.web[^"]*\.js' /tmp/index.html | head -1)
+          c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000/$SCRIPT")
+          [ "$c" = "200" ] || { echo "::error title=Smoke test::Script da página ($SCRIPT) retornou $c"; exit 1; }
           c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)
           [ "$c" = "401" ] || { echo "::error title=Smoke test::swagger.json deveria exigir login (retornou $c)"; exit 1; }
           c=$(curl -s -b jar -o swagger.json -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)

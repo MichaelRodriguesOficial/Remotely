@@ -9,6 +9,7 @@
 - **"Criar uma conta"** só aparece enquanto o cadastro estiver liberado (pelo padrão, antes da primeira conta). Num servidor novo, o login mostra o aviso de primeiro acesso.
 
 ### Conexão em tempo real
+- **Correção: botões sem resposta na imagem Docker.** No .NET 10 o script do Blazor (`_framework/blazor.web.js`) passou a ser servido pelo manifesto de static web assets; a imagem não o entregava (404), então as páginas abriam mas nada era interativo. Agora o servidor usa `MapStaticAssets()` e a página referencia o script pela coleção de assets.
 - Quando a conexão em tempo real (`/_blazor`) não sobe, aparece um aviso explicando que os botões não vão responder e o que conferir no proxy. Antes a tela parecia normal, mas nada funcionava.
 - Tela de reconexão em português.
 - README com configuração de Nginx/aaPanel para WebSocket e um roteiro de diagnóstico.

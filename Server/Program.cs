@@ -460,6 +460,10 @@ app.MapHub<ViewerHub>("/hubs/viewer");
 app.MapHub<AgentHub>("/hubs/service");
 app.MapControllers();
 
+// No .NET 10 o script do Blazor (_framework/blazor.web.js) é um "static web asset"
+// servido pelo manifesto de endpoints. Sem isto, a página carrega mas nenhum botão funciona.
+app.MapStaticAssets();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
