@@ -1,4 +1,4 @@
-﻿using Remotely.Server.Enums;
+using Remotely.Server.Enums;
 using Remotely.Server.Filters;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
@@ -222,7 +222,7 @@ public class ViewerHub : Hub<IViewerHubClient>
             return Result.Fail("Session ID cannot be empty.");
         }
 
-        // Throttle session ID/access key guessing on a single connection.
+        // Throttle session ID/access key guessing (tracked per client IP).
         if (GetFailedSessionAttempts() >= MaxFailedSessionAttempts)
         {
             _logger.LogWarning(

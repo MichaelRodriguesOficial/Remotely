@@ -1,4 +1,4 @@
-﻿using Remotely.Server.Enums;
+using Remotely.Server.Enums;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Enums;
