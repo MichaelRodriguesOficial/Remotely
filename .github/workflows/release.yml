@@ -144,7 +144,7 @@ jobs:
             [ "$c" = "200" ] || { echo "::error title=Smoke test::$path retornou $c"; exit 1; }
           done
           # Páginas protegidas devem redirecionar para o login quando anônimo.
-          for path in /server-config /manage-organization /Viewer; do
+          for path in /server-config /manage-organization /Viewer /swagger/index.html; do
             c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000$path")
             echo "$path -> $c"
             [ "$c" = "302" ] || { echo "::error title=Smoke test::$path deveria exigir login (retornou $c)"; exit 1; }
@@ -176,7 +176,16 @@ jobs:
           echo "$home" | grep -q "Dispositivos" || { echo "::error title=Smoke test::Página inicial logada não exibiu os dispositivos"; exit 1; }
           c=$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:5000/server-config)
           [ "$c" = "200" ] || { echo "::error title=Smoke test::Admin não acessou /server-config ($c)"; exit 1; }
-          echo "::notice title=Smoke test::OK - imagem iniciou, migrou o banco, cadastro/login funcionaram e páginas responderam"
+          c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)
+          [ "$c" = "401" ] || { echo "::error title=Smoke test::swagger.json deveria exigir login (retornou $c)"; exit 1; }
+          c=$(curl -s -b jar -o swagger.json -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)
+          if [ "$c" != "200" ] || ! grep -q '/api/Devices' swagger.json; then
+            echo "::error title=Smoke test::Swagger não gerou a documentação da API ($c)"
+            head -c 1500 swagger.json; exit 1
+          fi
+          c=$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:5000/swagger/index.html)
+          [ "$c" = "200" ] || { echo "::error title=Smoke test::/swagger/index.html retornou $c"; exit 1; }
+          echo "::notice title=Smoke test::OK - imagem iniciou, migrou o banco, cadastro/login funcionaram, Swagger e páginas responderam"
 
       - name: Login no GHCR
         if: needs.version.outputs.publish == 'true'
