@@ -64,6 +64,13 @@ public class AppDb : IdentityDbContext
 
         base.OnModelCreating(builder);
 
+        // ASP.NET Core Identity 10 adds passkey entities (UserPasskeys DbSet).
+        // Remotely doesn't use passkeys and its migrations don't include them,
+        // so they're excluded from the model (otherwise model validation fails
+        // with "IdentityPasskeyData requires a primary key").
+        builder.Ignore<IdentityUserPasskey<string>>();
+        builder.Ignore<IdentityPasskeyData>();
+
         builder.Entity<IdentityUser>().ToTable("RemotelyUsers");
 
         builder.Entity<Organization>()
