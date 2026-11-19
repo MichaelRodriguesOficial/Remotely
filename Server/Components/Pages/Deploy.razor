@@ -15,157 +15,105 @@
     <LoadingSignal StatusMessage="@_loadingMessage" />
 }
 
-<h4 class="text-success mt-3">
-    Agentes permanentes
-</h4>
-<p class="text-info mb-3">
-    Copie e cole em um computador remoto para instalar o agente.
-</p>
+<PageHeader Title="Implantar agente"
+            Subtitle="Copie o comando e execute no computador que você quer gerenciar."
+            Icon="fa-solid fa-rocket" />
 
-<div class="row">
-
-    <div class="col-sm-12 mb-3">
-        <div class="mb-1">
-            <strong>Windows 10/11 (32 e 64 bits)</strong>
+<h2 class="section-title mt-0">Instalação em um comando</h2>
+<div class="d-grid gap-3 mb-2">
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon windows"><i class="fa-brands fa-windows"></i></span>
+            <div><strong>Windows 10 e 11</strong><span>PowerShell como administrador · 32 e 64 bits</span></div>
         </div>
-
-        <div class="input-group">
-            <input type="text" class="form-control" readonly value="@_windowsScript" />
-            <button class="btn btn-primary" type="button" id="button-addon2" @onclick="() => CopyScriptToClipboard(_windowsScript)">
-                <i class="oi oi-clipboard"></i>
-            </button>
-        </div>
+        <div class="code-block">@_windowsScript<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar" @onclick="() => CopyScriptToClipboard(_windowsScript)"><i class="fa-regular fa-copy"></i></button></div>
     </div>
-
-    <div class="col-sm-12 mb-3">
-        <div class="mb-1">
-            <strong>Ubuntu (64 bits)</strong>
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon linux"><i class="fa-brands fa-ubuntu"></i></span>
+            <div><strong>Ubuntu</strong><span>Terminal · 64 bits</span></div>
         </div>
-
-        <div class="input-group">
-            <input type="text" class="form-control" readonly value="@_ubuntuScript" />
-            <button class="btn btn-primary" type="button" id="button-addon2" @onclick="() => CopyScriptToClipboard(_ubuntuScript)">
-                <i class="oi oi-clipboard"></i>
-            </button>
-        </div>
+        <div class="code-block">@_ubuntuScript<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar" @onclick="() => CopyScriptToClipboard(_ubuntuScript)"><i class="fa-regular fa-copy"></i></button></div>
     </div>
-
-    <div class="col-sm-12 mb-3">
-        <div class="mb-1">
-            <strong>Manjaro (64 bits)</strong>
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon linux"><i class="fa-brands fa-linux"></i></span>
+            <div><strong>Manjaro</strong><span>Terminal · 64 bits</span></div>
         </div>
-
-        <div class="input-group">
-            <input type="text" class="form-control" readonly value="@_manjaroScript" />
-            <button class="btn btn-primary" type="button" id="button-addon2" @onclick="() => CopyScriptToClipboard(_manjaroScript)">
-                <i class="oi oi-clipboard"></i>
-            </button>
-        </div>
+        <div class="code-block">@_manjaroScript<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar" @onclick="() => CopyScriptToClipboard(_manjaroScript)"><i class="fa-regular fa-copy"></i></button></div>
     </div>
 </div>
+<p class="form-text">O agente se conecta a este servidor e entra automaticamente na sua organização.</p>
 
-<h4 class="text-success mt-3">
-    Suporte assistido
-</h4>
-<p class="text-info">
-    Você pode enviar versões personalizadas do cliente de suporte assistido ("Remotely_Desktop.exe")
-    e mandar o link de download para os usuários quando precisarem de suporte. Por exemplo, você pode
-    assinar o EXE com um certificado comercial para evitar o aviso do SmartScreen no computador do usuário.
-</p>
-<p class="mb-3 text-warning">
-    OBSERVAÇÃO: estes binários precisam ser enviados de novo a cada nova imagem Docker.
-</p>
-
-<div class="row">
-    <div class="col-sm-12 mb-4">
-        <div class="mb-1">
-            <strong>Windows 10/11 (64 bits)</strong>
+<h2 class="section-title">Cliente de suporte assistido personalizado</h2>
+<div class="alert alert-info">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    Você pode enviar uma versão própria do <code>Remotely_Desktop.exe</code> (por exemplo, assinada com um certificado
+    para evitar o aviso do SmartScreen) e mandar o link para os usuários. Os arquivos ficam em <code>AppData</code>,
+    então continuam lá depois de atualizar o servidor ou a imagem Docker.
+</div>
+<div class="row g-3">
+    <div class="col-xl-6">
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h3 class="panel-title"><i class="fa-brands fa-windows"></i> Windows 64 bits</h3>
+                <p class="panel-description">Remotely_Desktop.exe para x64</p>
+            </div>
+            @if (_winX64File?.Exists == true)
+            {
+                <span class="pill success" title="Enviado em @(_winX64CreatedDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))">Personalizado</span>
+            }
+            else
+            {
+                <span class="pill">Padrão</span>
+            }
         </div>
-
-        @if (_winX64File?.Exists != true)
-        {
-            <div class="text-danger mb-2">
-                Observação: ainda não foi enviado um binário personalizado para este arquivo.
-            </div>
-        }
-        else if (_winX64File?.PhysicalPath is not null)
-        {
-            <div class="text-info mb-2">
-                Data de criação: @(_winX64CreatedDate) UTC
-            </div>
-        }
-
+        <label class="form-label">Link para enviar aos usuários</label>
+        <div class="code-block mb-3">@_winX64Uri<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar link" @onclick="() => CopyUriToClipboard(_winX64Uri)"><i class="fa-regular fa-copy"></i></button></div>
         @if (_isServerAdmin)
         {
-            <div class="mb-2">
-                <FileInputButton ClassNames="btn btn-primary"
-                                 OnChanged="HandleWin64FileChanged">
-                    <ButtonContent>
-                        <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
-                        <span class="ms-2">Enviar arquivo</span>
-                    </ButtonContent>
-                </FileInputButton>
-                <div class="mt-1">
-                    <span class="text-primary">
-                        Observação: somente administradores do servidor veem este botão.
-                    </span>
-                </div>
-            </div>
+            <FileInputButton ClassNames="btn btn-secondary btn-sm" OnChanged="HandleWin64FileChanged">
+                <ButtonContent>
+                    <i class="fa-solid fa-upload"></i> Enviar binário personalizado
+                </ButtonContent>
+            </FileInputButton>
         }
-
-        <div class="input-group">
-            <input type="text" class="form-control" readonly value="@_winX64Uri" />
-            <button class="btn btn-primary" type="button" id="button-addon2" @onclick="() => CopyUriToClipboard(_winX64Uri)">
-                <i class="oi oi-clipboard"></i>
-            </button>
-        </div>
-
     </div>
-
-    <div class="col-sm-12 mb-4">
-        <div class="mb-1">
-            <strong>Windows 10/11 (32 bits)</strong>
+    </div>
+    <div class="col-xl-6">
+    <div class="panel">
+        <div class="panel-header">
+            <div>
+                <h3 class="panel-title"><i class="fa-brands fa-windows"></i> Windows 32 bits</h3>
+                <p class="panel-description">Remotely_Desktop.exe para x86</p>
+            </div>
+            @if (_winX86File?.Exists == true)
+            {
+                <span class="pill success" title="Enviado em @(_winX86CreatedDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))">Personalizado</span>
+            }
+            else
+            {
+                <span class="pill">Padrão</span>
+            }
         </div>
-
-        @if (_winX86File?.Exists != true)
-        {
-            <div class="text-danger mb-2">
-                Observação: ainda não foi enviado um binário personalizado para este arquivo.
-            </div>
-        }
-        else if (_winX86File?.PhysicalPath is not null)
-        {
-            <div class="text-info mb-2">
-                Data de criação: @(_winX86CreatedDate) UTC
-            </div>
-        }
-
+        <label class="form-label">Link para enviar aos usuários</label>
+        <div class="code-block mb-3">@_winX86Uri<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar link" @onclick="() => CopyUriToClipboard(_winX86Uri)"><i class="fa-regular fa-copy"></i></button></div>
         @if (_isServerAdmin)
         {
-            <div class="mb-2">
-                <FileInputButton ClassNames="btn btn-primary"
-                                 OnChanged="HandleWin86FileChanged">
-                    <ButtonContent>
-                        <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
-                        <span class="ms-2">Enviar arquivo</span>
-                    </ButtonContent>
-                </FileInputButton>
-                <div class="mt-1">
-                    <span class="text-primary">
-                        Observação: somente administradores do servidor veem este botão.
-                    </span>
-                </div>
-            </div>
+            <FileInputButton ClassNames="btn btn-secondary btn-sm" OnChanged="HandleWin86FileChanged">
+                <ButtonContent>
+                    <i class="fa-solid fa-upload"></i> Enviar binário personalizado
+                </ButtonContent>
+            </FileInputButton>
         }
-
-        <div class="input-group">
-            <input type="text" class="form-control" readonly value="@_winX86Uri" />
-            <button class="btn btn-primary" type="button" id="button-addon2" @onclick="() => CopyUriToClipboard(_winX86Uri)">
-                <i class="oi oi-clipboard"></i>
-            </button>
-        </div>
+    </div>
     </div>
 </div>
+@if (_isServerAdmin)
+{
+    <p class="form-text mt-2">Somente administradores do servidor podem enviar binários.</p>
+}
 
 @code {
     private static readonly SemaphoreSlim _writeLock = new(1, 1);

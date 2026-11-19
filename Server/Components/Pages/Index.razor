@@ -3,24 +3,50 @@
  
 <AuthorizeView>
     <NotAuthorized>
-        <div class="jumbotron">
-            <h3 class="display-4">Remotely</h3>
-            <p class="lead text-muted mb-4">
-                Suporte remoto, acesso autônomo e scripts para todos os seus dispositivos.
+        <PageTitle>Remotely</PageTitle>
+        <section class="hero">
+            <span class="pill accent no-dot mb-3">Acesso remoto self-hosted</span>
+            <h1>Suporte remoto sem complicação.</h1>
+            <p class="lead mb-4">
+                Controle remoto com e sem acompanhamento, scripts e inventário dos computadores da sua equipe,
+                tudo rodando no seu servidor.
             </p>
             <div class="d-flex flex-wrap gap-2">
                 <a class="btn btn-primary btn-lg" href="Account/Login" role="button">
-                    <span class="oi oi-account-login me-2" aria-hidden="true"></span>Entrar
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
                 </a>
-
                 @if (_isRegistrationEnabled)
                 {
-                    <a class="btn btn-secondary btn-lg" href="Account/Register" role="button">Cadastrar</a>
+                    <a class="btn btn-secondary btn-lg" href="Account/Register" role="button">
+                        <i class="fa-solid fa-user-plus"></i> Criar conta
+                    </a>
                 }
-
                 <a class="btn btn-secondary btn-lg" href="/Viewer" target="_blank" role="button">
-                    <span class="oi oi-monitor me-2" aria-hidden="true"></span>Entrar em uma sessão
+                    <i class="fa-solid fa-headset"></i> Entrar em uma sessão
                 </a>
+            </div>
+        </section>
+
+        <div class="feature-grid">
+            <div class="feature">
+                <i class="fa-solid fa-desktop"></i>
+                <h3>Controle remoto</h3>
+                <p>Atendimento acompanhado com código de sessão ou acesso direto aos computadores com agente.</p>
+            </div>
+            <div class="feature">
+                <i class="fa-solid fa-terminal"></i>
+                <h3>Scripts e terminal</h3>
+                <p>PowerShell, CMD e Bash em vários dispositivos de uma vez, com agendamento.</p>
+            </div>
+            <div class="feature">
+                <i class="fa-solid fa-chart-simple"></i>
+                <h3>Inventário</h3>
+                <p>CPU, memória, discos, usuário logado e última conexão de cada máquina.</p>
+            </div>
+            <div class="feature">
+                <i class="fa-solid fa-shield-halved"></i>
+                <h3>Seguro</h3>
+                <p>Verificação em duas etapas, bloqueio por tentativas e dados no seu próprio servidor.</p>
             </div>
         </div>
     </NotAuthorized>

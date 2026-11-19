@@ -1,17 +1,35 @@
-﻿@inherits LayoutComponentBase
-@layout AccountLayout
+@inherits LayoutComponentBase
+@layout Remotely.Server.Components.Layout.MainLayout
+@inject NavigationManager NavigationManager
 
-<h1>Gerenciar sua conta</h1>
+<PageHeader Title="Minha conta"
+            Subtitle="Perfil, e-mail, senha e verificação em duas etapas."
+            Icon="fa-solid fa-user-shield" />
 
-<div>
-    <h2>Altere as configurações da sua conta</h2>
-    <hr />
-    <div class="row">
-        <div class="col-md-3">
-            <ManageNavMenu />
-        </div>
-        <div class="col-md-9">
+@if (HttpContext is null)
+{
+    <p>Carregando...</p>
+}
+else
+{
+    <div class="settings-layout">
+        <ManageNavMenu />
+        <section class="panel account-panel">
             @Body
-        </div>
+        </section>
     </div>
-</div>
+}
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (HttpContext is null)
+        {
+            // As telas de identidade precisam de HttpContext (cookies); voltamos para SSR.
+            NavigationManager.Refresh(forceReload: true);
+        }
+    }
+}

@@ -7,12 +7,9 @@
 
 @if (!string.IsNullOrWhiteSpace(_settings?.MessageOfTheDay))
 {
-    <div class="me-5">
-        <AlertBanner Message="@_settings?.MessageOfTheDay" StatusClass="info" />
-    </div>
+    <AlertBanner Message="@_settings?.MessageOfTheDay" StatusClass="info" />
 }
 
-<AlertsFrame />
 <DevicesFrame />
 <ChatFrame />
 

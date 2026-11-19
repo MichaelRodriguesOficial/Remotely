@@ -2,17 +2,21 @@
 @attribute [Authorize]
 @inherits AuthComponentBase
 
+<PageHeader Title="Scripts"
+            Subtitle="Biblioteca de scripts, execução em lote e agendamentos."
+            Icon="fa-solid fa-terminal" />
+
 <CascadingValue Value="this">
     <TabControl InitialActiveTab="@(ActiveTab ?? "saved-scripts")">
         <TabHeaders>
             <TabHeader Name="saved-scripts" NavigationUri="/scripts/saved-scripts">
-                Scripts salvos
+                <i class="fa-solid fa-book me-1"></i> Biblioteca
             </TabHeader>
             <TabHeader Name="run-script" NavigationUri="/scripts/run-script">
-                Executar script
+                <i class="fa-solid fa-play me-1"></i> Executar
             </TabHeader>
             <TabHeader Name="script-schedules" NavigationUri="/scripts/script-schedules">
-                Agendamentos
+                <i class="fa-regular fa-calendar me-1"></i> Agendamentos
             </TabHeader>
         </TabHeaders>
         <TabContents>

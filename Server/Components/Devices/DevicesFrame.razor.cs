@@ -70,6 +70,10 @@ public partial class DevicesFrame : AuthComponentBase
     [Inject]
     private IToastService ToastService { get; init; } = null!;
 
+    private int OnlineCount => _allDevices.Count(x => x.IsOnline);
+
+    private int SelectedCount => CardStore.SelectedDevices.Count();
+
     private int TotalPages => (int)Math.Max(1, Math.Ceiling((decimal)_filteredDevices.Count / _devicesPerPage));
 
     public async Task Refresh()
@@ -102,6 +106,9 @@ public partial class DevicesFrame : AuthComponentBase
         _deviceGroups.AddRange(DataService.GetDeviceGroups(UserName));
 
         _selectedGroupId = _deviceGroupAll;
+
+        CardStore.SelectedDevicesChanged += HandleSelectedDevicesChanged;
+        _registrations.Enqueue(new SelectionSubscription(CardStore, HandleSelectedDevicesChanged));
 
         var sortableProperties = typeof(Device)
             .GetProperties()
@@ -239,7 +246,9 @@ public partial class DevicesFrame : AuthComponentBase
 
     private string GetSortIcon()
     {
-        return $"oi-sort-{_sortDirection.ToString().ToLower()}";
+        return _sortDirection == ListSortDirection.Ascending
+            ? "fa-arrow-down-a-z"
+            : "fa-arrow-down-z-a";
     }
 
     private async Task HandleDeviceStateChangedMessage(object subscriber, DeviceStateChangedMessage message)
@@ -327,6 +336,31 @@ public partial class DevicesFrame : AuthComponentBase
         if (_currentPage < TotalPages)
         {
             _currentPage++;
+        }
+    }
+
+    private void HandleSelectedDevicesChanged(object? sender, EventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ShowAllDevices()
+    {
+        _hideOfflineDevices = false;
+        _currentPage = 1;
+    }
+
+    private void ShowOnlineDevices()
+    {
+        _hideOfflineDevices = true;
+        _currentPage = 1;
+    }
+
+    private sealed class SelectionSubscription(ISelectedCardsStore store, EventHandler handler) : IDisposable
+    {
+        public void Dispose()
+        {
+            store.SelectedDevicesChanged -= handler;
         }
     }
 

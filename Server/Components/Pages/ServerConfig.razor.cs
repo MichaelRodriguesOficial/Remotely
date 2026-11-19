@@ -174,6 +174,24 @@ public partial class ServerConfig : AuthComponentBase
         await Save();
     }
 
+    private void RemoveBannedDeviceItem(string item)
+    {
+        _bannedDeviceSelected = item;
+        RemoveBannedDevice();
+    }
+
+    private void RemoveKnownProxyItem(string item)
+    {
+        _knownProxySelected = item;
+        RemoveKnownProxy();
+    }
+
+    private void RemoveTrustedCorsOriginItem(string item)
+    {
+        _trustedCorsOriginSelected = item;
+        RemoveTrustedCorsOrigin();
+    }
+
     private void RemoveBannedDevice()
     {
         if (string.IsNullOrWhiteSpace(_bannedDeviceSelected))

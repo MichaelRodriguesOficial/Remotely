@@ -1,0 +1,44 @@
+@* Cabeçalho padrão das páginas: ícone, título (h1), subtítulo e ações. *@
+
+<PageTitle>@Title · Remotely</PageTitle>
+
+<header class="page-header">
+    <div class="page-header-main">
+        @if (!string.IsNullOrWhiteSpace(Icon))
+        {
+            <span class="page-header-icon" aria-hidden="true">
+                <i class="@Icon"></i>
+            </span>
+        }
+        <div class="min-w-0">
+            <h1 class="page-title">@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Subtitle))
+            {
+                <p class="page-subtitle">@Subtitle</p>
+            }
+        </div>
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="page-header-actions">
+            @Actions
+        </div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Classes do Font Awesome, por exemplo "fa-solid fa-desktop".
+    /// </summary>
+    [Parameter]
+    public string? Icon { get; set; }
+
+    [Parameter]
+    public RenderFragment? Actions { get; set; }
+}

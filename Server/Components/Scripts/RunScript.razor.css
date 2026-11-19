@@ -14,9 +14,10 @@
 
 
 .item-list-border {
-    border: 1px solid gray;
+    border: 1px solid var(--rm-border);
+    background: var(--rm-surface);
     padding: .5em;
     height: 100%;
-    border-radius: 5px;
+    border-radius: var(--rm-radius);
     overflow-y: auto;
 }

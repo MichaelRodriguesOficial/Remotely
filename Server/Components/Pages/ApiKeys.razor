@@ -11,7 +11,18 @@
 @inject IToastService ToastService
 
 
-<h3>Chaves de API</h3>
+<PageHeader Title="Chaves de API"
+            Subtitle="Integre o Remotely com scripts, n8n, GLPI e outras ferramentas."
+            Icon="fa-solid fa-key">
+    <Actions>
+        <button class="btn btn-secondary" @onclick="ShowApiKeyHelp">
+            <i class="fa-regular fa-circle-question"></i> Como usar
+        </button>
+        <a class="btn btn-secondary" href="/swagger" target="_blank" rel="noopener">
+            <i class="fa-solid fa-code"></i> Documentação (Swagger)
+        </a>
+    </Actions>
+</PageHeader>
 
 @if (!string.IsNullOrWhiteSpace(_alertMessage))
 {
@@ -20,60 +31,65 @@
 
 @if (_isLoading)
 {
-    <h5>Carregando...</h5>
+    <LoadingSignal StatusMessage="Carregando" />
 }
 else if (User is not null)
 {
     if (!string.IsNullOrWhiteSpace(_newKeySecret))
     {
-        <h5 class="text-warning font-weight-bold mb-2 mt-4">Atenção: o segredo da chave só será exibido uma vez. Salve-o agora.</h5>
-        <h5 class="mb-4">
-            <label class="me-1">Segredo da chave:</label>
-            <input class="form-control custom-control-inline" readonly value="@_newKeySecret" style="width:400px" />
-        </h5>
+        <div class="alert alert-warning">
+            <div class="fw-600 mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Copie o segredo agora: ele não será exibido de novo.</div>
+            <div class="code-block">@_newKeySecret<button class="btn btn-sm btn-secondary btn-icon copy" title="Copiar" @onclick="CopySecret"><i class="fa-regular fa-copy"></i></button></div>
+        </div>
     }
 
-
-    <div class="mb-2 mt-4">
-        <label class="me-1">Nome da nova chave:</label>
-        <input @bind="_createKeyName" @bind:event="oninput"
-               class="form-control form-control-sm custom-control-inline me-1 d-inline-block"
-               style="width:200px" />
-
-        <button class="btn btn-primary" type="button" @onclick="CreateNewKey">Criar</button>
-
-        <button class="btn btn-sm btn-secondary ms-2" @onclick="ShowApiKeyHelp">
-            <span class="oi oi-question-mark"></span>
-        </button>
+    <div class="panel mb-3">
+        <form class="d-flex flex-wrap gap-2 align-items-end" @onsubmit="CreateNewKey" @onsubmit:preventDefault>
+            <div class="flex-grow-1" style="min-width: 220px">
+                <label class="form-label" for="newKeyName">Nome da nova chave</label>
+                <input id="newKeyName" @bind="_createKeyName" @bind:event="oninput" class="form-control" placeholder="Ex.: Integração GLPI" />
+            </div>
+            <button class="btn btn-primary" type="submit"><i class="fa-solid fa-plus"></i> Criar chave</button>
+        </form>
     </div>
 
-    <table class="table table-dark table-hover table-striped">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th>ID</th>
-                <th>Último uso</th>
-                <th></th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var apiToken in _apiTokens)
-            {
-                <tr @key="apiToken.ID">
-                    <td>@apiToken.Name</td>
-                    <td>@apiToken.ID</td>
-                    <td>@apiToken.LastUsed</td>
-                    <td>
-                        <button type="button" class="btn btn-primary" @onclick="() => RenameKey(apiToken.ID)">Renomear</button>
-                    </td>
-                    <td>
-                        <button type="submit" class="btn btn-danger" @onclick="() => DeleteKey(apiToken.ID)">Excluir</button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    @if (_apiTokens.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-key"></i></div>
+            <h3>Nenhuma chave criada</h3>
+            <p>Crie uma chave para chamar a API do Remotely com o cabeçalho <code>X-Api-Key</code>.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>ID</th>
+                        <th>Último uso</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var apiToken in _apiTokens)
+                    {
+                        <tr @key="apiToken.ID">
+                            <td class="fw-600">@apiToken.Name</td>
+                            <td class="mono small">@apiToken.ID</td>
+                            <td>@(apiToken.LastUsed?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Nunca")</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-secondary" @onclick="() => RenameKey(apiToken.ID)"><i class="fa-solid fa-pen"></i> Renomear</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @onclick="() => DeleteKey(apiToken.ID)"><i class="fa-solid fa-trash-can"></i> Excluir</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 }
 
 @code {
@@ -90,9 +106,23 @@ else if (User is not null)
         _isLoading = false;
     }
 
+    private async Task CopySecret()
+    {
+        if (await JsInterop.SetClipboardText(_newKeySecret))
+        {
+            ToastService.ShowToast2("Segredo copiado", ToastType.Success);
+        }
+    }
+
     private async Task CreateNewKey()
     {
         EnsureUserSet();
+
+        if (string.IsNullOrWhiteSpace(_createKeyName))
+        {
+            ToastService.ShowToast2("Informe um nome para a chave", ToastType.Warning);
+            return;
+        }
 
         var secret = RandomGenerator.GenerateString(48);
         var secretHash = new PasswordHasher<string>().HashPassword(string.Empty, secret);
@@ -142,7 +172,7 @@ else if (User is not null)
     private async Task RenameKey(string keyId)
     {
         EnsureUserSet();
-        var newName = await JsInterop.Prompt("New key name");
+        var newName = await JsInterop.Prompt("Novo nome da chave");
         if (!string.IsNullOrWhiteSpace(newName))
         {
             await DataService.RenameApiToken(UserName, keyId, newName);

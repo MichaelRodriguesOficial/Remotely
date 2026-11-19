@@ -5,40 +5,41 @@
 
 <AuthorizeView Policy="@PolicyNames.TwoFactorRequired">
     <Authorized>
-            <div class="page">
-                <div class="sidebar">
-                    <NavMenu />
-                </div>
+        <div class="page">
+            <aside class="sidebar">
+                <NavMenu />
+            </aside>
 
-                <div class="main">
-                    <div class="content px-4">
-                        @Body
-                    </div>
+            <main class="main">
+                <div class="content">
+                    @Body
                 </div>
-            </div>
+            </main>
+        </div>
     </Authorized>
     <NotAuthorized>
-        <div class="container mt-5">
-            <h3>Autenticação em dois fatores obrigatória</h3>
-
-            <hr />
-            <div class="row">
-                <div class="col-sm-12">
-                    <p>A autenticação em dois fatores é obrigatória. Clique no botão abaixo para configurar seu app autenticador.</p>
-                    <p>
-                        <button class="btn btn-primary" @onclick="NavigateToTwoFactor">Ativar 2FA</button>
-                    </p>
-                </div>
+        <div class="gate">
+            <div class="gate-card panel">
+                <span class="page-header-icon mb-3" aria-hidden="true">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </span>
+                <h1 class="page-title">Ative a verificação em duas etapas</h1>
+                <p class="page-subtitle mb-4">
+                    O administrador exige autenticação em dois fatores. Configure seu app autenticador
+                    (Microsoft Authenticator, Google Authenticator, Authy etc.) para continuar.
+                </p>
+                <button class="btn btn-primary btn-lg w-100" @onclick="NavigateToTwoFactor">
+                    <i class="fa-solid fa-qrcode"></i> Configurar agora
+                </button>
             </div>
         </div>
-
     </NotAuthorized>
 </AuthorizeView>
 
 <div id="blazor-error-ui">
     Ocorreu um erro inesperado.
     <a href="" class="reload">Recarregar</a>
-    <a class="dismiss">🗙</a>
+    <a class="dismiss" title="Fechar">✕</a>
 </div>
 
 <ToastHarness />

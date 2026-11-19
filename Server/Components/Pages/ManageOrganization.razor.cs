@@ -128,6 +128,12 @@ public partial class ManageOrganization : AuthComponentBase
         ToastService.ShowToast("Convite excluído.");
     }
 
+    private async Task DeleteDeviceGroup(string deviceGroupId)
+    {
+        _selectedDeviceGroupId = deviceGroupId;
+        await DeleteSelectedDeviceGroup();
+    }
+
     private async Task DeleteSelectedDeviceGroup()
     {
         EnsureUserSet();

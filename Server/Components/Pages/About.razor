@@ -1,13 +1,65 @@
-﻿@page "/about"
+@page "/about"
 
-<h3>Sobre o Remotely</h3>
+<PageHeader Title="Sobre"
+            Subtitle="Informações da versão, do projeto e de quem mantém este fork."
+            Icon="fa-solid fa-circle-info" />
 
-<p>
-    Repositório do projeto: <a href="https://github.com/immense/Remotely">https://github.com/immense/Remotely</a>
-</p>
-<p>
-    Licenças de código aberto: <a href="/credits">Créditos</a>
-</p>
-<p>
-    Versão: @(AppVersionHelper.GetAppVersion())
-</p>
+<div class="row g-3">
+    <div class="col-xl-7">
+        <section class="panel h-100">
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="brand-mark" style="width: 3rem; height: 3rem; font-size: 1.25rem"><i class="fa-solid fa-display"></i></span>
+                <div>
+                    <h2 class="h4 mb-0">Remotely</h2>
+                    <span class="text-muted">Acesso remoto e suporte self-hosted</span>
+                </div>
+                <span class="pill accent no-dot ms-auto">v@(AppVersionHelper.GetAppVersion())</span>
+            </div>
+
+            <p>
+                Esta é uma versão mantida por <strong>Michael Rodrigues</strong> a partir do projeto original
+                Remotely, com foco em segurança, interface em português, .NET 10 e implantação simples com Docker.
+            </p>
+
+            <dl class="detail-list mt-4">
+                <dt>Mantenedor</dt>
+                <dd>Michael Rodrigues · <a href="https://github.com/MichaelRodriguesOficial" target="_blank" rel="noopener">@@MichaelRodriguesOficial</a></dd>
+
+                <dt>Repositório</dt>
+                <dd><a href="https://github.com/MichaelRodriguesOficial/Remotely" target="_blank" rel="noopener">github.com/MichaelRodriguesOficial/Remotely</a></dd>
+
+                <dt>Novidades</dt>
+                <dd><a href="https://github.com/MichaelRodriguesOficial/Remotely/releases" target="_blank" rel="noopener">Releases e notas de versão</a></dd>
+
+                <dt>Problemas e sugestões</dt>
+                <dd><a href="https://github.com/MichaelRodriguesOficial/Remotely/issues" target="_blank" rel="noopener">Abrir uma issue</a></dd>
+
+                <dt>Imagem Docker</dt>
+                <dd><code>michechel10/remotely</code></dd>
+
+                <dt>Licença</dt>
+                <dd><a href="https://github.com/MichaelRodriguesOficial/Remotely/blob/master/LICENSE" target="_blank" rel="noopener">GNU GPL v3</a></dd>
+
+                <dt>Versão</dt>
+                <dd class="mono">@(AppVersionHelper.GetAppVersion())</dd>
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-xl-5">
+        <section class="panel h-100">
+            <h2 class="panel-title mb-3"><i class="fa-solid fa-heart"></i> Projeto original</h2>
+            <p class="text-muted">
+                O Remotely foi criado por <strong>Jared Goodwin</strong> (Immense Networks) e desenvolvido com a comunidade
+                até o arquivamento do repositório original em 2024. Este fork continua o trabalho respeitando a licença GPL v3.
+            </p>
+            <a class="btn btn-secondary btn-sm" href="https://github.com/immense/Remotely" target="_blank" rel="noopener">
+                <i class="fa-brands fa-github"></i> immense/Remotely
+            </a>
+
+            <h2 class="panel-title mt-4 mb-3"><i class="fa-solid fa-scale-balanced"></i> Código aberto</h2>
+            <p class="text-muted mb-3">Bibliotecas e projetos de terceiros usados no Remotely.</p>
+            <a class="btn btn-secondary btn-sm" href="credits"><i class="fa-solid fa-list"></i> Créditos e licenças</a>
+        </section>
+    </div>
+</div>

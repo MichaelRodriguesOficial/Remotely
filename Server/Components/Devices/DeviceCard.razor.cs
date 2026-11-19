@@ -181,6 +181,91 @@ public partial class DeviceCard : AuthComponentBase
         return $"{_state}".ToLower();
     }
 
+    private static string FormatPercent(double fraction)
+    {
+        if (double.IsNaN(fraction) || double.IsInfinity(fraction))
+        {
+            return "—";
+        }
+        return $"{Math.Round(Math.Clamp(fraction, 0, 1) * 100)}%";
+    }
+
+    private static string GetMeterClass(double fraction)
+    {
+        return fraction switch
+        {
+            >= 0.9 => "crit",
+            >= 0.75 => "warn",
+            _ => string.Empty
+        };
+    }
+
+    private static string GetMeterWidth(double fraction)
+    {
+        if (double.IsNaN(fraction) || double.IsInfinity(fraction))
+        {
+            return "0%";
+        }
+        var percent = Math.Round(Math.Clamp(fraction, 0, 1) * 100, 1);
+        return $"{percent.ToString(System.Globalization.CultureInfo.InvariantCulture)}%";
+    }
+
+    private string GetLastSeen()
+    {
+        if (Device.LastOnline == default)
+        {
+            return "nunca conectou";
+        }
+
+        var elapsed = DateTimeOffset.Now - Device.LastOnline;
+        return elapsed.TotalMinutes switch
+        {
+            < 1 => "visto agora",
+            < 60 => $"visto há {(int)elapsed.TotalMinutes} min",
+            < 60 * 24 => $"visto há {(int)elapsed.TotalHours} h",
+            < 60 * 24 * 30 => $"visto há {(int)elapsed.TotalDays} d",
+            _ => $"visto em {Device.LastOnline.ToLocalTime():dd/MM/yyyy}"
+        };
+    }
+
+    private string GetOsClass()
+    {
+        var platform = $"{Device.Platform} {Device.OSDescription}".ToLowerInvariant();
+        if (platform.Contains("win"))
+        {
+            return "windows";
+        }
+        if (platform.Contains("osx") || platform.Contains("mac") || platform.Contains("darwin"))
+        {
+            return "apple";
+        }
+        if (platform.Contains("linux") || platform.Contains("ubuntu") || platform.Contains("debian"))
+        {
+            return "linux";
+        }
+        return string.Empty;
+    }
+
+    private string GetOsIcon()
+    {
+        return GetOsClass() switch
+        {
+            "windows" => "fa-brands fa-windows",
+            "apple" => "fa-brands fa-apple",
+            "linux" => "fa-brands fa-linux",
+            _ => "fa-solid fa-computer"
+        };
+    }
+
+    private string GetSubtitle()
+    {
+        if (!string.IsNullOrWhiteSpace(Device.Alias))
+        {
+            return Device.Alias;
+        }
+        return Device.OSDescription ?? Device.Platform ?? string.Empty;
+    }
+
     private string GetProgressMessage(string key)
     {
         if (_fileUploadProgressLookup.TryGetValue(key, out var value))
@@ -353,6 +438,8 @@ public partial class DeviceCard : AuthComponentBase
         {
             SelectedCards.Remove(Device.ID);
         }
+
+        SelectedCards.InvokeSelectionsChanged();
     }
 
     private async Task UninstallAgent()

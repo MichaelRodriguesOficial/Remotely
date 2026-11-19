@@ -3,21 +3,22 @@
 <div class="terminal-frame @_terminalOpenClass">
     <div class="terminal-header">
         <div>
-            <button class="btn btn-secondary terminal-button ms-4" @onclick="ToggleTerminalOpen">
-                <i class="oi oi-terminal"></i>
-                <span class="ms-2">Terminal</span>
+            <button class="btn terminal-button" @onclick="ToggleTerminalOpen" aria-expanded="@(_terminalOpenClass == "open")">
+                <i class="fa-solid fa-terminal"></i>
+                <span>Terminal</span>
+                <i class="fa-solid fa-chevron-up terminal-chevron"></i>
             </button>
         </div>
         <div class="text-end">
-            <button class="btn btn-secondary terminal-button me-4" @onclick="ShowQuickScripts">
-                <i class="oi oi-script"></i>
-                <span class="ms-2">Scripts rápidos</span>
+            <button class="btn terminal-button" @onclick="ShowQuickScripts">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Scripts rápidos</span>
             </button>
         </div>
 
     </div>
 
-    <div class="terminal-body border border-secondary bg-dark">
+    <div class="terminal-body">
         <div @ref="_terminalWindow" class="terminal-window px-2 py-1">
             
             @foreach (var line in TerminalStore.TerminalLines)
@@ -30,15 +31,14 @@
         <div>
             <div class="terminal-input-area px-2 mb-2">
                 <div>
-                    <button class="btn btn-sm btn-secondary me-1"
-                            style="align-self: center" 
+                    <button class="btn btn-sm terminal-help" title="Ajuda do terminal"
                             @onclick="ShowTerminalHelp">
-                        <i class="oi oi-question-mark"></i>
+                        <i class="fa-solid fa-circle-question"></i>
                     </button>
 
                 </div>
                 <div>
-                    <select @bind="_shell" class="form-control">
+                    <select @bind="_shell" class="form-select form-select-sm terminal-shell" aria-label="Shell">
                         @foreach (var shell in Enum.GetValues(typeof(ScriptingShell)))
                         {
                             <option @key="shell" value="@shell">@shell</option>
@@ -48,8 +48,8 @@
                 </div>
                 <div>
                     <input @ref="_terminalInput" 
-                           class="form-control" 
-                           placeholder="Digite um comando"
+                           class="form-control form-control-sm terminal-input" 
+                           placeholder="Digite um comando para os dispositivos selecionados"
                            spellcheck="false"
                            autocomplete="off"
                            @bind="InputText" 

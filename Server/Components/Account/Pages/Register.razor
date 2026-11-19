@@ -19,11 +19,12 @@
 @inject IWebHostEnvironment HostEnv
 
 <PageTitle>Cadastrar</PageTitle>
-<h1>Cadastrar</h1>
+<h1>Criar conta</h1>
 
 @if (!_registrationEnabled)
 {
-    <h2>O cadastro está desativado.</h2>
+    <h2>O cadastro de novas contas está desativado neste servidor. Peça um convite ao administrador.</h2>
+    <a class="btn btn-secondary w-100" href="Account/Login"><i class="fa-solid fa-arrow-left"></i> Voltar para o login</a>
 }
 else
 {
@@ -33,25 +34,27 @@ else
             <StatusMessage Message="@Message" />
             <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
                 <DataAnnotationsValidator />
-                <h2>Crie uma nova conta.</h2>
-                <hr />
                 <ValidationSummary class="text-danger" role="alert" />
                 <div class="form-floating mb-3">
-                    <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nome@exemplo.com.br" />
+                    <InputText id="email" @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nome@exemplo.com.br" />
                     <label for="email">E-mail</label>
                     <ValidationMessage For="() => Input.Email" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
+                    <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
                     <label for="password">Senha</label>
                     <ValidationMessage For="() => Input.Password" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
+                    <InputText id="confirm-password" type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
                     <label for="confirm-password">Confirmar senha</label>
                     <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
                 </div>
-                <button type="submit" class="w-100 btn btn-lg btn-primary">Cadastrar</button>
+                <p class="form-text mb-3">Use pelo menos 8 caracteres, com letra maiúscula, minúscula e número.</p>
+                <button type="submit" class="w-100 btn btn-lg btn-primary"><i class="fa-solid fa-user-plus"></i> Criar conta</button>
+                <div class="auth-links">
+                    <p>Já tem conta? <a href="Account/Login">Entrar</a></p>
+                </div>
             </EditForm>
         </div>
         @*<div class="col-md-6 col-md-offset-2">

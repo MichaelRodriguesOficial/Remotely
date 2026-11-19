@@ -3,11 +3,10 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IToastService Toasts
 
-<h3>Convite para organização</h3>
-<hr />
+<PageHeader Title="Convite para organização" Icon="fa-solid fa-envelope-open-text" />
 
-<div class="row">
-    <div class="col-sm-12">
+<div class="panel" style="max-width: 640px">
+    <div>
         @if (_joinSuccessful)
         {
             <h5>Parabéns!</h5>
@@ -24,13 +23,13 @@
         else
         {
             <div>
-                <div>
-                    <strong class="text-danger">ATENÇÃO: </strong>
-                    <p class="text-danger">Você sairá da organização atual e perderá acesso aos agentes dela, a menos que alguém convide você de novo.</p>
-                    <p>Tem certeza de que quer sair da organização atual e entrar nesta?</p>
+                <div class="alert alert-warning">
+                    <strong><i class="fa-solid fa-triangle-exclamation me-1"></i> Atenção:</strong>
+                    você sairá da organização atual e perderá acesso aos agentes dela, a menos que alguém convide você de novo.
                 </div>
-                <div class="form-group">
-                    <button type="button" class="btn btn-secondary me-3" onclick="location.assign(location.origin)">Cancelar</button>
+                <p>Tem certeza de que quer sair da organização atual e entrar nesta?</p>
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="button" class="btn btn-secondary" onclick="location.assign(location.origin)">Cancelar</button>
                     <button type="button" class="btn btn-danger" @onclick="Confirm">Confirmar</button>
                 </div>
             </div>

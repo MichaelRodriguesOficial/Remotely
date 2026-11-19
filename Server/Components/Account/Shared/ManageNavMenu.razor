@@ -3,29 +3,17 @@
 
 @inject SignInManager<RemotelyUser> SignInManager
 
-<ul class="nav nav-pills flex-column">
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Perfil</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email">E-mail</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword">Senha</NavLink>
-    </li>
+<nav class="settings-nav" aria-label="Minha conta">
+    <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All"><i class="fa-solid fa-id-card"></i> Perfil</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/Email"><i class="fa-solid fa-envelope"></i> E-mail</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/ChangePassword"><i class="fa-solid fa-lock"></i> Senha</NavLink>
     @if (hasExternalLogins)
     {
-        <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins">Logins externos</NavLink>
-        </li>
+    <NavLink class="nav-link" href="Account/Manage/ExternalLogins"><i class="fa-solid fa-link"></i> Logins externos</NavLink>
     }
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Autenticação em dois fatores</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData">Dados pessoais</NavLink>
-    </li>
-</ul>
+    <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication"><i class="fa-solid fa-shield-halved"></i> Verificação em duas etapas</NavLink>
+    <NavLink class="nav-link" href="Account/Manage/PersonalData"><i class="fa-solid fa-database"></i> Dados pessoais</NavLink>
+</nav>
 
 @code {
     private bool hasExternalLogins;

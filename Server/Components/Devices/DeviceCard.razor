@@ -1,241 +1,212 @@
 ﻿@attribute [Authorize]
 @inherits AuthComponentBase
 
-<div @ref="_card" class="card border-secondary my-3 me-3 device-card @_theme @GetCardStateClass()"
+<div @ref="_card" class="device-card @_theme @GetCardStateClass() @(IsSelected ? "selected" : "") @(Device.IsOnline ? "online" : "offline")"
      @onclick="ExpandCard"
      @onclick:stopPropagation
      @oncontextmenu="ContextMenuOpening"
      @oncontextmenu:preventDefault="_state == DeviceCardState.Normal"
      @oncontextmenu:stopPropagation="_state == DeviceCardState.Normal">
 
-    <div class="card-header" @onclick="HandleHeaderClick" 
-         @onclick:stopPropagation="_state == DeviceCardState.Expanded"
-         @onclick:preventDefault="_state == DeviceCardState.Expanded">
-        <div>
-            @if (Device.IsOnline)
-            {
-                if (IsOutdated)
-                {
-                    <i class="oi oi-power-standby text-warning" title="Agente desatualizado"></i>
-                }
-                else
-                {
-                    <i class="oi oi-power-standby text-success" title="Online"></i>
-                }
-            }
-            else
-            {
-                <i class="oi oi-power-standby text-danger" title="Offline"></i>
-            }
+    <div class="dc-head" @onclick="HandleHeaderClick"
+         @onclick:stopPropagation="IsExpanded"
+         @onclick:preventDefault="IsExpanded">
+        <span class="os-icon @GetOsClass()" title="@Device.Platform">
+            <i class="@GetOsIcon()"></i>
+        </span>
+        <div class="dc-title">
+            <div class="dc-name" title="@Device.DeviceName">@Device.DeviceName</div>
+            <div class="dc-sub" title="@GetSubtitle()">@GetSubtitle()</div>
         </div>
-        <div class="overflow-hidden ms-2">
-            <div class="d-inline-block">
-                <div>@Device.DeviceName</div>
-
-                <div class="small text-muted" style="height: 1rem">@Device.Alias</div>
-            </div>
-            
-        </div>
-        <div class="text-end">
+        <div class="dc-head-actions">
             @if (IsExpanded)
             {
-                <button class="btn btn-sm me-2" title="Abrir em nova aba"
+                <button class="btn btn-ghost btn-icon btn-sm" title="Abrir detalhes em nova aba"
                         @onclick:stopPropagation
                         @onclick="OpenDeviceDetails">
-                    <i class="oi oi-external-link" style="font-size: 1.3em"></i>
+                    <i class="fa-solid fa-up-right-from-square"></i>
+                </button>
+                <button class="btn btn-ghost btn-icon btn-sm" title="Recolher">
+                    <i class="fa-solid fa-chevron-up"></i>
                 </button>
             }
             <input type="checkbox"
-                   class="align-middle"
+                   class="form-check-input dc-check"
+                   title="Selecionar"
+                   aria-label="Selecionar @Device.DeviceName"
                    checked="@IsSelected"
                    @onchange="ToggleIsSelected"
                    @onclick:stopPropagation />
         </div>
-
     </div>
 
-    <div class="card-body">
-        @if (_fileUploadProgressLookup.Any())
+    <div class="dc-status">
+        @if (!Device.IsOnline)
         {
-            foreach (var kvp in _fileUploadProgressLookup)
-            {
-                <div class="alert alert-info">
-                    @(GetProgressMessage(kvp.Key))
-                </div>
-            }
-        } 
-        <div>
-            <div class="font-weight-bold text-info">
-                <label>Usuário</label>
-            </div>
-            <div>
-                @Device.CurrentUser
-            </div>
+            <span class="pill">Offline</span>
+            <span class="dc-muted" title="Última conexão">@GetLastSeen()</span>
+        }
+        else if (IsOutdated)
+        {
+            <span class="pill warning" title="Versão @Device.AgentVersion">Agente desatualizado</span>
+        }
+        else
+        {
+            <span class="pill success">Online</span>
+        }
+        @if (!string.IsNullOrWhiteSpace(Device.CurrentUser))
+        {
+            <span class="dc-user" title="Usuário conectado">
+                <i class="fa-regular fa-user"></i> @Device.CurrentUser
+            </span>
+        }
+    </div>
 
-            <div style="grid-row: span 2" class="expanded-visible"></div>
-            <div style="grid-row: span 2" class="expanded-visible">
-                <DropdownButton DropDownMenuClass="dropdown-menu-end mb-2" ButtonClass="btn-primary">
+    @if (_fileUploadProgressLookup.Any())
+    {
+        foreach (var kvp in _fileUploadProgressLookup)
+        {
+            <div class="alert alert-info py-2 px-3 mx-3 mb-2 small">
+                <i class="fa-solid fa-upload"></i> @(GetProgressMessage(kvp.Key))
+            </div>
+        }
+    }
+
+    <div class="dc-metrics">
+        <div class="dc-metric">
+            <div class="dc-metric-label"><span>CPU</span><span>@FormatPercent(Device.CpuUtilization)</span></div>
+            <div class="meter @GetMeterClass(Device.CpuUtilization)"><span style="width: @GetMeterWidth(Device.CpuUtilization)"></span></div>
+        </div>
+        <div class="dc-metric">
+            <div class="dc-metric-label"><span>Memória</span><span>@FormatPercent(Device.UsedMemoryPercent)</span></div>
+            <div class="meter @GetMeterClass(Device.UsedMemoryPercent)"><span style="width: @GetMeterWidth(Device.UsedMemoryPercent)"></span></div>
+        </div>
+        <div class="dc-metric">
+            <div class="dc-metric-label"><span>Disco</span><span>@FormatPercent(Device.UsedStoragePercent)</span></div>
+            <div class="meter @GetMeterClass(Device.UsedStoragePercent)"><span style="width: @GetMeterWidth(Device.UsedStoragePercent)"></span></div>
+        </div>
+    </div>
+
+    @if (!IsExpanded)
+    {
+        <div class="dc-actions">
+            <button class="btn btn-sm btn-primary" title="Controle remoto"
+                    disabled="@(!Device.IsOnline)"
+                    @onclick="() => StartRemoteControl(false)"
+                    @onclick:stopPropagation>
+                <i class="fa-solid fa-desktop"></i> Conectar
+            </button>
+            <button class="btn btn-sm btn-secondary btn-icon" title="Chat"
+                    disabled="@(!Device.IsOnline)"
+                    @onclick="StartChat"
+                    @onclick:stopPropagation>
+                <i class="fa-regular fa-comment"></i>
+            </button>
+            <button class="btn btn-sm btn-secondary btn-icon" title="Somente visualizar"
+                    disabled="@(!Device.IsOnline)"
+                    @onclick="() => StartRemoteControl(true)"
+                    @onclick:stopPropagation>
+                <i class="fa-regular fa-eye"></i>
+            </button>
+            <span class="dc-more" title="Clique no card para ver detalhes">
+                <i class="fa-solid fa-ellipsis"></i>
+            </span>
+        </div>
+    }
+    else
+    {
+        <div class="dc-expanded">
+            <div class="dc-toolbar">
+                <button class="btn btn-primary" disabled="@(!Device.IsOnline)" @onclick="() => StartRemoteControl(false)">
+                    <i class="fa-solid fa-desktop"></i> Controle remoto
+                </button>
+                <button class="btn btn-secondary" disabled="@(!Device.IsOnline)" @onclick="() => StartRemoteControl(true)">
+                    <i class="fa-regular fa-eye"></i> Somente visualizar
+                </button>
+                <button class="btn btn-secondary" disabled="@(!Device.IsOnline)" @onclick="StartChat">
+                    <i class="fa-regular fa-comment"></i> Chat
+                </button>
+                <DropdownButton DropDownMenuClass="dropdown-menu-end" ButtonClass="btn-secondary">
                     <ButtonContent>
-                        <i class="oi oi-bolt"></i>
-                        <span class="ms-2">Ações</span>
+                        <i class="fa-solid fa-ellipsis"></i> Mais
                     </ButtonContent>
                     <ChildListItems>
                         <li>
-                            <button class="dropdown-item" @onclick="StartChat">
-                                <i class="oi oi-chat" title="Chat"></i>
-                                <span class="ms-2">Chat</span>
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item" @onclick="() => StartRemoteControl(false)">
-                                <i class="oi oi-laptop" title="Controle remoto"></i>
-                                <span class="ms-2">Controle remoto</span>
-                            </button>
-                        </li>
-                        <li>
-                            <button class="dropdown-item" @onclick="() => StartRemoteControl(true)">
-                                <i class="oi oi-eye" title="Somente visualizar"></i>
-                                <span class="ms-2">Somente visualizar</span>
-                            </button>
-                        </li>
-                        <li>
                             <button class="dropdown-item" @onclick="() => WakeDevice()">
-                                <i class="oi oi-power-standby" title="Ligar dispositivo (Wake-on-LAN)"></i>
-                                <span class="ms-2">Ligar (WoL)</span>
+                                <i class="fa-solid fa-power-off"></i> Ligar (Wake-on-LAN)
                             </button>
                         </li>
                         <li>
-                            <FileInputButton ClassNames="dropdown-item btn btn-primary"
+                            <FileInputButton ClassNames="dropdown-item"
                                              OnChanged="OnFileInputChanged">
                                 <ButtonContent>
-                                    <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
-                                    <span class="ms-2">Enviar arquivo</span>
+                                    <i class="fa-solid fa-upload"></i> Enviar arquivo
                                 </ButtonContent>
                             </FileInputButton>
                         </li>
                         <li>
-                            <button class="dropdown-item bg-danger" @onclick="UninstallAgent">
-                                <i class="oi oi-delete" title="Desinstalar"></i>
-                                <span class="ms-2">Desinstalar</span>
+                            <button class="dropdown-item" @onclick="ShowAllDisks">
+                                <i class="fa-solid fa-hard-drive"></i> Ver todos os discos
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <button class="dropdown-item text-danger" @onclick="UninstallAgent">
+                                <i class="fa-solid fa-trash-can"></i> Desinstalar agente
                             </button>
                         </li>
                     </ChildListItems>
                 </DropdownButton>
             </div>
 
-            <div class="font-weight-bold text-info">
-                <label>Plataforma</label>
-            </div>
-            <div>
-                @Device.Platform
-            </div>
+            <div class="dc-columns">
+                <section>
+                    <h3 class="dc-section-title">Sistema</h3>
+                    <dl class="dc-info">
+                        <dt>Sistema operacional</dt>
+                        <dd>@(Device.OSDescription ?? Device.Platform)</dd>
 
-            <div class="font-weight-bold text-info">
-                <label>Disco</label>
-                <button class="btn btn-link p-0 m-0 expanded-visible"
-                        style="font-size: 50%"
-                        @onclick="ShowAllDisks" 
-                        @onclick:stopPropagation>
-                    (Ver todos)
-                </button>
-            </div>
-            <div>
-                @(MathHelper.GetFormattedPercent(Device.UsedStoragePercent))
-            </div>
+                        <dt>Arquitetura</dt>
+                        <dd>@Device.OSArchitecture · @Device.ProcessorCount núcleos</dd>
 
-            <div class="font-weight-bold text-info expanded-visible">
-                Armazenamento total
-            </div>
-            <div class="expanded-visible">
-                @(Device.TotalStorage) GB
-            </div>
+                        <dt>Memória</dt>
+                        <dd>@Device.UsedMemory.ToString("N1") de @Device.TotalMemory.ToString("N1") GB</dd>
 
+                        <dt>Armazenamento</dt>
+                        <dd>@Device.UsedStorage.ToString("N1") de @Device.TotalStorage.ToString("N1") GB</dd>
 
-            <div class="font-weight-bold text-info">
-                <label>Memória</label>
-            </div>
-            <div>
-                @(MathHelper.GetFormattedPercent(Device.UsedMemoryPercent))
-            </div>
+                        <dt>Versão do agente</dt>
+                        <dd>@Device.AgentVersion</dd>
 
-            <div class="font-weight-bold text-info expanded-visible">
-                Memória total
-            </div>
-            <div class="expanded-visible">
-                @(Device.TotalMemory) GB
-            </div>
+                        <dt>Última conexão</dt>
+                        <dd>@Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
 
-            @if (IsExpanded)
-            {
-                <div class="font-weight-bold text-info">
-                    <label>CPU</label>
-                </div>
-                <div>
-                    @MathHelper.GetFormattedPercent(Device.CpuUtilization)
-                </div>
-            }
+                        <dt>IP público</dt>
+                        <dd class="mono">@Device.PublicIP</dd>
 
-        </div>
-        <div>
-            <div class="mt-2" style="grid-column: span 4">
-                @if (IsExpanded)
-                {
-                    <div class="font-weight-bold text-info mt-2">
-                        ID do dispositivo
-                    </div>
-                    <div>
-                        <input class="form-control" readonly value="@Device.ID" />
-                    </div>
+                        <dt>Endereços MAC</dt>
+                        <dd class="mono">@(string.Join(", ", Device.MacAddresses ?? Array.Empty<string>()))</dd>
 
-                    <div class="font-weight-bold text-info mt-2">
-                        Versão do agente
-                    </div>
-                    <div>
-                        <input class="form-control" readonly value="@Device.AgentVersion" />
-                    </div>
+                        <dt>ID do dispositivo</dt>
+                        <dd class="mono small">@Device.ID</dd>
+                    </dl>
+                </section>
 
-                    <div class="font-weight-bold text-info mt-2">
-                        Última conexão
-                    </div>
-                    <div>
-                        <input class="form-control" readonly value="@Device.LastOnline" />
-                    </div>
-
-                    <div class="font-weight-bold text-info mt-2">
-                        IP público
-                    </div>
-                    <div>
-                        <input class="form-control" readonly value="@Device.PublicIP" />
-                    </div>
-
-                    <div class="font-weight-bold text-info mt-2">
-                        Endereços MAC
-                    </div>
-                    <div>
-                        <input 
-                            class="form-control" 
-                            readonly 
-                            value="@(string.Join(", ", Device.MacAddresses ?? Array.Empty<string>()))" />
-                    </div>
-
+                <section>
+                    <h3 class="dc-section-title">Identificação</h3>
                     <EditForm Model="Device" OnValidSubmit="HandleValidSubmit">
                         <DataAnnotationsValidator />
 
-                        <div class="font-weight-bold text-info mt-2">
-                            Apelido do dispositivo
-                        </div>
-                        <div>
-                            <InputText class="form-control" @bind-Value="@Device.Alias" />
+                        <div class="mb-3">
+                            <label class="form-label" for="alias-@Device.ID">Apelido</label>
+                            <InputText id="@($"alias-{Device.ID}")" class="form-control" placeholder="Ex.: Recepção 01" @bind-Value="@Device.Alias" />
                             <ValidationMessage For="() => Device.Alias" />
                         </div>
 
-                        <div class="font-weight-bold text-info mt-2">
-                            Grupo de dispositivos
-                        </div>
-                        <div>
-                            <InputSelect @bind-Value="Device.DeviceGroupID" class="form-control">
+                        <div class="mb-3">
+                            <label class="form-label" for="group-@Device.ID">Grupo</label>
+                            <InputSelect id="@($"group-{Device.ID}")" @bind-Value="Device.DeviceGroupID" class="form-select">
                                 <option value="">Nenhum</option>
-
                                 @foreach (var group in _deviceGroups)
                                 {
                                     <option @key="group.ID" value="@group.ID">@group.Name</option>
@@ -244,33 +215,28 @@
                             <ValidationMessage For="() => Device.DeviceGroupID" />
                         </div>
 
-                        <div class="font-weight-bold text-info mt-2">
-                            Tags
-                        </div>
-                        <div>
-                            <InputText @bind-Value="Device.Tags" class="form-control" />
+                        <div class="mb-3">
+                            <label class="form-label" for="tags-@Device.ID">Tags</label>
+                            <InputText id="@($"tags-{Device.ID}")" @bind-Value="Device.Tags" class="form-control" placeholder="Separe por vírgula" />
                             <ValidationMessage For="() => Device.Tags" />
                         </div>
 
-                        <div class="font-weight-bold text-info mt-2">
-                            Observações
-                        </div>
-                        <div>
-                            <InputTextArea @bind-Value="Device.Notes" style="width:100%; height: 10em;"></InputTextArea>
+                        <div class="mb-3">
+                            <label class="form-label" for="notes-@Device.ID">Observações</label>
+                            <InputTextArea id="@($"notes-{Device.ID}")" @bind-Value="Device.Notes" class="form-control" rows="4"></InputTextArea>
                             <ValidationMessage For="() => Device.Notes" />
                         </div>
 
-                        <div>
-                            <ValidationSummary />
-                        </div>
+                        <ValidationSummary />
 
-                        <div class="text-end mt-2">
-                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk"></i> Salvar
+                            </button>
                         </div>
                     </EditForm>
-
-                }
+                </section>
             </div>
         </div>
-    </div>
+    }
 </div>

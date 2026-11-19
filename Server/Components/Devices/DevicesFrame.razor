@@ -1,97 +1,159 @@
 ﻿@attribute [Authorize]
 @inherits AuthComponentBase
 
-<h3>Dispositivos</h3>
+<PageHeader Title="Dispositivos"
+            Subtitle="Computadores com o agente instalado na sua organização."
+            Icon="fa-solid fa-display">
+    <Actions>
+        <AlertsFrame />
+        <a class="btn btn-secondary" href="deploy">
+            <i class="fa-solid fa-plus"></i> Adicionar dispositivo
+        </a>
+        <button class="btn btn-primary" @onclick="HandleRefreshClicked">
+            <i class="fa-solid fa-rotate"></i> Atualizar
+        </button>
+    </Actions>
+</PageHeader>
 
 <div @onclick="ClearSelectedCard">
-    <div id="deviceControlsWrapper">
-        <div>
-            <div>
-                <div>Grupo de dispositivos</div>
-                <div class="text-nowrap">
-                    <select class="form-control d-inline" style="width: 150px" @bind="_selectedGroupId">
-                        <option value="@_deviceGroupAll">Todos</option>
-                        <option value="@_deviceGroupNone">Nenhum</option>
-                        @foreach (var group in _deviceGroups)
-                        {
-                            <option @key="group.ID" value="@group.ID">@group.Name</option>
-                        }
-                    </select>
-                    <button class="btn btn-sm btn-secondary" title="Ligar dispositivos do grupo (Wake-on-LAN)" style="width: 40px; margin-left: 5px;" @onclick="WakeDevices">
-                        <span class="oi oi-power-standby"></span>
-                    </button>
-
-                </div>
-            </div>
-
-            <div>
-                <div class="mt-1">Ordenar</div>
-                <select class="form-control d-inline" style="width: 150px" @bind="_selectedSortProperty">
-                    <option value=""></option>
-                    @foreach (var prop in _sortableProperties)
-                    {
-                        <option value="@prop.Name">@GetDisplayName(prop)</option>
-                    }
-                </select>
-                <button class="btn btn-sm btn-secondary" title="Direção da ordenação" style="width: 40px; margin-left: 5px;" @onclick="ToggleSortDirection">
-                    <span class="oi @GetSortIcon()"></span>
-                </button>
-            </div>
-
-            <div class="custom-control custom-checkbox mt-2">
-                <input id="hideOfflineDevicesCheckbox" type="checkbox" class="custom-control-input align-middle" @bind="_hideOfflineDevices" />
-                <label class="custom-control-label align-middle" for="hideOfflineDevicesCheckbox">Ocultar dispositivos offline</label>
-            </div>
-            <div class="mt-2">
-                <button class="btn btn-sm btn-secondary me-2" @onclick="SelectAllCards">Selecionar todos</button>
-                <button class="btn btn-sm btn-primary" @onclick="HandleRefreshClicked">Atualizar</button>
-            </div>
+    <div class="stat-grid">
+        <button type="button" class="stat-tile @(!_hideOfflineDevices ? "active" : "")" title="Mostrar todos" @onclick="ShowAllDevices" @onclick:stopPropagation>
+            <span class="stat-icon"><i class="fa-solid fa-display"></i></span>
+            <span>
+                <span class="stat-value d-block">@_allDevices.Count</span>
+                <span class="stat-label">Dispositivos</span>
+            </span>
+        </button>
+        <button type="button" class="stat-tile @(_hideOfflineDevices ? "active" : "")" title="Mostrar somente online" @onclick="ShowOnlineDevices" @onclick:stopPropagation>
+            <span class="stat-icon success"><i class="fa-solid fa-signal"></i></span>
+            <span>
+                <span class="stat-value d-block">@OnlineCount</span>
+                <span class="stat-label">Online agora</span>
+            </span>
+        </button>
+        <div class="stat-tile">
+            <span class="stat-icon muted"><i class="fa-solid fa-moon"></i></span>
+            <span>
+                <span class="stat-value d-block">@(_allDevices.Count - OnlineCount)</span>
+                <span class="stat-label">Offline</span>
+            </span>
         </div>
-         
-        <div>
-            <div class="d-inline-block text-start">
-                <div>
-                    <div>Pesquisar</div>
-                    <input class="form-control d-inline"
-                           style="width: 200px"
-                           placeholder="Pesquisar nos dispositivos"
-                           @bind="_filter" />
-                </div>
-
-                <div class="mt-2" style="white-space: nowrap">
-                    <button class="btn btn-sm btn-secondary" @onclick="PageDown">
-                        <i class="oi oi-chevron-left"></i>
-                    </button>
-                    <span class="small">Página</span>
-                    <input id="currentPageInput" style="width:75px; text-align: center" pattern="[0-9]" @bind="_currentPage" @bind:event="oninput" />
-                    <span class="small">de</span>
-                    <span>@TotalPages</span>
-                    <button class="btn btn-sm btn-secondary" @onclick="PageUp">
-                        <i class="oi oi-chevron-right"></i>
-                    </button>
-                </div>
-
-                <div class="mt-2">
-                    <select class="form-control d-inline" style="width:100px" @bind="_devicesPerPage">
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="200">200</option>
-                    </select>
-                    <span class="ms-1 small">por página</span>
-                </div>
-            </div>
-           
-
+        <div class="stat-tile">
+            <span class="stat-icon warning"><i class="fa-solid fa-check-double"></i></span>
+            <span>
+                <span class="stat-value d-block">@SelectedCount</span>
+                <span class="stat-label">Selecionados</span>
+            </span>
         </div>
     </div>
-    <div id="deviceListDiv" class="p-2 mb-5">
-        @foreach (var device in DisplayedDevices)
-        {
-            <CascadingValue Value="this">
-                <DeviceCard @key="device.ID" Device="device" />
-            </CascadingValue>
-        }
+
+    <div class="toolbar" @onclick:stopPropagation>
+        <div class="grow input-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control"
+                   type="search"
+                   placeholder="Pesquisar por nome, apelido, usuário, tag ou observação"
+                   aria-label="Pesquisar dispositivos"
+                   @bind="_filter"
+                   @bind:event="oninput" />
+        </div>
+
+        <div class="toolbar-group" title="Grupo de dispositivos">
+            <select class="form-select" aria-label="Grupo de dispositivos" @bind="_selectedGroupId">
+                <option value="@_deviceGroupAll">Todos os grupos</option>
+                <option value="@_deviceGroupNone">Sem grupo</option>
+                @foreach (var group in _deviceGroups)
+                {
+                    <option @key="group.ID" value="@group.ID">@group.Name</option>
+                }
+            </select>
+            <button class="btn btn-secondary btn-icon" title="Ligar os dispositivos offline do grupo (Wake-on-LAN)" @onclick="WakeDevices">
+                <i class="fa-solid fa-power-off"></i>
+            </button>
+        </div>
+
+        <div class="toolbar-group" title="Ordenar">
+            <select class="form-select" aria-label="Ordenar por" @bind="_selectedSortProperty">
+                <option value="">Sem ordenação</option>
+                @foreach (var prop in _sortableProperties)
+                {
+                    <option value="@prop.Name">@GetDisplayName(prop)</option>
+                }
+            </select>
+            <button class="btn btn-secondary btn-icon" title="Inverter ordenação" @onclick="ToggleSortDirection">
+                <i class="fa-solid @GetSortIcon()"></i>
+            </button>
+        </div>
+
+        <label class="check-chip" for="hideOfflineDevicesCheckbox">
+            <input id="hideOfflineDevicesCheckbox" type="checkbox" class="form-check-input" @bind="_hideOfflineDevices" />
+            Só online
+        </label>
+
+        <button class="btn btn-secondary" @onclick="SelectAllCards">
+            <i class="fa-regular @(SelectedCount > 0 ? "fa-square-minus" : "fa-square-check")"></i>
+            @(SelectedCount > 0 ? "Limpar seleção" : "Selecionar todos")
+        </button>
+    </div>
+
+    @{
+        var displayed = DisplayedDevices;
+    }
+
+    @if (displayed.Length == 0)
+    {
+        <div class="empty-state mt-4">
+            <div class="empty-icon"><i class="fa-solid fa-display"></i></div>
+            @if (_allDevices.Count == 0)
+            {
+                <h3>Nenhum dispositivo ainda</h3>
+                <p>Instale o agente nos computadores para que eles apareçam aqui.</p>
+                <a class="btn btn-primary" href="deploy"><i class="fa-solid fa-rocket"></i> Implantar agente</a>
+            }
+            else
+            {
+                <h3>Nada encontrado</h3>
+                <p>Nenhum dispositivo corresponde aos filtros atuais.</p>
+                @if (_hideOfflineDevices)
+                {
+                    <button class="btn btn-secondary" @onclick="ShowAllDevices" @onclick:stopPropagation>Mostrar também os offline</button>
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <div id="deviceListDiv">
+            @foreach (var device in displayed)
+            {
+                <CascadingValue Value="this">
+                    <DeviceCard @key="device.ID" Device="device" />
+                </CascadingValue>
+            }
+        </div>
+    }
+
+    <div class="pager" @onclick:stopPropagation>
+        <div>
+            @_filteredDevices.Count dispositivo(s) encontrados
+        </div>
+        <div class="toolbar-group">
+            <button class="btn btn-sm btn-secondary btn-icon" title="Página anterior" disabled="@(_currentPage <= 1)" @onclick="PageDown">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <span>Página</span>
+            <input id="currentPageInput" class="form-control form-control-sm" inputmode="numeric" aria-label="Página atual" @bind="_currentPage" @bind:event="oninput" />
+            <span>de @TotalPages</span>
+            <button class="btn btn-sm btn-secondary btn-icon" title="Próxima página" disabled="@(_currentPage >= TotalPages)" @onclick="PageUp">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+            <select class="form-select form-select-sm ms-2" aria-label="Dispositivos por página" @bind="_devicesPerPage">
+                <option value="25">25 por página</option>
+                <option value="50">50 por página</option>
+                <option value="100">100 por página</option>
+                <option value="200">200 por página</option>
+            </select>
+        </div>
     </div>
 
     <Terminal />

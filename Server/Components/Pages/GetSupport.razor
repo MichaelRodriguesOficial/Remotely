@@ -7,14 +7,17 @@
 
 @if (string.IsNullOrWhiteSpace(DeviceId))
 {
-    <h3 class="mb-3">Solicitar suporte</h3>
-    <p>
+    <PageHeader Title="Solicitar suporte" Icon="fa-solid fa-life-ring" />
+    <p class="text-muted">
         ID do dispositivo ausente. Use um atalho válido para a página de suporte, que já inclui o ID do dispositivo.
     </p>
 }
 else
 {
-    <div class="col-sm-6">
+    <PageHeader Title="Solicitar suporte"
+                Subtitle="Preencha seus dados e a equipe de TI vai entrar em contato."
+                Icon="fa-solid fa-life-ring" />
+    <div class="panel" style="max-width: 560px">
         @if (!string.IsNullOrWhiteSpace(_statusMessage))
         {
             <div class="alert @(_alertClass) alert-dismissible" role="alert">
@@ -23,7 +26,6 @@ else
             </div>
         }
 
-        <h3 class="mb-3 mt-3">Solicitar suporte</h3>
         <EditForm Model="Input" OnValidSubmit="OnValidSubmitAsync">
             <DataAnnotationsValidator />
             <ValidationSummary class="text-danger" role="alert" />
@@ -51,7 +53,7 @@ else
                 <ValidationMessage For="() => Input.ChatResponseOk" />
             </div>
             <div class="text-end">
-                <button type="submit" class="btn btn-primary">Enviar</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Enviar pedido</button>
             </div>
         </EditForm>
     </div>

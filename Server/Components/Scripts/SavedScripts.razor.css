@@ -10,7 +10,9 @@
 }
 
 .scripts-tree-view {
-    border-radius: 5px;
+    border: 1px solid var(--rm-border);
+    background: var(--rm-surface);
+    border-radius: var(--rm-radius);
     padding: .5em;
 
 }

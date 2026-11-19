@@ -1,3 +1,4 @@
+﻿using Microsoft.OpenApi.Models;
 using Remotely.Server.Extensions;
 using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.Authorization;
@@ -21,6 +22,7 @@ using Remotely.Server.Services;
 using Remotely.Server.Services.Stores;
 using Remotely.Shared.Entities;
 using Remotely.Shared.Services;
+using Remotely.Shared.Utilities;
 using Serilog;
 using System.Net;
 using System.Threading.RateLimiting;
@@ -45,6 +47,8 @@ services
     .AddInteractiveServerComponents();
 
 services.AddRazorPages();
+// Registra o ApiExplorer dos controllers, usado pelo Swagger.
+services.AddControllers();
 
 services.AddCascadingAuthenticationState();
 services.AddScoped<IdentityUserAccessor>();
@@ -300,7 +304,59 @@ services.AddHostedService<RemoteControlSessionCleaner>();
 services.AddHostedService<RemoteControlSessionReconnector>();
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Remotely API",
+        Version = AppVersionHelper.GetAppVersion(),
+        Description =
+            "API do Remotely. Autentique com uma chave criada em **Chaves de API** no painel, " +
+            "enviando o cabeçalho `X-Api-Key: {id-da-chave}:{segredo}`. " +
+            "Chamadas feitas a partir desta página com a sessão do navegador também são aceitas.",
+        Contact = new OpenApiContact
+        {
+            Name = "Michael Rodrigues",
+            Url = new Uri("https://github.com/MichaelRodriguesOficial/Remotely")
+        },
+        License = new OpenApiLicense
+        {
+            Name = "GPL-3.0",
+            Url = new Uri("https://github.com/MichaelRodriguesOficial/Remotely/blob/master/LICENSE")
+        }
+    });
+
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Name = "X-Api-Key",
+        Description = "Chave de API no formato {id-da-chave}:{segredo}."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "ApiKey"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // Tipos com o mesmo nome em namespaces diferentes não podem colidir no documento.
+    options.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
+    options.ResolveConflictingActions(descriptions => descriptions.First());
+
+    // Só os endpoints /api entram na documentação; as rotas internas de login ficam de fora.
+    options.DocInclusionPredicate((_, description) =>
+        description.RelativePath?.StartsWith("api/", StringComparison.OrdinalIgnoreCase) == true);
+});
 
 var app = builder.Build();
 
@@ -354,12 +410,6 @@ else
     }
 }
 
-if (app.Environment.IsDevelopment() || appOptions?.EnableSwagger == true)
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 ConfigureStaticFiles();
 
 app.UseRouting();
@@ -368,6 +418,38 @@ app.UseRouting();
 app.UseCors("TrustedOriginPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (app.Environment.IsDevelopment() || appOptions?.EnableSwagger != false)
+{
+    // A documentação da API fica disponível só para usuários logados no painel.
+    app.Use(async (context, next) =>
+    {
+        if (context.Request.Path.StartsWithSegments("/swagger") &&
+            context.User.Identity?.IsAuthenticated != true)
+        {
+            if (context.Request.Path.Value?.EndsWith(".json", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            var returnUrl = Uri.EscapeDataString($"{context.Request.PathBase}{context.Request.Path}");
+            context.Response.Redirect($"{context.Request.PathBase}/Account/Login?ReturnUrl={returnUrl}");
+            return;
+        }
+
+        await next();
+    });
+
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.DocumentTitle = "Remotely API";
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Remotely API v1");
+        options.DisplayRequestDuration();
+        options.EnableTryItOutByDefault();
+    });
+}
 
 app.UseAntiforgery();
 

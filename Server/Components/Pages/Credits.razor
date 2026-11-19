@@ -1,42 +1,72 @@
-﻿@page "/credits"
+@page "/credits"
 
-<h4>Créditos e licenças de código aberto</h4>
+<PageHeader Title="Créditos e licenças"
+            Subtitle="Pessoas e projetos de código aberto que tornam o Remotely possível. Obrigado!"
+            Icon="fa-solid fa-scale-balanced" />
 
-<div class="row">
-    <div class="col-sm-12 text-info mb-1">
-        Os projetos de código aberto abaixo são usados no Remotely.
-    </div>
-    <div class="col-sm-12 text-info mb-3">
-        Se você contribuiu com algum deles, obrigado!
-    </div>
+<h2 class="section-title mt-0">Projeto</h2>
+<div class="platform-grid mb-2">
+    @foreach (var person in _people)
+    {
+        <div class="platform-card">
+            <div class="platform-card-head">
+                <span class="os-icon"><i class="@person.Icon"></i></span>
+                <div><strong>@person.Name</strong><span>@person.Role</span></div>
+            </div>
+            <div class="links">
+                <a class="btn btn-secondary btn-sm" href="@person.Url" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i> GitHub</a>
+            </div>
+        </div>
+    }
 </div>
-<div class="row">
-    <div class="col-sm-6 col-md-4">
-        <h5>Bootswatch (temas Bootstrap)</h5>
-        <ul>
-            <li>Licença: <a href="https://github.com/thomaspark/bootswatch/blob/master/LICENSE">https://github.com/thomaspark/bootswatch/blob/master/LICENSE</a></li>
-            <li>Projeto: <a href="https://github.com/thomaspark/bootswatch">https://github.com/thomaspark/bootswatch</a></li>
-        </ul>
-    </div>
-    <div class="col-sm-6 col-md-4">
-        <h5>NAudio</h5>
-        <ul>
-            <li>Licença: <a href="https://github.com/naudio/NAudio/blob/master/license.txt">https://github.com/naudio/NAudio/blob/master/license.txt</a></li>
-            <li>Projeto: <a href="https://github.com/naudio/NAudio">https://github.com/naudio/NAudio</a></li>
-        </ul>
-    </div>
-    <div class="col-sm-6 col-md-4">
-        <h5>SharpDX</h5>
-        <ul>
-            <li>Licença: <a href="https://github.com/sharpdx/SharpDX/blob/master/LICENSE">https://github.com/sharpdx/SharpDX/blob/master/LICENSE</a></li>
-            <li>Projeto: <a href="https://github.com/sharpdx/SharpDX">https://github.com/sharpdx/SharpDX</a></li>
-        </ul>
-    </div>
-    <div class="col-sm-6 col-md-4">
-        <h5>QRCoder</h5>
-        <ul>
-            <li>Licença: <a href="https://github.com/codebude/QRCoder/blob/master/LICENSE.txt">https://github.com/codebude/QRCoder/blob/master/LICENSE.txt</a></li>
-            <li>Projeto: <a href="https://github.com/codebude/QRCoder/">https://github.com/codebude/QRCoder/</a></li>
-        </ul>
-    </div>
+
+<h2 class="section-title">Bibliotecas de terceiros</h2>
+<div class="table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Projeto</th>
+                <th>Uso no Remotely</th>
+                <th>Licença</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var lib in _libraries)
+            {
+                <tr>
+                    <td><a href="@lib.Url" target="_blank" rel="noopener" class="fw-600">@lib.Name</a></td>
+                    <td class="text-muted">@lib.Usage</td>
+                    <td><span class="pill no-dot">@lib.License</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
 </div>
+
+@code {
+    private sealed record Person(string Name, string Role, string Url, string Icon);
+    private sealed record Library(string Name, string Usage, string License, string Url);
+
+    private static readonly Person[] _people =
+    [
+        new("Michael Rodrigues", "Mantenedor deste fork", "https://github.com/MichaelRodriguesOficial", "fa-solid fa-user-gear"),
+        new("Jared Goodwin", "Criador do Remotely (Immense Networks)", "https://github.com/bitbound", "fa-solid fa-code"),
+        new("Comunidade Remotely", "Contribuidores do projeto original", "https://github.com/immense/Remotely/graphs/contributors", "fa-solid fa-users"),
+    ];
+
+    private static readonly Library[] _libraries =
+    [
+        new("ASP.NET Core e .NET", "Servidor, Blazor e SignalR", "MIT", "https://github.com/dotnet/aspnetcore"),
+        new("Entity Framework Core", "Acesso a SQLite, SQL Server e PostgreSQL", "MIT", "https://github.com/dotnet/efcore"),
+        new("Bootstrap", "Base de layout e componentes", "MIT", "https://github.com/twbs/bootstrap"),
+        new("Bootswatch", "Temas claro e escuro", "MIT", "https://github.com/thomaspark/bootswatch"),
+        new("Font Awesome Free", "Ícones da interface", "CC BY 4.0 / SIL OFL / MIT", "https://github.com/FortAwesome/Font-Awesome"),
+        new("Swashbuckle", "Documentação da API (Swagger)", "MIT", "https://github.com/domaindrivendev/Swashbuckle.AspNetCore"),
+        new("Avalonia UI", "Interface do cliente de desktop", "MIT", "https://github.com/AvaloniaUI/Avalonia"),
+        new("PowerShell", "Execução de scripts nos agentes", "MIT", "https://github.com/PowerShell/PowerShell"),
+        new("NAudio", "Áudio no cliente Windows", "MIT", "https://github.com/naudio/NAudio"),
+        new("SharpDX", "Captura de tela no Windows", "MIT", "https://github.com/sharpdx/SharpDX"),
+        new("QRCoder", "QR code da verificação em duas etapas", "MIT", "https://github.com/codebude/QRCoder"),
+        new("Serilog", "Logs do servidor e dos agentes", "Apache 2.0", "https://github.com/serilog/serilog"),
+    ];
+}

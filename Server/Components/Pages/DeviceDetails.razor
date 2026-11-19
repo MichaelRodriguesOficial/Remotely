@@ -6,270 +6,223 @@
 
 @if (string.IsNullOrWhiteSpace(DeviceId))
 {
-    <div class="row mt-5">
-        <div class="col-md-8 col-lg-6">
+    <PageHeader Title="Detalhes do dispositivo"
+                Subtitle="Informe o ID de um dispositivo para ver inventário, logs e histórico de scripts."
+                Icon="fa-solid fa-circle-info" />
 
-            <h3>ID do dispositivo:</h3>
-            <div class="input-group mb-2">
-                <input type="text" class="form-control" placeholder="Informe o ID do dispositivo para ver os detalhes"
-                       @bind="_inputDeviceId"
-                       @bind:event="oninput"
-                       @onkeydown="EvaluateDeviceIdInputKeyDown">
-                <div class="input-group-append">
-                    <button class="btn btn-primary" @onclick="NavigateToDeviceId">Ir</button>
-                </div>
-            </div>
-            <div class="text-muted">
-                Você também pode abrir os detalhes de um dispositivo:
-                <ul>
-                    <li>Clicando com o botão direito no cartão do dispositivo na página inicial (com o cartão fechado)</li>
-                    <li>Clicando em "Abrir em nova aba" no cabeçalho do cartão do dispositivo (com o cartão aberto)</li>
-                </ul>
-            </div>
+    <div class="panel" style="max-width: 720px">
+        <label class="form-label" for="deviceIdInput">ID do dispositivo</label>
+        <div class="input-group mb-3">
+            <input id="deviceIdInput" type="text" class="form-control mono" placeholder="00000000-0000-0000-0000-000000000000"
+                   @bind="_inputDeviceId"
+                   @bind:event="oninput"
+                   @onkeydown="EvaluateDeviceIdInputKeyDown">
+            <button class="btn btn-primary" @onclick="NavigateToDeviceId"><i class="fa-solid fa-arrow-right"></i> Abrir</button>
         </div>
+        <p class="form-text mb-1">Atalhos na tela de dispositivos:</p>
+        <ul class="form-text mb-0">
+            <li>clique com o botão direito em um card fechado;</li>
+            <li>ou abra o card e use o botão <i class="fa-solid fa-up-right-from-square"></i> no cabeçalho.</li>
+        </ul>
     </div>
 }
 else if (_isLoading)
 {
-    <h5>Carregando...</h5>
+    <LoadingSignal StatusMessage="Carregando" />
 }
 else if (_device is null)
 {
-    <h3>Dispositivo não encontrado.</h3>
+    <div class="empty-state mt-5">
+        <div class="empty-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <h3>Dispositivo não encontrado</h3>
+        <p>Confira o ID informado.</p>
+        <a class="btn btn-secondary" href="device-details">Tentar outro ID</a>
+    </div>
 }
 else if (!_userHasAccess)
 {
-    <h3>Não autorizado.</h3>
+    <div class="empty-state mt-5">
+        <div class="empty-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Sem permissão</h3>
+        <p>Você não tem acesso ao grupo deste dispositivo.</p>
+    </div>
 }
 else
 {
+    <PageHeader Title="@(_device.DeviceName ?? "Dispositivo")"
+                Subtitle="@(_device.OSDescription ?? _device.Platform)"
+                Icon="@GetOsIcon()">
+        <Actions>
+            @if (_device.IsOnline)
+            {
+                <span class="pill success">Online</span>
+            }
+            else
+            {
+                <span class="pill">Offline</span>
+            }
+        </Actions>
+    </PageHeader>
+
     <TabControl InitialActiveTab="@(ActiveTab ?? "device")">
         <TabHeaders>
             <TabHeader Name="device" NavigationUri="@($"/device-details/{DeviceId}/device")">
-                Detalhes
+                <i class="fa-solid fa-circle-info me-1"></i> Detalhes
             </TabHeader>
             <TabHeader Name="remote-logs" OnActivated="GetRemoteLogs" NavigationUri="@($"/device-details/{DeviceId}/remote-logs")">
-                Logs remotos
+                <i class="fa-solid fa-file-lines me-1"></i> Logs do agente
             </TabHeader>
             <TabHeader Name="script-history" OnActivated="GetScriptHistory" NavigationUri="@($"/device-details/{DeviceId}/script-history")">
-                Histórico de scripts
+                <i class="fa-solid fa-clock-rotate-left me-1"></i> Histórico de scripts
             </TabHeader>
         </TabHeaders>
 
         <TabContents>
             <TabContent Name="device">
-                <div class="col-sm-8 mb-2">
-                    <h3 class="mb-3 mt-3">
-                        Detalhes do dispositivo
-                    </h3>
+                <div class="row g-3">
+                    <div class="col-xl-6">
+                        <section class="panel h-100">
+                            <div class="panel-header">
+                                <h2 class="panel-title"><i class="fa-solid fa-microchip"></i> Inventário</h2>
+                                <button type="button" class="btn btn-ghost btn-sm" @onclick="ShowAllDisks"><i class="fa-solid fa-hard-drive"></i> Ver discos</button>
+                            </div>
+                            <dl class="detail-list">
+                                <dt>Nome</dt><dd>@_device.DeviceName</dd>
+                                <dt>Plataforma</dt><dd>@_device.Platform</dd>
+                                <dt>Sistema</dt><dd>@_device.OSDescription</dd>
+                                <dt>Arquitetura</dt><dd>@_device.OSArchitecture · @_device.ProcessorCount núcleos</dd>
+                                <dt>Usuário</dt><dd>@_device.CurrentUser</dd>
+                                <dt>Memória</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedMemoryPercent)) de @_device.TotalMemory.ToString("N1") GB</dd>
+                                <dt>Disco</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedStoragePercent)) de @_device.TotalStorage.ToString("N1") GB</dd>
+                                <dt>Versão do agente</dt><dd>@_device.AgentVersion</dd>
+                                <dt>Última conexão</dt><dd>@_device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
+                                <dt>IP público</dt><dd class="mono">@_device.PublicIP</dd>
+                                <dt>Endereços MAC</dt><dd class="mono">@(string.Join(", ", _device.MacAddresses ?? Array.Empty<string>()))</dd>
+                                <dt>ID</dt><dd class="mono small">@_device.ID</dd>
+                            </dl>
+                        </section>
+                    </div>
+                    <div class="col-xl-6">
+                        <section class="panel h-100">
+                            <div class="panel-header">
+                                <h2 class="panel-title"><i class="fa-solid fa-tag"></i> Identificação</h2>
+                            </div>
+                            <EditForm Model="_device" OnValidSubmit="HandleValidSubmit" @onkeydown="EditFormKeyDown">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
 
-                    <EditForm Model="_device" OnValidSubmit="HandleValidSubmit" @onkeydown="EditFormKeyDown">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
+                                @if (!string.IsNullOrWhiteSpace(_alertMessage))
+                                {
+                                    <AlertBanner Message="@_alertMessage" />
+                                }
 
-                        @if (!string.IsNullOrWhiteSpace(_alertMessage))
-                        {
-                            <AlertBanner Message="@_alertMessage" />
-                        }
-
-
-                        <div class="form-group row">
-                            <label for="device-name" class="col-sm-2 col-form-label">Dispositivo:</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="device-name" readonly value="@_device.DeviceName" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="device-id" class="col-sm-2 col-form-label">ID do dispositivo:</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="device-id" readonly value="@_device.ID" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-version" class="col-sm-2 col-form-label">Versão do agente:</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-version" readonly value="@_device.AgentVersion" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-platform" class="col-sm-2 col-form-label">Plataforma:</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-platform" readonly value="@_device.Platform" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-os-description" class="col-sm-2 col-form-label">Plataforma:</label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-os-description" readonly value="@_device.OSDescription" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-storage-percent" class="col-sm-2 col-form-label">
-                                Disco:
-                                <button type="button" class="btn btn-link p-0 m-0" @onclick="ShowAllDisks" style="font-size: 50%">
-                                    (Ver todos)
-                                </button>
-                            </label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-storage-percent" readonly value="@(MathHelper.GetFormattedPercent(_device.UsedStoragePercent))" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-storage-total" class="col-sm-2 col-form-label">
-                                Armazenamento total:
-                            </label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-storage-total" readonly value="@(_device.TotalStorage)" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-memory-percent" class="col-sm-2 col-form-label">
-                                Memória:
-                            </label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-memory-percent" readonly value="@(MathHelper.GetFormattedPercent(_device.UsedMemoryPercent))" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-memory-total" class="col-sm-2 col-form-label">
-                                Memória total:
-                            </label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-memory-total" readonly value="@(_device.TotalMemory)" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-memory-total" class="col-sm-2 col-form-label">
-                                IP público:
-                            </label>
-                            <div class="col-sm-10">
-                                <input type="text" class="form-control" name="agent-memory-total" readonly value="@(_device.PublicIP)" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="agent-memory-total" class="col-sm-2 col-form-label">
-                                Endereços MAC:
-                            </label>
-                            <div class="col-sm-10">
-                                <input 
-                                    type="text" 
-                                    class="form-control" 
-                                    name="agent-memory-total" 
-                                    readonly
-                                       value="@(string.Join(", ", _device.MacAddresses ?? Array.Empty<string>()))" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="device-alias" class="col-sm-2 col-form-label">Apelido do dispositivo:</label>
-                            <div class="col-sm-10">
-                                <InputText class="form-control" @bind-Value="@_device.Alias" />
-                                <ValidationMessage For="() => _device.Alias" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="device-groups" class="col-sm-2 col-form-label">Grupo de dispositivos:</label>
-                            <div class="col-sm-10">
-                                <InputSelect @bind-Value="_device.DeviceGroupID" class="form-control">
-                                    <option value="">Nenhum</option>
-
-                                    @foreach (var group in _deviceGroups)
-                                    {
-                                        <option @key="group.ID" value="@group.ID">@group.Name</option>
-                                    }
-                                </InputSelect>
-                                <ValidationMessage For="() => _device.DeviceGroupID" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="tags" class="col-sm-2 col-form-label">Tags:</label>
-                            <div class="col-sm-10">
-                                <InputText @bind-Value="_device.Tags" class="form-control" />
-                                <ValidationMessage For="() => _device.Tags" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label for="notes" class="col-sm-2 col-form-label">Observações:</label>
-                            <div class="col-sm-10">
-                                <InputTextArea @bind-Value="_device.Notes" style="width:100%; height: 10em;"></InputTextArea>
-                                <ValidationMessage For="() => _device.Notes" />
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-primary">Salvar</button>
-                        </div>
-                    </EditForm>
+                                <div class="mb-3">
+                                    <label class="form-label" for="device-alias">Apelido</label>
+                                    <InputText id="device-alias" class="form-control" placeholder="Ex.: Recepção 01" @bind-Value="@_device.Alias" />
+                                    <ValidationMessage For="() => _device.Alias" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="device-group">Grupo</label>
+                                    <InputSelect id="device-group" @bind-Value="_device.DeviceGroupID" class="form-select">
+                                        <option value="">Nenhum</option>
+                                        @foreach (var group in _deviceGroups)
+                                        {
+                                            <option @key="group.ID" value="@group.ID">@group.Name</option>
+                                        }
+                                    </InputSelect>
+                                    <ValidationMessage For="() => _device.DeviceGroupID" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="device-tags">Tags</label>
+                                    <InputText id="device-tags" @bind-Value="_device.Tags" class="form-control" placeholder="Separe por vírgula" />
+                                    <ValidationMessage For="() => _device.Tags" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="device-notes">Observações</label>
+                                    <InputTextArea id="device-notes" @bind-Value="_device.Notes" class="form-control" rows="6"></InputTextArea>
+                                    <ValidationMessage For="() => _device.Notes" />
+                                </div>
+                                <div class="text-end">
+                                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                                </div>
+                            </EditForm>
+                        </section>
+                    </div>
                 </div>
             </TabContent>
 
             <TabContent Name="remote-logs">
-                <div class="py-3">
-                    @if (!_device.IsOnline)
+                @if (!_device.IsOnline)
+                {
+                    <div class="empty-state mt-3">
+                        <div class="empty-icon"><i class="fa-solid fa-plug-circle-xmark"></i></div>
+                        <h3>Dispositivo offline</h3>
+                        <p>O dispositivo precisa estar online para enviar os logs do agente.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-primary" @onclick="GetRemoteLogs"><i class="fa-solid fa-rotate"></i> Atualizar</button>
+                        <button class="btn btn-outline-danger" @onclick="DeleteLogs"><i class="fa-solid fa-trash-can"></i> Excluir logs</button>
+                    </div>
+
+                    @if (_logLines.Any())
                     {
-                        <h5 class="text-center mt-5">O dispositivo precisa estar online para obter os logs.</h5>
+                        <pre class="log-view">@foreach (var line in _logLines){@line}</pre>
                     }
                     else
                     {
-                        <div class="mb-2">
-                            <button class="btn btn-primary me-2" @onclick="GetRemoteLogs">Atualizar</button>
-                            <button class="btn btn-danger" @onclick="DeleteLogs">Excluir logs</button>
-                        </div>
-
-                        @if (_logLines.Any())
-                        {
-                            <div style="white-space: pre;">
-                                @foreach (var line in _logLines)
-                                {
-                                    @line
-                                }
-                            </div>
-                        }
-                        else
-                        {
-                            <LoadingSignal />
-                        }
+                        <LoadingSignal />
                     }
-
-                </div>
-
+                }
             </TabContent>
 
             <TabContent Name="script-history">
-
-                <h3 class="mb-3 mt-3">
-                    Histórico de scripts
-                </h3>
-                <table class="table table-dark table-hover table-striped">
-                    <thead>
-                        <tr>
-                            <th>Shell</th>
-                            <th>Data/hora</th>
-                            <th>Usuário</th>
-                            <th>Duração</th>
-                            <th>Entrada</th>
-                            <th>Saída</th>
-                            <th>Erro</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var scriptResult in _scriptResults)
-                        {
-                            <tr>
-                                <td>@scriptResult.Shell</td>
-                                <td>@scriptResult.TimeStamp</td>
-                                <td>@scriptResult.SenderUserName</td>
-                                <td>@scriptResult.RunTime</td>
-                                <td>@GetTrimmedText(scriptResult.ScriptInput, 25)</td>
-                                <td>@GetTrimmedText(scriptResult.StandardOutput, 25)</td>
-                                <td>@GetTrimmedText(scriptResult.ErrorOutput, 25)</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" @onclick="() => ShowFullScriptOutput(scriptResult)">Ver completo</button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-
+                @if (_scriptResults.IsEmpty)
+                {
+                    <div class="empty-state mt-3">
+                        <div class="empty-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                        <h3>Sem histórico</h3>
+                        <p>Nenhum script foi executado neste dispositivo.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Shell</th>
+                                    <th>Data/hora</th>
+                                    <th>Usuário</th>
+                                    <th>Duração</th>
+                                    <th>Entrada</th>
+                                    <th>Saída</th>
+                                    <th>Erro</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var scriptResult in _scriptResults)
+                                {
+                                    <tr>
+                                        <td><span class="pill accent no-dot">@scriptResult.Shell</span></td>
+                                        <td class="text-nowrap">@scriptResult.TimeStamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>@scriptResult.SenderUserName</td>
+                                        <td>@scriptResult.RunTime</td>
+                                        <td class="mono small">@GetTrimmedText(scriptResult.ScriptInput, 25)</td>
+                                        <td class="mono small">@GetTrimmedText(scriptResult.StandardOutput, 25)</td>
+                                        <td class="mono small text-danger">@GetTrimmedText(scriptResult.ErrorOutput, 25)</td>
+                                        <td class="text-end">
+                                            <button class="btn btn-sm btn-secondary" @onclick="() => ShowFullScriptOutput(scriptResult)">Ver completo</button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
             </TabContent>
         </TabContents>
     </TabControl>

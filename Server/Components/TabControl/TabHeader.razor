@@ -1,7 +1,7 @@
 ﻿@inject NavigationManager NavManager
  
 <li class="nav-item">
-    <a class="nav-link @ActiveClass" data-toggle="tab" @onclick="SetActiveTab" style="cursor: pointer; user-select: none;">
+    <a class="nav-link @ActiveClass" role="tab" aria-selected="@(ActiveClass == "active" ? "true" : "false")" @onclick="SetActiveTab" style="cursor: pointer; user-select: none;">
         @ChildContent
     </a>
 </li>

@@ -50,9 +50,9 @@ public partial class ScriptsPage : AuthComponentBase
     {
         if (viewModel.ItemType == TreeItemType.Folder)
         {
-            return "oi oi-folder text-warning";
+            return "fa-solid fa-folder text-warning";
         }
-        return "oi oi-script text-success";
+        return "fa-regular fa-file-code text-success";
     }
 
     public async Task RefreshScripts()

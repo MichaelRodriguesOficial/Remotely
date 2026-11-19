@@ -12,61 +12,48 @@
 
 <PageTitle>Entrar</PageTitle>
 
-<h1>Entrar</h1>
-<div class="row">
-    <div class="col-md-4">
-        <section>
-            <StatusMessage Message="@errorMessage" />
-            <EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
-                <DataAnnotationsValidator />
-                <h2>Entre com sua conta local.</h2>
-                <hr />
-                <ValidationSummary class="text-danger" role="alert" />
-                <div class="form-floating mb-3">
-                    <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nome@exemplo.com.br" />
-                    <label for="email" class="form-label">E-mail</label>
-                    <ValidationMessage For="() => Input.Email" class="text-danger" />
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="senha" />
-                    <label for="password" class="form-label">Senha</label>
-                    <ValidationMessage For="() => Input.Password" class="text-danger" />
-                </div>
-                <div class="checkbox mb-3">
-                    <label class="form-label">
-                        <InputCheckbox 
-                            @bind-Value="Input.RememberMe" 
-                            class="darker-border-checkbox form-check-input ms-0 d-inline-block position-relative align-middle mt-0" />
-                        <span class="align-middle">
-                            Lembrar de mim
-                        </span>
-                    </label>
-                </div>
-                <div>
-                    <button type="submit" class="w-100 btn btn-lg btn-primary">Entrar</button>
-                </div>
-                <div>
-                    <p>
-                        <a href="Account/ForgotPassword">Esqueceu sua senha?</a>
-                    </p>
-                    <p>
-                        <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma nova conta</a>
-                    </p>
-                    <p>
-                        <a href="Account/ResendEmailConfirmation">Reenviar confirmação de e-mail</a>
-                    </p>
-                </div>
-            </EditForm>
-        </section>
+<h1>Bem-vindo de volta</h1>
+<h2>Entre com seu e-mail e senha para acessar o painel.</h2>
+
+<StatusMessage Message="@errorMessage" />
+
+<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" role="alert" />
+
+    <div class="form-floating mb-3">
+        <InputText id="email" @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nome@exemplo.com.br" />
+        <label for="email">E-mail</label>
+        <ValidationMessage For="() => Input.Email" class="text-danger" />
     </div>
-@*     <div class="col-md-6 col-md-offset-2">
-        <section>
-            <h3>Use outro serviço para entrar.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
-    </div> *@
-</div>
+    <div class="form-floating mb-3">
+        <InputText id="password" type="password" @bind-Value="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="senha" />
+        <label for="password">Senha</label>
+        <ValidationMessage For="() => Input.Password" class="text-danger" />
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div class="form-check m-0">
+            <InputCheckbox id="remember-me" @bind-Value="Input.RememberMe" class="form-check-input" />
+            <label class="form-check-label fw-normal" for="remember-me">Lembrar de mim</label>
+        </div>
+        <a href="Account/ForgotPassword" class="small">Esqueceu a senha?</a>
+    </div>
+
+    <button type="submit" class="w-100 btn btn-lg btn-primary">
+        <i class="fa-solid fa-right-to-bracket"></i> Entrar
+    </button>
+
+    <div class="auth-links">
+        <p>
+            Não tem conta?
+            <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma conta</a>
+        </p>
+        <p>
+            <a href="Account/ResendEmailConfirmation">Reenviar confirmação de e-mail</a>
+        </p>
+    </div>
+</EditForm>
 
 @code {
     private string? errorMessage;

@@ -3,10 +3,10 @@
 @inject IAuthService AuthService 
 @inject IDataService DataService
 
-<div class="sidebar-brand navbar navbar-dark">
-    <a class="navbar-brand" href="">
+<div class="sidebar-brand">
+    <a class="sidebar-logo" href="">
         <span class="brand-mark" aria-hidden="true">
-            <span class="oi oi-monitor"></span>
+            <i class="fa-solid fa-display"></i>
         </span>
         <span class="brand-text">
             <span class="logo-title">
@@ -19,34 +19,50 @@
                     <span>Remotely</span>
                 }
             </span>
-            <span class="logo-subtitle">Portal de Suporte</span>
+            <span class="logo-subtitle">Acesso remoto</span>
         </span>
     </a>
-    <button class="navbar-toggler" title="Menu" aria-label="Alternar navegação" @onclick="ToggleNavMenu">
-        <span class="navbar-toggler-icon"></span>
+    <button class="sidebar-toggler" title="Menu" aria-label="Alternar navegação" aria-expanded="@(!collapseNavMenu)" @onclick="ToggleNavMenu">
+        <i class="fa-solid @(collapseNavMenu ? "fa-bars" : "fa-xmark")"></i>
     </button>
 </div>
 
 <nav class="@NavMenuCssClass sidebar-nav" @onclick="ToggleNavMenu">
     <ul class="nav flex-column">
 
-        <li class="nav-section">Principal</li>
-
         <li class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Início
+                <i class="fa-solid fa-house" aria-hidden="true"></i> <span>Dispositivos</span>
             </NavLink>
         </li>
 
-        <li class="nav-item">
-            <NavLink class="nav-link" href="downloads">
-                <span class="oi oi-cloud-download" aria-hidden="true"></span> Downloads
-            </NavLink>
-        </li>
+        <AuthorizeView>
+            <Authorized>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="scripts">
+                        <i class="fa-solid fa-terminal" aria-hidden="true"></i> <span>Scripts</span>
+                    </NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="device-details">
+                        <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <span>Detalhes do dispositivo</span>
+                    </NavLink>
+                </li>
+            </Authorized>
+        </AuthorizeView>
 
         <li class="nav-item">
             <NavLink class="nav-link" href="/Viewer" target="_blank">
-                <span class="oi oi-monitor" aria-hidden="true"></span> Controle remoto
+                <i class="fa-solid fa-desktop" aria-hidden="true"></i> <span>Controle remoto</span>
+                <i class="fa-solid fa-arrow-up-right-from-square nav-external" aria-hidden="true"></i>
+            </NavLink>
+        </li>
+
+        <li class="nav-section">Instalação</li>
+
+        <li class="nav-item">
+            <NavLink class="nav-link" href="downloads">
+                <i class="fa-solid fa-download" aria-hidden="true"></i> <span>Downloads</span>
             </NavLink>
         </li>
 
@@ -54,22 +70,7 @@
             <Authorized>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="deploy">
-                        <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> Implantar
-                    </NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="scripts">
-                        <span class="oi oi-script" aria-hidden="true"></span> Scripts
-                    </NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="device-details">
-                        <span class="oi oi-info" aria-hidden="true"></span> Detalhes do dispositivo
-                    </NavLink>
-                </li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="user-options">
-                        <span class="oi oi-cog" aria-hidden="true"></span> Preferências
+                        <i class="fa-solid fa-rocket" aria-hidden="true"></i> <span>Implantar</span>
                     </NavLink>
                 </li>
             </Authorized>
@@ -81,18 +82,24 @@
 
             <li class="nav-item">
                 <NavLink class="nav-link" href="manage-organization">
-                    <span class="oi oi-briefcase" aria-hidden="true"></span> Organização
+                    <i class="fa-solid fa-building" aria-hidden="true"></i> <span>Organização</span>
                 </NavLink>
             </li>
             <li class="nav-item">
                 <NavLink class="nav-link" href="branding">
-                    <span class="oi oi-brush" aria-hidden="true"></span> Personalização
+                    <i class="fa-solid fa-palette" aria-hidden="true"></i> <span>Personalização</span>
                 </NavLink>
             </li>
             <li class="nav-item">
                 <NavLink class="nav-link" href="api-keys">
-                    <span class="oi oi-key" aria-hidden="true"></span> Chaves de API
+                    <i class="fa-solid fa-key" aria-hidden="true"></i> <span>Chaves de API</span>
                 </NavLink>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/swagger" target="_blank" rel="noopener">
+                    <i class="fa-solid fa-code" aria-hidden="true"></i> <span>API (Swagger)</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square nav-external" aria-hidden="true"></i>
+                </a>
             </li>
 
             @if (_user?.IsServerAdmin == true)
@@ -100,68 +107,71 @@
                 <li class="nav-section">Servidor</li>
 
                 <li class="nav-item">
-                    <NavLink class="nav-link" href="server-logs">
-                        <span class="oi oi-document" aria-hidden="true"></span> Logs do servidor
+                    <NavLink class="nav-link" href="server-config">
+                        <i class="fa-solid fa-sliders" aria-hidden="true"></i> <span>Configuração</span>
                     </NavLink>
                 </li>
                 <li class="nav-item">
-                    <NavLink class="nav-link" href="server-config">
-                        <span class="oi oi-wrench" aria-hidden="true"></span> Configuração do servidor
+                    <NavLink class="nav-link" href="server-logs">
+                        <i class="fa-solid fa-file-lines" aria-hidden="true"></i> <span>Logs</span>
                     </NavLink>
                 </li>
             }
         }
 
-        <li class="nav-section">Conta</li>
-
         <AuthorizeView>
-            <Authorized>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="oi oi-person" aria-hidden="true"></span> Minha conta
-                    </NavLink>
-                </li>
-                <li class="nav-item">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@_currentUrl" />
-                        <button type="submit" class="nav-link nav-link-button">
-                            <span class="oi oi-account-logout" aria-hidden="true"></span> Sair
-                        </button>
-                    </form>
-                </li>
-            </Authorized>
             <NotAuthorized>
+                <li class="nav-section">Conta</li>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="Account/Login">
-                        <span class="oi oi-account-login" aria-hidden="true"></span> Entrar
+                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> <span>Entrar</span>
                     </NavLink>
                 </li>
                 @if (_isRegistrationEnabled)
                 {
                     <li class="nav-item">
                         <NavLink class="nav-link" href="Account/Register">
-                            <span class="oi oi-plus" aria-hidden="true"></span> Cadastrar
+                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i> <span>Cadastrar</span>
                         </NavLink>
                     </li>
                 }
             </NotAuthorized>
         </AuthorizeView>
 
+        <li class="nav-spacer" aria-hidden="true"></li>
+
         <li class="nav-item">
             <NavLink class="nav-link" href="about">
-                <span class="oi oi-question-mark" aria-hidden="true"></span> Sobre
+                <i class="fa-solid fa-circle-question" aria-hidden="true"></i> <span>Sobre</span>
             </NavLink>
         </li>
-
-        @if (!string.IsNullOrWhiteSpace(_user?.UserName))
-        {
-            <li class="nav-user" title="@_user.UserName">
-                <span class="nav-user-avatar" aria-hidden="true">@GetInitial(_user.UserName)</span>
-                <span class="nav-user-name">@_user.UserName</span>
-            </li>
-        }
     </ul>
+
+    @if (!string.IsNullOrWhiteSpace(_user?.UserName))
+    {
+        <div class="nav-user">
+            <span class="nav-user-avatar" aria-hidden="true">@GetInitial(_user.UserName)</span>
+            <div class="nav-user-info">
+                <span class="nav-user-name" title="@_user.UserName">@_user.UserName</span>
+                <span class="nav-user-role">@GetRole(_user)</span>
+            </div>
+            <div class="nav-user-actions">
+                <a class="nav-icon-btn" href="user-options" title="Preferências" aria-label="Preferências">
+                    <i class="fa-solid fa-gear"></i>
+                </a>
+                <a class="nav-icon-btn" href="Account/Manage" title="Minha conta" aria-label="Minha conta">
+                    <i class="fa-solid fa-user-shield"></i>
+                </a>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@_currentUrl" />
+                    <button type="submit" class="nav-icon-btn" title="Sair" aria-label="Sair">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    }
 </nav>
 
 @code {
@@ -190,6 +200,11 @@
 
         if (!userResult.IsSuccess)
         {
+            var defaultOrg = await DataService.GetDefaultOrganization();
+            if (defaultOrg.IsSuccess)
+            {
+                _organization = defaultOrg.Value;
+            }
             return;
         }
 
@@ -222,6 +237,15 @@
             userName.Trim()[..1].ToUpperInvariant();
     }
 
+
+    private static string GetRole(RemotelyUser user)
+    {
+        if (user.IsServerAdmin)
+        {
+            return "Administrador do servidor";
+        }
+        return user.IsAdministrator ? "Administrador" : "Usuário";
+    }
 
     private void ToggleNavMenu()
     {

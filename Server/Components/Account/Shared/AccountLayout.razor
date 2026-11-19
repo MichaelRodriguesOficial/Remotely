@@ -1,27 +1,74 @@
-﻿@inherits LayoutComponentBase
-@layout Remotely.Server.Components.Layout.MainLayout
+@inherits LayoutComponentBase
 @inject NavigationManager NavigationManager
+@inject IDataService DataService
+
+@*
+    Layout das telas públicas de conta (entrar, cadastrar, recuperar senha...).
+    As telas de "Minha conta" usam o ManageLayout, que fica dentro do layout principal.
+*@
 
 @if (HttpContext is null)
 {
-    <p>Carregando...</p>
+    <p class="p-4">Carregando...</p>
 }
 else
 {
-    @Body
+    <div class="auth-shell">
+        <section class="auth-aside" aria-hidden="true">
+            <div class="auth-brand">
+                <span class="brand-mark"><i class="fa-solid fa-display"></i></span>
+                <span>@_brandName</span>
+            </div>
+
+            <div>
+                <h2>Suporte remoto rápido, seguro e no seu servidor.</h2>
+                <p>Acesse os computadores da sua equipe, execute scripts e acompanhe tudo em um só lugar.</p>
+                <ul class="auth-features">
+                    <li><i class="fa-solid fa-desktop"></i> Controle remoto com e sem acompanhamento</li>
+                    <li><i class="fa-solid fa-terminal"></i> PowerShell, Bash e scripts agendados</li>
+                    <li><i class="fa-solid fa-shield-halved"></i> 2FA, bloqueio por tentativas e dados no seu servidor</li>
+                </ul>
+            </div>
+
+            <small class="text-muted">Remotely · mantido por Michael Rodrigues</small>
+        </section>
+
+        <main class="auth-main">
+            <div class="auth-card">
+                <div class="auth-mobile-brand">
+                    <div class="auth-brand">
+                        <span class="brand-mark"><i class="fa-solid fa-display"></i></span>
+                        <span>@_brandName</span>
+                    </div>
+                </div>
+                @Body
+            </div>
+        </main>
+    </div>
 }
 
 @code {
+    private string _brandName = "Remotely";
+
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgResult = await DataService.GetDefaultOrganization();
+        if (orgResult.IsSuccess && !string.IsNullOrWhiteSpace(orgResult.Value.OrganizationName))
+        {
+            _brandName = orgResult.Value.OrganizationName;
+        }
+        await base.OnInitializedAsync();
+    }
 
     protected override void OnParametersSet()
     {
         if (HttpContext is null)
         {
-            // If this code runs, we're currently rendering in interactive mode, so there is no HttpContext.
-            // The identity pages need to set cookies, so they require an HttpContext. To achieve this we
-            // must transition back from interactive mode to a server-rendered page.
+            // Rodando em modo interativo: as telas de identidade precisam de HttpContext
+            // (cookies), então voltamos para renderização no servidor.
             NavigationManager.Refresh(forceReload: true);
         }
     }

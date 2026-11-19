@@ -1,4 +1,4 @@
-@page
+﻿@page
 @using Remotely.Server.Pages
 @model ViewerModel
 
@@ -27,6 +27,7 @@
 
     <link href="/lib/fontawesome/css/all.min.css" rel="stylesheet" />
     <link href="/lib/fontawesome/css/brands.min.css" rel="stylesheet" />
+    <link href="/css/viewer-modern.css" rel="stylesheet" asp-append-version="true" />
 
     <environment include="Development">
         <script src="/lib/microsoft-signalr/signalr.js"></script>
@@ -247,7 +248,7 @@
 
     <footer>
         <div class="copyright-text">
-            &copy; @(DateTime.Now.Year) - Immense Networks · fork MichaelRodriguesOficial
+            Remotely · mantido por Michael Rodrigues · baseado no projeto original da Immense Networks
         </div>
     </footer>
 

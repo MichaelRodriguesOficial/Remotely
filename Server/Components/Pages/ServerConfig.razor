@@ -2,343 +2,492 @@
 @attribute [Authorize(Policy = PolicyNames.ServerAdminRequired)]
 @inherits AuthComponentBase
 
+<PageHeader Title="Configuração do servidor"
+            Subtitle="Segurança, e-mail, rede e manutenção do servidor Remotely."
+            Icon="fa-solid fa-sliders" />
 
 <AlertBanner Message="@_alertMessage" />
 
-<h3 class="mt-3">Informações do servidor</h3>
+<div class="settings-layout">
+    <nav class="settings-nav" aria-label="Seções">
+        <a href="server-config#visao-geral"><i class="fa-solid fa-gauge"></i> Visão geral</a>
+        <a href="server-config#geral"><i class="fa-solid fa-sliders"></i> Geral</a>
+        <a href="server-config#seguranca"><i class="fa-solid fa-shield-halved"></i> Segurança</a>
+        <a href="server-config#acesso-remoto"><i class="fa-solid fa-desktop"></i> Acesso remoto</a>
+        <a href="server-config#email"><i class="fa-solid fa-envelope"></i> E-mail (SMTP)</a>
+        <a href="server-config#rede"><i class="fa-solid fa-network-wired"></i> Rede e registros</a>
+        <a href="server-config#banidos"><i class="fa-solid fa-ban"></i> Dispositivos banidos</a>
+        <a href="server-config#administradores"><i class="fa-solid fa-user-gear"></i> Administradores</a>
+    </nav>
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="mb-4" style="display:flex; justify-content: space-evenly">
-            <div class="d-inline-block text-center me-2">
-                <label>Dispositivos online</label>
-                <br />
-                <span class="badge text-bg-primary p-2">@ServiceSessionCache.GetAllDevices().Count</span>
+    <div class="min-w-0">
+    <section id="visao-geral" class="settings-section">
+        <div class="stat-grid">
+            <div class="stat-tile">
+                <span class="stat-icon success"><i class="fa-solid fa-signal"></i></span>
+                <span><span class="stat-value d-block">@ServiceSessionCache.GetAllDevices().Count</span><span class="stat-label">Dispositivos online</span></span>
             </div>
-
-            <div class="d-inline-block text-center me-2">
-                <label>Dispositivos desatualizados</label>
-                <br />
-
-                <button class="btn btn-sm btn-secondary" @onclick="ShowOutdatedDevices">
-                    <i class="oi oi-question-mark"></i>
-                </button>
-                <span class="badge text-bg-primary p-2 mx-2">@(OutdatedDevices?.Count() ?? 0)</span>
-                <button class="btn btn-secondary btn-sm" type="button" title="Atualizar todos" @onclick="UpdateAllDevices">
-                    <span class="oi oi-reload"></span>
-                </button>
+            <div class="stat-tile">
+                <span class="stat-icon"><i class="fa-solid fa-display"></i></span>
+                <span><span class="stat-value d-block">@TotalDevices</span><span class="stat-label">Dispositivos no total</span></span>
             </div>
-
-            <div class="d-inline-block text-center me-2">
-                <label>Total de dispositivos</label>
-                <br />
-                <span class="badge text-bg-primary p-2">@TotalDevices</span>
+            <div class="stat-tile">
+                <span class="stat-icon warning"><i class="fa-solid fa-arrow-up-from-bracket"></i></span>
+                <span class="flex-grow-1">
+                    <span class="stat-value d-block">@(OutdatedDevices?.Count() ?? 0)</span>
+                    <span class="stat-label">Agentes desatualizados</span>
+                </span>
+                <span class="d-flex flex-column gap-1">
+                    <button class="btn btn-ghost btn-icon btn-sm" title="Ver lista" @onclick="ShowOutdatedDevices"><i class="fa-solid fa-list"></i></button>
+                    <button class="btn btn-ghost btn-icon btn-sm" title="Atualizar todos" @onclick="UpdateAllDevices"><i class="fa-solid fa-rotate"></i></button>
+                </span>
             </div>
-            <div class="d-inline-block text-center me-2">
-                <label>Usuários ativos</label>
-                <br />
-                <span class="badge text-bg-primary p-2">@CircuitManager.Connections.Count</span>
+            <div class="stat-tile">
+                <span class="stat-icon muted"><i class="fa-solid fa-users"></i></span>
+                <span><span class="stat-value d-block">@CircuitManager.Connections.Count</span><span class="stat-label">Usuários conectados</span></span>
             </div>
         </div>
-    </div>
-</div>
+    </section>
 
-<div class="row">
-    <div class="col-md-8">
-        <h3 class="mt3">Administradores do servidor</h3>
+    <EditForm Model="Input" OnValidSubmit="HandleValidSubmit" autocomplete="off">
+        <DataAnnotationsValidator />
+        <ValidationSummary Model="Input" />
 
-        <div class="form-group">
-            <label class="control-label">Administradores do servidor</label>
-            <br />
-
-            <div class="small">
-                <input class="align-middle me-1" type="checkbox" @bind="_showMyOrgAdminsOnly" />
-                <span class="align-middle">Mostrar só minha organização</span>
-            </div>
-            <div class="small">
-                <input class="align-middle me-1" type="checkbox" @bind="_showAdminsOnly" />
-                <span class="align-middle">Mostrar só administradores atuais</span>
-            </div>
-
-            <br />
-            <div class="list-box">
-                @foreach (var user in UserList)
-                {
-                    <div @key="user.Id">
-                        <input type="checkbox" disabled="@(user.Id == User?.Id)" checked="@user.IsServerAdmin" @onchange="ev => SetIsServerAdmin(ev, user)" />
-                        <span class="ms-2 align-top" style="line-height:1.3em">@user.UserName</span>
-                    </div>
-                }
+    <section id="geral" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-sliders"></i> Geral</h2>
+                <p class="panel-description">Comportamento geral do painel.</p>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-8">
-        <EditForm Model="Input" OnValidSubmit="HandleValidSubmit" autocomplete="off">
-            <DataAnnotationsValidator />
-
-            <h3 class="mt-3">Configurações da aplicação</h3>
-
-            <ValidationSummary Model="Input" />
-
-
-            <div class="form-group">
-                <label>Permitir login pela API</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.AllowApiLogin" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.AllowApiLogin" />
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-MessageOfTheDay">Mensagem do dia</label>
+                <p class="setting-desc">Aviso exibido no topo da tela de dispositivos para todos os usuários.</p>
             </div>
-            <div class="form-group">
-                <label class="control-label">Dispositivos banidos</label>
-                <br />
-                <select size="4" class="form-control" @bind="_bannedDeviceSelected">
-                    @foreach (var bannedDevice in Input.BannedDevices)
-                    {
-                        <option @key="bannedDevice" value="@bannedDevice">@bannedDevice</option>
-                    }
-                </select>
-
-                <div class="text-end mb-2 mt-1">
-                    <button type="button" class="btn btn-secondary" @onclick="RemoveBannedDevice">Remover</button>
-                </div>
-                <div class="input-group">
-                    <input placeholder="Adicionar ID, nome ou IP a banir"
-                           class="form-control" autocomplete="off"
-                           @bind="_bannedDeviceToAdd"
-                           @bind:event="oninput"
-                           @onkeydown="HandleBannedDeviceKeyDown" />
-                    <button type="button" class="btn btn-secondary" @onclick="AddBannedDevice">Adicionar</button>
-                </div>
-                <ValidationMessage For="() => Input.BannedDevices" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Retenção de dados (dias)</label>
-                <br />
-                <InputNumber @bind-Value="Input.DataRetentionInDays" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.DataRetentionInDays" />
-            </div>
-            <div class="form-group">
-                <label>Gravar sessões de controle remoto</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.EnableRemoteControlRecording" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.EnableRemoteControlRecording" />
-            </div>
-            <div class="form-group">
-                <label>Usar o Log de Eventos do Windows</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.EnableWindowsEventLog" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.EnableWindowsEventLog" />
-            </div>
-            <div class="form-group">
-                <label>Exigir consentimento do usuário</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.EnforceAttendedAccess" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.EnforceAttendedAccess" />
-            </div>
-            <div class="form-group">
-                <label>Forçar HTTPS nos clientes</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.ForceClientHttps" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.ForceClientHttps" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Proxies conhecidos</label>
-                <br />
-                <select class="form-control" @bind="_knownProxySelected" size="4">
-                    @foreach (var proxy in Input.KnownProxies)
-                    {
-                        <option @key="proxy" value="@proxy">@proxy</option>
-                    }
-                </select>
-                <div class="text-end mb-2 mt-1">
-                    <button type="button" class="btn btn-secondary" @onclick="RemoveKnownProxy">Remover</button>
-                </div>
-                <div class="input-group">
-                    <input @bind="_knownProxyToAdd"
-                           @bind:event="oninput"
-                           placeholder="Adicionar um proxy conhecido"
-                           class="form-control"
-                           autocomplete="off"
-                           @onkeydown="HandleKnownProxyKeyDown" />
-
-                    <button type="button" class="btn btn-secondary" @onclick="AddKnownProxy">Adicionar</button>
-                </div>
-                <ValidationMessage For="() => Input.KnownProxies" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Máximo de organizações</label>
-                <br />
-                <InputNumber @bind-Value="Input.MaxOrganizationCount" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.MaxOrganizationCount" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Máximo de atualizações simultâneas</label>
-                <br />
-                <InputNumber @bind-Value="Input.MaxConcurrentUpdates" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.MaxConcurrentUpdates" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Mensagem do dia</label>
-                <br />
-                <InputText @bind-Value="Input.MessageOfTheDay" class="form-control" autocomplete="off" />
-                <br />
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-MessageOfTheDay" class="form-control" @bind-Value="Input.MessageOfTheDay" autocomplete="off" placeholder="Ex.: Manutenção no sábado às 8h" />
                 <ValidationMessage For="() => Input.MessageOfTheDay" />
             </div>
-            <div class="form-group">
-                <label>Redirecionar para HTTPS</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.RedirectToHttps" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.RedirectToHttps" />
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-Theme">Tema padrão</label>
+                <p class="setting-desc">Usado nas telas de login e por quem ainda não escolheu um tema.</p>
             </div>
-            <div class="form-group">
-                <label>Notificar o usuário no controle remoto</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.RemoteControlNotifyUser" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.RemoteControlNotifyUser" />
-            </div>
-            <div class="form-group">
-                <label>Exigir login na página de controle remoto</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.RemoteControlRequiresAuthentication" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.RemoteControlRequiresAuthentication" />
-            </div>
-            <div class="form-group">
-                <label>Exigir 2FA</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.Require2FA" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.Require2FA" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Nome de exibição SMTP</label>
-                <br />
-                <InputText @bind-Value="Input.SmtpDisplayName" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpDisplayName" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">E-mail SMTP</label>
-                <br />
-                <InputText type="email" @bind-Value="Input.SmtpEmail" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpEmail" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Servidor SMTP</label>
-                <br />
-                <InputText @bind-Value="Input.SmtpHost" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpHost" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Porta SMTP</label>
-                <br />
-                <InputNumber @bind-Value="Input.SmtpPort" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpPort" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Verificar revogação do certificado SMTP</label>
-                <div class="small text-muted">
-                    Às vezes é preciso desativar para certificados Let's Encrypt.
-                </div>
-                <br />
-                <InputCheckbox @bind-Value="Input.SmtpCheckCertificateRevocation" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpCheckCertificateRevocation" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Domínio local SMTP</label>
-                <br />
-                <InputText @bind-Value="Input.SmtpLocalDomain" class="form-control" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpLocalDomain" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Usuário SMTP</label>
-                <br />
-                <InputText @bind-Value="Input.SmtpUserName" class="form-control" autocomplete="new-password" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpUserName" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Senha SMTP</label>
-                <br />
-                <InputText type="password" @bind-Value="Input.SmtpPassword" class="form-control" autocomplete="new-password" />
-                <br />
-                <ValidationMessage For="() => Input.SmtpPassword" />
-            </div>
-            <div class="form-group text-end">
-                <button id="sendTestEmailButton" type="button" class="btn btn-secondary" @onclick="SaveAndTestSmtpSettings">Testar</button>
-            </div>
-            <div class="form-group">
-                <label class="control-label">Tema</label>
-                <br />
-                <select class="form-control" @bind="Input.Theme">
+            <div class="setting-control">
+                <select id="cfg-Theme" class="form-select" @bind="Input.Theme">
                     @foreach (var theme in Enum.GetValues<Theme>())
                     {
                         <option @key="theme" value="@theme">@EnumLabels.Get(theme)</option>
                     }
-
                 </select>
-                <br />
-                <ValidationMessage For="() => Input.Theme" />
             </div>
-            <div class="form-group">
-                <label class="control-label">Origens CORS confiáveis</label>
-                <br />
-                <select class="form-control" @bind="_trustedCorsOriginSelected" size="4">
-                    @foreach (var origin in Input.TrustedCorsOrigins)
-                    {
-                        <option @key="origin" value="@origin">@origin</option>
-                    }
-                </select>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-MaxOrganizationCount">Máximo de organizações</label>
+                <p class="setting-desc">Limita os cadastros públicos. Use -1 para ilimitado e 1 para só a sua organização.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-MaxOrganizationCount" class="form-control" @bind-Value="Input.MaxOrganizationCount" autocomplete="off" />
+                <ValidationMessage For="() => Input.MaxOrganizationCount" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-DataRetentionInDays">Retenção de dados (dias)</label>
+                <p class="setting-desc">Alertas, resultados de scripts e logs mais antigos são apagados automaticamente.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-DataRetentionInDays" class="form-control" @bind-Value="Input.DataRetentionInDays" autocomplete="off" />
+                <ValidationMessage For="() => Input.DataRetentionInDays" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-MaxConcurrentUpdates">Atualizações simultâneas</label>
+                <p class="setting-desc">Quantos agentes podem baixar uma atualização ao mesmo tempo.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-MaxConcurrentUpdates" class="form-control" @bind-Value="Input.MaxConcurrentUpdates" autocomplete="off" />
+                <ValidationMessage For="() => Input.MaxConcurrentUpdates" />
+            </div>
+        </div>
+    </section>
 
-                <div class="text-end mb-2 mt-1">
-                    <button type="button" class="btn btn-secondary" @onclick="RemoveTrustedCorsOrigin">Remover</button>
+    <section id="seguranca" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-shield-halved"></i> Segurança</h2>
+                <p class="panel-description">Autenticação e transporte.</p>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-Require2FA">Exigir verificação em duas etapas</label>
+                <p class="setting-desc">Todos os usuários precisam configurar um app autenticador para usar o painel.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-Require2FA" class="form-check-input" role="switch" @bind-Value="Input.Require2FA" />
                 </div>
-                <div class="input-group">
-                    <input placeholder="Adicionar URL confiável"
-                           class="form-control"
-                           autocomplete="off"
-                           @bind="_trustedCorsOriginToAdd"
-                           @bind:event="oninput"
-                           @onkeydown="HandleTrustedCorsKeyDown" />
-
-                    <button id="trustedCorsAddButton" type="button" class="btn btn-secondary" @onclick="AddTrustedCorsOrigin">Adicionar</button>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RemoteControlRequiresAuthentication">Exigir login no controle remoto</label>
+                <p class="setting-desc">A página /Viewer só abre para usuários autenticados.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-RemoteControlRequiresAuthentication" class="form-check-input" role="switch" @bind-Value="Input.RemoteControlRequiresAuthentication" />
                 </div>
-                <ValidationMessage For="() => Input.TrustedCorsOrigins" />
             </div>
-            <div class="form-group">
-                <label>Usar HSTS</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.UseHsts" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.UseHsts" />
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-AllowApiLogin">Permitir login pela API</label>
+                <p class="setting-desc">Libera o endpoint de login da API (além das chaves de API).</p>
             </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-AllowApiLogin" class="form-check-input" role="switch" @bind-Value="Input.AllowApiLogin" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RedirectToHttps">Redirecionar para HTTPS</label>
+                <p class="setting-desc">Redireciona requisições HTTP para HTTPS.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-RedirectToHttps" class="form-check-input" role="switch" @bind-Value="Input.RedirectToHttps" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-UseHsts">Usar HSTS</label>
+                <p class="setting-desc">Faz o navegador usar sempre HTTPS. Ative só se o certificado estiver funcionando.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-UseHsts" class="form-check-input" role="switch" @bind-Value="Input.UseHsts" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-ForceClientHttps">Forçar HTTPS nos agentes</label>
+                <p class="setting-desc">Os agentes sempre se conectam ao servidor por HTTPS.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-ForceClientHttps" class="form-check-input" role="switch" @bind-Value="Input.ForceClientHttps" />
+                </div>
+            </div>
+        </div>
+    </section>
 
-            <div class="form-group">
-                <label>Registrar requisições HTTP</label>
-                <br />
-                <InputCheckbox @bind-Value="Input.UseHttpLogging" autocomplete="off" />
-                <br />
-                <ValidationMessage For="() => Input.UseHttpLogging" />
+    <section id="acesso-remoto" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-desktop"></i> Acesso remoto</h2>
+                <p class="panel-description">Privacidade e registro das sessões de controle remoto.</p>
             </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-EnforceAttendedAccess">Pedir consentimento do usuário</label>
+                <p class="setting-desc">O usuário do computador precisa aceitar antes de cada sessão de controle remoto.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-EnforceAttendedAccess" class="form-check-input" role="switch" @bind-Value="Input.EnforceAttendedAccess" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RemoteControlNotifyUser">Avisar o usuário</label>
+                <p class="setting-desc">Mostra um aviso no computador quando uma sessão começa.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-RemoteControlNotifyUser" class="form-check-input" role="switch" @bind-Value="Input.RemoteControlNotifyUser" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-EnableRemoteControlRecording">Gravar sessões</label>
+                <p class="setting-desc">Grava as sessões de controle remoto no servidor (ocupa espaço em disco).</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-EnableRemoteControlRecording" class="form-check-input" role="switch" @bind-Value="Input.EnableRemoteControlRecording" />
+                </div>
+            </div>
+        </div>
+    </section>
 
-            <button id="saveButton" type="button" class="btn btn-lg btn-primary" @onclick="Save">Salvar</button>
-        </EditForm>
+    <section id="email" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-envelope"></i> E-mail (SMTP)</h2>
+                <p class="panel-description">Usado em convites, redefinição de senha e alertas.</p>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpDisplayName">Nome do remetente</label>
+                <p class="setting-desc">Nome que aparece nos e-mails enviados.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpDisplayName" class="form-control" @bind-Value="Input.SmtpDisplayName" autocomplete="off" />
+                <ValidationMessage For="() => Input.SmtpDisplayName" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpEmail">E-mail do remetente</label>
+                <p class="setting-desc">Endereço usado no campo "De".</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpEmail" class="form-control" @bind-Value="Input.SmtpEmail" autocomplete="off" type="email" />
+                <ValidationMessage For="() => Input.SmtpEmail" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpHost">Servidor</label>
+                <p class="setting-desc">Ex.: smtp.office365.com</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpHost" class="form-control" @bind-Value="Input.SmtpHost" autocomplete="off" />
+                <ValidationMessage For="() => Input.SmtpHost" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpPort">Porta</label>
+                <p class="setting-desc">587 (STARTTLS) ou 465 (SSL).</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-SmtpPort" class="form-control" @bind-Value="Input.SmtpPort" autocomplete="off" />
+                <ValidationMessage For="() => Input.SmtpPort" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpLocalDomain">Domínio local</label>
+                <p class="setting-desc">Opcional. Nome enviado no HELO/EHLO.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpLocalDomain" class="form-control" @bind-Value="Input.SmtpLocalDomain" autocomplete="off" />
+                <ValidationMessage For="() => Input.SmtpLocalDomain" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpUserName">Usuário</label>
+                <p class="setting-desc">Normalmente o próprio e-mail.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpUserName" class="form-control" @bind-Value="Input.SmtpUserName" autocomplete="new-password" />
+                <ValidationMessage For="() => Input.SmtpUserName" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpPassword">Senha</label>
+                <p class="setting-desc">Use uma senha de app quando o provedor exigir.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-SmtpPassword" class="form-control" @bind-Value="Input.SmtpPassword" autocomplete="new-password" type="password" />
+                <ValidationMessage For="() => Input.SmtpPassword" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-SmtpCheckCertificateRevocation">Verificar revogação do certificado</label>
+                <p class="setting-desc">Às vezes precisa ser desativado com certificados Let's Encrypt.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-SmtpCheckCertificateRevocation" class="form-check-input" role="switch" @bind-Value="Input.SmtpCheckCertificateRevocation" />
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end pt-2">
+            <button id="sendTestEmailButton" type="button" class="btn btn-secondary" @onclick="SaveAndTestSmtpSettings">
+                <i class="fa-solid fa-paper-plane"></i> Salvar e enviar e-mail de teste
+            </button>
+        </div>
+    </section>
+
+    <section id="rede" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-network-wired"></i> Rede e registros</h2>
+                <p class="panel-description">Proxy reverso, CORS e logs.</p>
+            </div>
+        </div>
+        <div class="setting-row stack">
+            <div>
+                <p class="setting-label">Proxies conhecidos</p>
+                <p class="setting-desc">IPs de proxies reversos (Nginx, Traefik, Cloudflare...) cujos cabeçalhos X-Forwarded-* são confiáveis.</p>
+            </div>
+            <div class="input-group">
+                <input placeholder="Ex.: 172.17.0.1"
+                       class="form-control mono" autocomplete="off"
+                       @bind="_knownProxyToAdd"
+                       @bind:event="oninput"
+                       @onkeydown="HandleKnownProxyKeyDown" />
+                <button type="button" class="btn btn-secondary" @onclick="AddKnownProxy"><i class="fa-solid fa-plus"></i> Adicionar</button>
+            </div>
+            <div class="list-editor">
+                @if (!Input.KnownProxies.Any())
+                {
+                    <div class="list-empty">Nenhum item.</div>
+                }
+                @foreach (var item in Input.KnownProxies)
+                {
+                    <div class="list-item" @key="item">
+                        <span class="truncate">@item</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Remover" @onclick="() => RemoveKnownProxyItem(item)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+            <ValidationMessage For="() => Input.KnownProxies" />
+        </div>
+        <div class="setting-row stack">
+            <div>
+                <p class="setting-label">Origens CORS confiáveis</p>
+                <p class="setting-desc">Sites externos que podem chamar a API pelo navegador.</p>
+            </div>
+            <div class="input-group">
+                <input placeholder="Ex.: https://glpi.empresa.com.br"
+                       class="form-control mono" autocomplete="off"
+                       @bind="_trustedCorsOriginToAdd"
+                       @bind:event="oninput"
+                       @onkeydown="HandleTrustedCorsKeyDown" />
+                <button id="trustedCorsAddButton" type="button" class="btn btn-secondary" @onclick="AddTrustedCorsOrigin"><i class="fa-solid fa-plus"></i> Adicionar</button>
+            </div>
+            <div class="list-editor">
+                @if (!Input.TrustedCorsOrigins.Any())
+                {
+                    <div class="list-empty">Nenhum item.</div>
+                }
+                @foreach (var item in Input.TrustedCorsOrigins)
+                {
+                    <div class="list-item" @key="item">
+                        <span class="truncate">@item</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Remover" @onclick="() => RemoveTrustedCorsOriginItem(item)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+            <ValidationMessage For="() => Input.TrustedCorsOrigins" />
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-UseHttpLogging">Registrar requisições HTTP</label>
+                <p class="setting-desc">Grava cada requisição nos logs. Útil para diagnóstico, mas gera muito volume.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-UseHttpLogging" class="form-check-input" role="switch" @bind-Value="Input.UseHttpLogging" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-EnableWindowsEventLog">Usar o Log de Eventos do Windows</label>
+                <p class="setting-desc">Só tem efeito quando o servidor roda no Windows.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-EnableWindowsEventLog" class="form-check-input" role="switch" @bind-Value="Input.EnableWindowsEventLog" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="banidos" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-ban"></i> Dispositivos banidos</h2>
+                <p class="panel-description">Bloqueie agentes específicos.</p>
+            </div>
+        </div>
+        <div class="setting-row stack">
+            <div>
+                <p class="setting-label">Lista de bloqueio</p>
+                <p class="setting-desc">Agentes com este ID, nome ou IP são desconectados e não conseguem se registrar.</p>
+            </div>
+            <div class="input-group">
+                <input placeholder="ID, nome do computador ou IP"
+                       class="form-control mono" autocomplete="off"
+                       @bind="_bannedDeviceToAdd"
+                       @bind:event="oninput"
+                       @onkeydown="HandleBannedDeviceKeyDown" />
+                <button type="button" class="btn btn-secondary" @onclick="AddBannedDevice"><i class="fa-solid fa-plus"></i> Adicionar</button>
+            </div>
+            <div class="list-editor">
+                @if (!Input.BannedDevices.Any())
+                {
+                    <div class="list-empty">Nenhum item.</div>
+                }
+                @foreach (var item in Input.BannedDevices)
+                {
+                    <div class="list-item" @key="item">
+                        <span class="truncate">@item</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Remover" @onclick="() => RemoveBannedDeviceItem(item)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                }
+            </div>
+            <ValidationMessage For="() => Input.BannedDevices" />
+        </div>
+    </section>
+
+
+        <div class="save-bar">
+            <span><i class="fa-solid fa-circle-info me-1"></i> As configurações são gravadas no banco de dados e valem para todo o servidor.</span>
+            <button id="saveButton" type="button" class="btn btn-primary" @onclick="Save"><i class="fa-solid fa-floppy-disk"></i> Salvar alterações</button>
+        </div>
+    </EditForm>
+
+    <section id="administradores" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-user-gear"></i> Administradores do servidor</h2>
+                <p class="panel-description">Têm acesso a esta página e aos logs do servidor. A alteração vale na hora.</p>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <label class="check-chip"><input class="form-check-input" type="checkbox" @bind="_showMyOrgAdminsOnly" /> Só minha organização</label>
+            <label class="check-chip"><input class="form-check-input" type="checkbox" @bind="_showAdminsOnly" /> Só administradores</label>
+        </div>
+        <div class="list-editor" style="max-height: 18rem">
+            @foreach (var user in UserList)
+            {
+                <div class="list-item" @key="user.Id">
+                    <span class="truncate">@user.UserName</span>
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" aria-label="Administrador do servidor"
+                               disabled="@(user.Id == User?.Id)" checked="@user.IsServerAdmin" @onchange="ev => SetIsServerAdmin(ev, user)" />
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
     </div>
 </div>

@@ -9,59 +9,45 @@
 @inject ILogsManager LogsManager
 @inject ILoaderService LoaderService
 
-<h3 class="mb-3">Logs do servidor</h3>
+<PageHeader Title="Logs do servidor"
+            Subtitle="Eventos registrados pelo servidor, com filtros por nível, texto e período."
+            Icon="fa-solid fa-file-lines">
+    <Actions>
+        <button class="btn btn-secondary" onclick="window.open('/API/ScriptResults', '_blank')">
+            <i class="fa-solid fa-file-csv"></i> Histórico de scripts
+        </button>
+        <button class="btn btn-secondary" onclick="window.open('/API/ServerLogs/Download', '_blank')">
+            <i class="fa-solid fa-download"></i> Baixar logs
+        </button>
+        <button class="btn btn-outline-danger" type="button" @onclick="ClearAllLogs">
+            <i class="fa-solid fa-trash-can"></i> Excluir logs
+        </button>
+    </Actions>
+</PageHeader>
 
-<div class="buttons-row mb-3">
-    <div>
-        <button class="btn btn-danger" type="button" @onclick="ClearAllLogs">
-            Excluir logs
-        </button>
-    </div>
-    <div>
-        <button class="btn btn-primary"
-                onclick="window.open('/API/ServerLogs/Download', '_blank')">
-            Baixar logs
-        </button>
-    </div>
-    <div>
-        <button class="btn btn-primary"
-                onclick="window.open('/API/ScriptResults', '_blank')">
-            Baixar histórico de scripts
-        </button>
-    </div>
-</div>
-<div class="filters-row mb-3">
-    <div style="display:inline-block">
-        <strong>Tipo:</strong>
-        <br />
-        <select class="form-control-sm" @bind="LogLevel">
-            <option value="">Todos</option>
+<div class="toolbar">
+    <div class="toolbar-group">
+        <select class="form-select" aria-label="Nível" @bind="LogLevel">
+            <option value="">Todos os níveis</option>
             @foreach (var eventType in Enum.GetValues(typeof(LogLevel)))
             {
                 <option @key="eventType" value="@eventType">@eventType</option>
             }
         </select>
     </div>
-    <div style="display:inline-block">
-        <strong>Filtro:</strong>
-        <br />
-        <input type="text" @bind="MessageFilter" @bind:event="oninput" />
+    <div class="grow input-icon">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input class="form-control" type="search" placeholder="Filtrar pelo texto da mensagem" @bind="MessageFilter" @bind:event="oninput" />
     </div>
-    <div style="display:inline-block">
-        <strong>De:</strong>
-        <br />
-        <input type="date" @bind="FromDate" />
-    </div>
-    <div style="display:inline-block">
-        <strong>Até:</strong>
-        <br />
-        <input type="date" @bind="ToDate" />
+    <div class="toolbar-group">
+        <span class="text-muted small">De</span>
+        <input class="form-control" type="date" @bind="FromDate" />
+        <span class="text-muted small">até</span>
+        <input class="form-control" type="date" @bind="ToDate" />
     </div>
 </div>
 
-<textarea readonly class="logs-content bg-dark text-white">
-    @(string.Join(Environment.NewLine, _filteredLogs))
-</textarea>
+<textarea readonly class="logs-content" spellcheck="false">@(string.Join(Environment.NewLine, _filteredLogs))</textarea>
 
 @code {
     private readonly string _messageDebounceKey = Guid.NewGuid().ToString();

@@ -7,45 +7,53 @@
 @using Remotely.Server.Models
 @using System.ComponentModel.DataAnnotations
 
-<h3 class="mb-3">Personalização</h3>
+<PageHeader Title="Personalização"
+            Subtitle="Nome e ícone exibidos no cliente de suporte instantâneo."
+            Icon="fa-solid fa-palette" />
 
 <AlertBanner Message="@_alertMessage" />
 
-<div class="row">
-    <div class="col-sm-8 col-lg-6 col-xl-5">
-        <EditForm OnValidSubmit="HandleValidSubmit" Model="_inputModel">
-            <DataAnnotationsValidator />
+<EditForm OnValidSubmit="HandleValidSubmit" Model="_inputModel" style="max-width: 880px">
+    <DataAnnotationsValidator />
 
-            <div class="form-group mb-5">
-                <label class="text-info font-weight-bold">Nome do produto</label>
-                <InputText class="form-control" @bind-Value="_inputModel.ProductName" />
+    <section class="panel">
+        <div class="setting-row">
+            <div>
+                <p class="setting-label">Nome do produto</p>
+                <p class="setting-desc">Aparece na janela do cliente de suporte. Até 25 caracteres.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText class="form-control" @bind-Value="_inputModel.ProductName" placeholder="Ex.: Suporte CAV SUL" />
                 <ValidationMessage For="() => _inputModel.ProductName" />
             </div>
-
-            <div class="form-group mb-4">
-                <label class="text-info font-weight-bold d-block">Ícone atual</label>
-                <br />
-                @if (!string.IsNullOrWhiteSpace(_base64Icon))
-                {
-                    <img class="branding-icon" src="data:image/png;base64,@_base64Icon" />
-                }
-                else
-                {
-                    <img class="branding-icon" src="/images/Remotely_Icon.png" />
-                }
+        </div>
+        <div class="setting-row">
+            <div>
+                <p class="setting-label">Ícone</p>
+                <p class="setting-desc">Imagem PNG quadrada. Recomendado 256 × 256 px.</p>
             </div>
-
-            <div class="form-group mb-5">
-                <label class="text-info font-weight-bold">Novo ícone</label>
+            <div class="setting-control">
+                <div class="branding-preview">
+                    @if (!string.IsNullOrWhiteSpace(_base64Icon))
+                    {
+                        <img class="branding-icon" alt="Ícone atual" src="data:image/png;base64,@_base64Icon" />
+                    }
+                    else
+                    {
+                        <img class="branding-icon" alt="Ícone padrão" src="/images/Remotely_Icon.png" />
+                    }
+                </div>
                 <InputFile type="file" accept="image/png" class="form-control" OnChange="IconUploadInputChanged" />
             </div>
-            <div class="form-group text-end">
-                <button class="btn btn-secondary me-3" type="button" @onclick="ResetBranding">Redefinir</button>
-                <button class="btn btn-primary" type="submit">Enviar</button>
-            </div>
-        </EditForm>
+        </div>
+    </section>
+
+    <div class="save-bar">
+        <button class="btn btn-ghost" type="button" @onclick="ResetBranding"><i class="fa-solid fa-rotate-left"></i> Restaurar padrão</button>
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-check"></i> Salvar</button>
     </div>
-</div>
+</EditForm>
+
 @code {
     private string? _alertMessage;
     private string? _base64Icon;

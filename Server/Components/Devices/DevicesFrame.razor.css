@@ -1,27 +1,12 @@
-﻿#deviceControlsWrapper {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-column-gap: 20px;
-    grid-row-gap: 10px;
-    margin-bottom: 0.5rem;
-    margin-right: 0;
-}
-
-    #deviceControlsWrapper > :last-child {
-        text-align: right;
-    }
-
 #deviceListDiv {
-    overflow-y: auto;
-    overflow-x: hidden;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    align-items: start;
 }
 
 @media (max-width: 640.98px) {
-    #deviceControlsWrapper {
+    #deviceListDiv {
         grid-template-columns: 1fr;
     }
-
-        #deviceControlsWrapper > :last-child {
-            text-align: left;
-        }
 }

@@ -1,0 +1,75 @@
+/*
+ * Ajustes visuais da tela de controle remoto (/Viewer) para combinar com o painel.
+ * Carregado depois do tema claro/escuro do viewer.
+ */
+body {
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.background-layer-1 {
+    background-color: #0b1020;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1.5px);
+    background-size: 28px 28px;
+}
+
+.background-layer-2 {
+    background-image:
+        radial-gradient(900px 500px at 10% 90%, rgba(99, 102, 241, 0.45), transparent 60%),
+        radial-gradient(800px 500px at 95% 100%, rgba(59, 130, 246, 0.4), transparent 60%);
+}
+
+.connect-header {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #f8fafc;
+}
+
+.center-connection-box {
+    background-color: rgba(17, 24, 39, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(6px);
+}
+
+.center-connection-box input,
+.center-connection-box select {
+    background-color: #0d1320;
+    border-color: rgba(148, 163, 184, 0.25);
+    border-radius: 8px;
+    color: #e5e7eb;
+}
+
+    .center-connection-box input:focus,
+    .center-connection-box select:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+
+.input-label {
+    font-weight: 500;
+    font-size: 14px;
+    color: #cbd5e1;
+}
+
+#connectButton {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+}
+
+    #connectButton:hover {
+        filter: brightness(1.08);
+        border: none;
+    }
+
+.copyright-text {
+    color: rgba(226, 232, 240, 0.65);
+}

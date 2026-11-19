@@ -1,4 +1,17 @@
-﻿.branding-icon {
-    max-width: 8rem;
-    height: auto;
+.branding-preview {
+    flex: 0 0 auto;
+    width: 4rem;
+    height: 4rem;
+    border-radius: 14px;
+    border: 1px solid var(--rm-border);
+    background: var(--rm-surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.branding-icon {
+    max-width: 3rem;
+    max-height: 3rem;
 }

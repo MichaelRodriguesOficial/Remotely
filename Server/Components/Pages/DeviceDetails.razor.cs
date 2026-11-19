@@ -203,6 +203,24 @@ public partial class DeviceDetails : AuthComponentBase
         return Task.CompletedTask;
     }
 
+    private string GetOsIcon()
+    {
+        var platform = $"{_device?.Platform} {_device?.OSDescription}".ToLowerInvariant();
+        if (platform.Contains("win"))
+        {
+            return "fa-brands fa-windows";
+        }
+        if (platform.Contains("osx") || platform.Contains("mac"))
+        {
+            return "fa-brands fa-apple";
+        }
+        if (platform.Contains("linux"))
+        {
+            return "fa-brands fa-linux";
+        }
+        return "fa-solid fa-computer";
+    }
+
     private void NavigateToDeviceId()
     {
         NavManager.NavigateTo($"/device-details/{_inputDeviceId}");

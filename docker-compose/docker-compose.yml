@@ -53,6 +53,6 @@ services:
       - Remotely_ApplicationOptions__DockerGatewayIp=172.28.0.1
 
       # Opções de segurança deste fork.
-      - Remotely_ApplicationOptions__EnableSwagger=${REMOTELY_ENABLE_SWAGGER:-false}
+      - Remotely_ApplicationOptions__EnableSwagger=${REMOTELY_ENABLE_SWAGGER:-true}
       - Remotely_ApplicationOptions__AllowedFrameAncestors=${REMOTELY_ALLOWED_FRAME_ANCESTORS:-}
       - Remotely_ApplicationOptions__AuthRateLimitPerMinute=${REMOTELY_AUTH_RATE_LIMIT:-20}

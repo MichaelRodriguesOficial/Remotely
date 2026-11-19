@@ -7,10 +7,10 @@ public class ApplicationOptions
     public string? DockerGatewayIp { get; set; }
 
     /// <summary>
-    /// Exposes the Swagger UI (/swagger) outside of the Development environment.
-    /// Disabled by default to avoid advertising the API surface publicly.
+    /// Publica a documentação da API em /swagger. Só usuários logados no painel
+    /// conseguem abrir a página e o documento JSON.
     /// </summary>
-    public bool EnableSwagger { get; set; }
+    public bool EnableSwagger { get; set; } = true;
 
     /// <summary>
     /// Space-separated list of origins that are allowed to embed Remotely pages

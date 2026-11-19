@@ -9,201 +9,138 @@
 @inject NavigationManager NavManager
 @inject ILogger<Downloads> Logger 
 
-@if (_isAuthenticated)
+<PageHeader Title="Downloads"
+            Subtitle="Clientes de suporte instantâneo e agentes para instalar nos computadores."
+            Icon="fa-solid fa-download">
+    <Actions>
+        @if (_isAuthenticated)
+        {
+            <a class="btn btn-primary" href="deploy"><i class="fa-solid fa-rocket"></i> Script de instalação pronto</a>
+        }
+    </Actions>
+</PageHeader>
+
+<h2 class="section-title mt-0">Suporte instantâneo</h2>
+<p class="text-muted mb-3">Compartilhamento de tela na hora, sem instalação e sem conta. Ideal para atender um usuário pontual.</p>
+
+<div class="platform-grid mb-4">
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon windows"><i class="fa-brands fa-windows"></i></span>
+            <div><strong>Windows 64 bits</strong><span>Windows 10 e 11</span></div>
+        </div>
+        <div class="links">
+            <a class="btn btn-primary btn-sm" target="_blank" href="/api/ClientDownloads/Desktop/WindowsDesktop-x64/@_organizationId"><i class="fa-solid fa-download"></i> Baixar .exe</a>
+        </div>
+    </div>
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon windows"><i class="fa-brands fa-windows"></i></span>
+            <div><strong>Windows 32 bits</strong><span>Computadores antigos</span></div>
+        </div>
+        <div class="links">
+            <a class="btn btn-primary btn-sm" target="_blank" href="/api/ClientDownloads/Desktop/WindowsDesktop-x86/@_organizationId"><i class="fa-solid fa-download"></i> Baixar .exe</a>
+        </div>
+    </div>
+    <div class="platform-card">
+        <div class="platform-card-head">
+            <span class="os-icon linux"><i class="fa-brands fa-linux"></i></span>
+            <div><strong>Linux 64 bits</strong><span>Ubuntu e derivados</span></div>
+        </div>
+        <div class="links">
+            <a class="btn btn-primary btn-sm" target="_blank" href="/api/ClientDownloads/Desktop/UbuntuDesktop/@_organizationId"><i class="fa-solid fa-download"></i> Baixar executável</a>
+        </div>
+    </div>
+</div>
+
+<h2 class="section-title">Agentes residentes</h2>
+<p class="text-muted mb-3">Ficam em segundo plano para acesso sem acompanhamento, inventário e execução de scripts.</p>
+
+@if (!_isAuthenticated)
 {
-    <div class="alert alert-info">
-        Veja a página <a href="/deploy">Implantar</a> para um script de instalação pronto para copiar e colar!
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Entre para baixar os agentes</h3>
+        <p>Os instaladores dos agentes são vinculados à sua organização.</p>
+        <a class="btn btn-primary" href="Account/Login"><i class="fa-solid fa-right-to-bracket"></i> Entrar</a>
     </div>
 }
-
-
-<div class="row mb-3">
-    <h4>Clientes portáteis de suporte instantâneo</h4>
-    <p class="text-info col-sm-12 mb-2">
-        Compartilhamento de tela imediato. Não precisa de conta.
-    </p>
-    <div class="col-sm-6 mb-3">
-        <strong>Windows (64 bits)</strong>
-        <p>
-            <a target="_blank" href="/api/ClientDownloads/Desktop/WindowsDesktop-x64/@_organizationId">Executável Windows</a>
-        </p>
+else
+{
+    <div class="platform-grid">
+        <div class="platform-card">
+            <div class="platform-card-head">
+                <span class="os-icon windows"><i class="fa-brands fa-windows"></i></span>
+                <div><strong>Windows</strong><span>10 e 11 · 64 e 32 bits</span></div>
+            </div>
+            <div class="links">
+                <a class="btn btn-primary btn-sm" target="_blank" href="/API/ClientDownloads/WindowsInstaller/@_organizationId"><i class="fa-solid fa-download"></i> Instalador PowerShell</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/Content/Remotely-Win-x64.zip">Arquivos x64</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/Content/Remotely-Win-x86.zip">Arquivos x86</a>
+            </div>
+        </div>
+        <div class="platform-card">
+            <div class="platform-card-head">
+                <span class="os-icon linux"><i class="fa-brands fa-ubuntu"></i></span>
+                <div><strong>Linux</strong><span>Ubuntu e Manjaro · x64</span></div>
+            </div>
+            <div class="links">
+                <a class="btn btn-primary btn-sm" target="_blank" href="/API/ClientDownloads/UbuntuInstaller-x64/@_organizationId"><i class="fa-solid fa-download"></i> Ubuntu</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/API/ClientDownloads/ManjaroInstaller-x64/@_organizationId">Manjaro</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/Content/Remotely-Linux.zip">Arquivos</a>
+            </div>
+        </div>
+        <div class="platform-card">
+            <div class="platform-card-head">
+                <span class="os-icon apple"><i class="fa-brands fa-apple"></i></span>
+                <div><strong>macOS</strong><span>Intel (x64) e Apple Silicon (arm64)</span></div>
+            </div>
+            <div class="links">
+                <a class="btn btn-primary btn-sm" target="_blank" href="/API/ClientDownloads/MacOSInstaller-arm64/@_organizationId"><i class="fa-solid fa-download"></i> Apple Silicon</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/API/ClientDownloads/MacOSInstaller-x64/@_organizationId">Intel</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/Content/Remotely-MacOS-arm64.zip">Arquivos arm64</a>
+                <a class="btn btn-secondary btn-sm" target="_blank" href="/Content/Remotely-MacOS-x64.zip">Arquivos x64</a>
+            </div>
+        </div>
     </div>
-    <div class="col-sm-6">
-        <strong>Windows (32 bits)</strong>
-        <p>
-            <a target="_blank" href="/api/ClientDownloads/Desktop/WindowsDesktop-x86/@_organizationId">Executável Windows</a>
-        </p>
+
+    <h2 class="section-title">Instalação por linha de comando</h2>
+    <div class="row g-3">
+        <div class="col-xl-6">
+            <div class="panel h-100">
+                <h3 class="panel-title mb-3"><i class="fa-brands fa-windows"></i> Windows (PowerShell)</h3>
+                <label class="form-label">Instalação silenciosa</label>
+                <div class="code-block mb-3">powershell.exe -ExecutionPolicy Bypass -F Install-Remotely.ps1 -install -quiet -organizationid "@_organizationId" -serverurl "@ServerUrl"</div>
+                <label class="form-label">Instalação a partir de um .zip local</label>
+                <div class="code-block mb-3">powershell.exe -ExecutionPolicy Bypass -F Install-Remotely.ps1 -install -quiet -organizationid "@_organizationId" -serverurl "@ServerUrl" -path "C:\caminho\Remotely-Win-x64.zip"</div>
+                <label class="form-label">Todas as opções</label>
+                <div class="code-block mb-3">powershell.exe -ExecutionPolicy Bypass -F Install-Remotely.ps1 -install -quiet -supportshortcut -organizationid "@_organizationId" -serverurl "@ServerUrl" -devicegroup "Financeiro" -devicealias "Recepção 01" -deviceuuid "&lt;guid&gt;"</div>
+                <label class="form-label">Desinstalação silenciosa</label>
+                <div class="code-block">powershell.exe -ExecutionPolicy Bypass -F Install-Remotely.ps1 -uninstall -quiet</div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="panel h-100">
+                <h3 class="panel-title mb-3"><i class="fa-brands fa-linux"></i> Linux e macOS (Bash)</h3>
+                <label class="form-label">Instalação</label>
+                <div class="code-block mb-3">sudo ./Install-Ubuntu-x64.sh</div>
+                <label class="form-label">Instalação a partir de um .zip local</label>
+                <div class="code-block mb-3">sudo ./Install-Ubuntu-x64.sh --path ./Remotely-Linux.zip</div>
+                <label class="form-label">Desinstalação</label>
+                <div class="code-block mb-3">sudo ./Install-Ubuntu-x64.sh --uninstall</div>
+                <p class="form-text mb-0">
+                    No macOS use <code>Install-MacOS-arm64.sh</code> ou <code>Install-MacOS-x64.sh</code> com as mesmas opções.
+                </p>
+            </div>
+        </div>
     </div>
-    <div class="col-sm-6 mb-3">
-        <strong>Linux 64 bits</strong>
-        <p>
-            <a target="_blank" href="/api/ClientDownloads/Desktop/UbuntuDesktop/@_organizationId">Executável Ubuntu</a>
-        </p>
-    </div>
-    @*<div class="col-sm-6 mb-3">
-    <strong>macOS x64 (10.12 - 10.15)</strong>
-    <p>
-    <a target="_blank" href="/api/ClientDownloads/Desktop/MacOS-x64/@_organizationId">Executável macOS x64</a>
-    </p>
-    <strong>macOS arm64 (11.01)</strong>
-    <p>
-    <a target="_blank" href="/api/ClientDownloads/Desktop/MacOS-arm64/@_organizationId">Executável macOS arm64</a>
-    </p>
-    </div>*@
-</div>
-
-
-<div class="row">
-    <h4>Agentes residentes</h4>
-
-    <p class="text-info col-sm-12 mb-2">
-        Agentes instalados em segundo plano para acesso autônomo e execução remota de scripts.
-    </p>
-
-    @if (!_isAuthenticated)
-    {
-        <div class="col-sm-6 mb-3">
-            <h6>É preciso estar logado para baixar.</h6>
-        </div>
-
-    }
-    else
-    {
-        <div class="col-sm-6 mb-3">
-            <strong>Windows 10 / 11 (64 e 32 bits)</strong>
-            <p>
-                <a target="_blank" href="/API/ClientDownloads/WindowsInstaller/@_organizationId">Instalador PowerShell para Windows</a>
-                <br />
-                <a target="_blank" href="/Content/Remotely-Win-x64.zip">Somente arquivos Windows x64</a>
-                <br />
-                <a target="_blank" href="/Content/Remotely-Win-x86.zip">Somente arquivos Windows x86</a>
-            </p>
-
-            <p>
-                <div class="small">Exemplo de instalação silenciosa:</div>
-
-                <code class="label label-default small">
-                    powershell.exe -ExecutionPolicy Bypass -F {path}\Install-Remotely.ps1
-                    -install
-                    -quiet
-                    -organizationid "0b3d706b-9c5d-41e6-8ae9-5720d16324e6"
-                    -serverurl "https://remotely.mytechshop.com"
-                </code>
-            </p>
-            <p>
-                <div class="small">Exemplo de desinstalação silenciosa:</div>
-
-                <code class="label label-default small">powershell.exe -ExecutionPolicy Bypass -F Install-Remotely.ps1 -uninstall -quiet</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de instalação local:</div>
-
-                <code class="label label-default small">
-                    powershell.exe -ExecutionPolicy Bypass -F {path}\Install-Remotely.ps1
-                    -install
-                    -quiet
-                    -organizationid "0b3d706b-9c5d-41e6-8ae9-5720d16324e6"
-                    -serverurl "https://remotely.mytechshop.com"
-                    -path "[path]\Remotely-Win-x64.zip"
-                </code>
-            </p>
-            <p>
-                <div class="small">Todas as opções:</div>
-
-                <code class="label label-default small">
-                    powershell.exe -ExecutionPolicy Bypass -F {path}\Install-Remotely.ps1
-                    -install -quiet -supportshortcut
-                    -organizationid "0b3d706b-9c5d-41e6-8ae9-5720d16324e6"
-                    -serverurl "https://remotely.mytechshop.com"
-                    -devicegroup "Customer Group 1"
-                    -devicealias "Front Desk"
-                    -deviceuuid "eebb4d87-5459-4976-989e-a7876dffc69c"
-                </code>
-            </p>
-        </div>
-
-        <div class="col-sm-6 mb-3">
-            <strong>Linux 64 bits</strong>
-            <p>
-                <a target="_blank" href="/API/ClientDownloads/UbuntuInstaller-x64/@_organizationId">Instalador Bash Ubuntu x64</a>
-                <br />
-                <a target="_blank" href="/API/ClientDownloads/ManjaroInstaller-x64/@_organizationId">Instalador Bash Manjaro x64</a>
-                <br />
-                <a target="_blank" href="/Content/Remotely-Linux.zip">Somente arquivos Linux x64</a>
-            </p>
-            <p>
-                <div class="small">Exemplo de instalação:</div>
-
-                <code class="label label-default small">sudo [path]/Install-Ubuntu-x64.sh</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de instalação local:</div>
-
-                <code class="label label-default small">sudo [path]/Install-Ubuntu-x64.sh --path [path]/Remotely-Linux.zip</code>
-            </p>
-            <p>
-                <div class="small">Desinstalar:</div>
-
-                <code class="label label-default small">sudo [path]/Install-Ubuntu-x64.sh --uninstall</code>
-            </p>
-        </div>
-
-        <div class="col-sm-6 mb-3">
-            <strong>macOS x64 (10.12 - 10.15)</strong>
-            <p>
-                <a target="_blank" href="/API/ClientDownloads/MacOSInstaller-x64/@_organizationId">Instalador Bash macOS x64</a>
-                <br />
-                <a target="_blank" href="/Content/Remotely-MacOS-x64.zip">Somente arquivos macOS x64</a>
-            </p>
-
-            <p>
-                <div class="small">Exemplo de instalação:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-x64.sh</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de instalação local:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-x64.sh --path [path]/Remotely-MacOS-x64.zip</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de desinstalação:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-x64.sh --uninstall</code>
-            </p>
-        </div>
-
-        <div class="col-sm-6 mb-3">
-            <strong>macOS arm64</strong>
-            <p>
-                <a target="_blank" href="/API/ClientDownloads/MacOSInstaller-arm64/@_organizationId">Instalador Bash macOS arm64</a>
-                <br />
-                <a target="_blank" href="/Content/Remotely-MacOS-arm64.zip">Somente arquivos macOS arm64</a>
-            </p>
-
-            <p>
-                <div class="small">Exemplo de instalação:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-arm64.sh</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de instalação local:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-arm64.sh --path [path]/Remotely-MacOS-arm64.zip</code>
-            </p>
-            <p>
-                <div class="small">Exemplo de desinstalação:</div>
-
-                <code class="label label-default small">sudo [path]/Install-MacOS-arm64.sh --uninstall</code>
-            </p>
-        </div>
-    }
-
-</div>
+}
 
 @code {
     private string? _organizationId;
     private bool _isAuthenticated;
+
+    private string ServerUrl => NavManager.BaseUri.TrimEnd('/');
 
     protected override async Task OnInitializedAsync()
     {

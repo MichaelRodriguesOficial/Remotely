@@ -1,18 +1,19 @@
 ﻿@attribute [Authorize]
 @inherits AuthComponentBase
 
-<div class="chat-card border border-secondary bg-secondary @Session.ExpandedClass">
-    <div class="chat-header bg-primary text-white p-2" @onclick="HeaderClicked">
-        <h6 class="mt-3">
-            <i class="oi oi-chat me-1"></i>
-            <span class="badge bg-info rounded-pill me-1">
-                @Session.MissedChats
-            </span>
-            @Session.DeviceName
-        </h6>
+<div class="chat-card @Session.ExpandedClass">
+    <div class="chat-header" @onclick="HeaderClicked">
+        <div class="chat-title">
+            <i class="fa-regular fa-comment"></i>
+            <span class="truncate">@Session.DeviceName</span>
+            @if (Session.MissedChats > 0)
+            {
+                <span class="badge bg-danger rounded-pill">@Session.MissedChats</span>
+            }
+        </div>
         <div class="text-end">
-            <button class="btn btn-sm btn-secondary" title="Fechar" @onclick="CloseChatCard" @onclick:stopPropagation>
-                <i class="oi oi-x pointer"></i>
+            <button class="btn btn-sm btn-ghost btn-icon chat-close" title="Fechar" @onclick="CloseChatCard" @onclick:stopPropagation>
+                <i class="fa-solid fa-xmark pointer"></i>
             </button>
         </div>
     </div>

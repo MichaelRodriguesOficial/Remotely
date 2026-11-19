@@ -8,87 +8,104 @@
 @inject IToastService ToastService
 @inject IModalService ModalService
 
-<h3 class="mb-3">Preferências</h3>
+<PageHeader Title="Preferências"
+            Subtitle="Ajustes pessoais da sua conta neste painel."
+            Icon="fa-solid fa-gear" />
 
-<div class="row">
-    <div class="col-md-6">
-        <partial name="_StatusMessage" for="Message" />
-        <EditForm Model="_options" OnValidSubmit="HandleValidSubmit" @onkeydown="EditFormKeyDown">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+<EditForm Model="_options" OnValidSubmit="HandleValidSubmit" @onkeydown="EditFormKeyDown" style="max-width: 880px">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
 
-            @if (!string.IsNullOrWhiteSpace(_alertMessage))
-            {
-                <AlertBanner Message="@_alertMessage" />
-            }
+    @if (!string.IsNullOrWhiteSpace(_alertMessage))
+    {
+        <AlertBanner Message="@_alertMessage" />
+    }
 
-            <div class="form-group">
-                <label class="control-label">Seu nome</label>
-                <br />
-                <InputText @bind-Value="_options.DisplayName" class="form-control" placeholder="Exibido aos clientes no lugar do seu e-mail" />
-                <br />
-                <ValidationMessage For="() => _options.DisplayName" />
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-regular fa-user"></i> Perfil e aparência</h2>
             </div>
-
-            <div class="form-group">
-                <label class="control-label">Tema</label>
-                <br />
-                <InputSelect @bind-Value="_options.Theme" class="form-control">
+        </div>
+        <div class="setting-row">
+            <div>
+                <p class="setting-label">Seu nome</p>
+                <p class="setting-desc">Exibido para quem você atende, no lugar do seu e-mail.</p>
+            </div>
+            <div class="setting-control">
+                <InputText @bind-Value="_options.DisplayName" class="form-control" placeholder="Ex.: Michael (TI)" />
+            </div>
+        </div>
+        <ValidationMessage For="() => _options.DisplayName" />
+        <div class="setting-row">
+            <div>
+                <p class="setting-label">Tema</p>
+                <p class="setting-desc">Escuro ou claro. Aplicado ao recarregar a página.</p>
+            </div>
+            <div class="setting-control">
+                <InputSelect @bind-Value="_options.Theme" class="form-select">
                     @foreach (var setting in Enum.GetValues(typeof(Theme)))
                     {
                         <option @key="setting" value="@setting">@EnumLabels.Get(setting)</option>
                     }
                 </InputSelect>
-                <div class="text-info small mt-1">* Requer atualizar o navegador.</div>
-                <ValidationMessage For="() => _options.Theme" />
             </div>
+        </div>
+    </section>
 
-            <div class="form-group mt-5">
-                <label class="control-label">
-                    <span class="text-info">Atalhos de comandos</span>
-                    <button type="button" class="btn btn-secondary btn-sm ms-2" @onclick="ShowShortcutHelp">
-                        <span class="oi oi-question-mark pointer"></span>
-                    </button>
-                </label>
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-terminal"></i> Atalhos do terminal</h2>
+                <p class="panel-description">Digite o atalho no terminal para trocar de shell rapidamente.</p>
             </div>
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="ShowShortcutHelp">
+                <i class="fa-regular fa-circle-question"></i> Ajuda
+            </button>
+        </div>
+                <div class="setting-row">
+                    <div>
+                        <p class="setting-label">PowerShell Core</p>
+                        <p class="setting-desc">pwsh 7+ no Windows, Linux e macOS.</p>
+                    </div>
+                    <div class="setting-control">
+                        <InputText @bind-Value="_options.CommandModeShortcutPSCore" class="form-control mono" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <p class="setting-label">Windows PowerShell</p>
+                        <p class="setting-desc">powershell.exe 5.1 (somente Windows).</p>
+                    </div>
+                    <div class="setting-control">
+                        <InputText @bind-Value="_options.CommandModeShortcutWinPS" class="form-control mono" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <p class="setting-label">CMD</p>
+                        <p class="setting-desc">Prompt de comando do Windows.</p>
+                    </div>
+                    <div class="setting-control">
+                        <InputText @bind-Value="_options.CommandModeShortcutCMD" class="form-control mono" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <p class="setting-label">Bash</p>
+                        <p class="setting-desc">Linux e macOS.</p>
+                    </div>
+                    <div class="setting-control">
+                        <InputText @bind-Value="_options.CommandModeShortcutBash" class="form-control mono" />
+                    </div>
+                </div>
+    </section>
 
-            <div class="form-group">
-                <label class="control-label">PowerShell Core</label>
-                <br />
-                <InputText @bind-Value="_options.CommandModeShortcutPSCore" class="form-control" />
-                <br />
-                <ValidationMessage For="() => _options.CommandModeShortcutPSCore" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Windows PowerShell</label>
-                <br />
-                <InputText @bind-Value="_options.CommandModeShortcutWinPS" class="form-control" />
-                <br />
-                <ValidationMessage For="() => _options.CommandModeShortcutWinPS" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">CMD</label>
-                <br />
-                <InputText @bind-Value="_options.CommandModeShortcutCMD" class="form-control" />
-                <br />
-                <ValidationMessage For="() => _options.CommandModeShortcutCMD" />
-            </div>
-            <div class="form-group">
-                <label class="control-label">Bash</label>
-                <br />
-                <InputText @bind-Value="_options.CommandModeShortcutBash" class="form-control" />
-                <br />
-                <ValidationMessage For="() => _options.CommandModeShortcutBash" />
-            </div>
-
-            <div class="form-group">
-                <button type="submit" class="btn btn-primary">Salvar</button>
-            </div>
-        </EditForm>
+    <div class="save-bar">
+        <span><i class="fa-regular fa-floppy-disk me-1"></i> As alterações valem só para a sua conta.</span>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Salvar</button>
     </div>
-</div>
-
-
+</EditForm>
 
 @code {
     private RemotelyUserOptions _options = new();
