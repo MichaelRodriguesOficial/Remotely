@@ -42,10 +42,28 @@ jobs:
       run: dotnet restore
 
     - name: Build
-      run: dotnet build --no-restore -c ${{ env.Configuration }}
+      shell: pwsh
+      run: |
+        dotnet build --no-restore -c $env:Configuration 2>&1 | Tee-Object -FilePath build.log
+        if ($LASTEXITCODE -ne 0) {
+          # Surface compiler errors as annotations so they're visible on the PR.
+          Select-String -Path build.log -Pattern ": error " |
+            Select-Object -ExpandProperty Line -Unique -First 50 |
+            ForEach-Object { Write-Output "::error title=Build::$_" }
+          exit 1
+        }
 
     - name: Execute unit tests
-      run: dotnet test --no-build -c ${{ env.Configuration }} --verbosity normal
+      shell: pwsh
+      run: |
+        dotnet test --no-build -c $env:Configuration --verbosity normal 2>&1 | Tee-Object -FilePath test.log
+        if ($LASTEXITCODE -ne 0) {
+          # Surface failing tests as annotations so they're visible on the PR.
+          Select-String -Path test.log -Pattern "^\s*Failed |Error Message:|^\s+at |error " -Context 0,2 |
+            Select-Object -First 40 |
+            ForEach-Object { Write-Output "::error title=Tests::$($_.Line.Trim()) $($_.Context.PostContext -join ' ')" }
+          exit 1
+        }
 
     - name: List vulnerable packages
       run: dotnet list package --vulnerable --include-transitive
