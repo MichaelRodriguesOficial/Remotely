@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.1.0 — 2026-11-19
+
+### Interface
+- **Visual novo** em todo o painel, com design system próprio (temas escuro e claro), ícones Font Awesome e cabeçalho padrão nas páginas.
+- **Dispositivos:** indicadores (total, online, offline, selecionados), busca e filtros numa barra só, paginação no rodapé e estado vazio com atalho para implantar.
+- **Cards de dispositivo** com ícone do sistema, status, barras de CPU/memória/disco e ações rápidas (conectar, chat, somente visualizar). Aberto, o card mostra inventário, ações e edição de apelido, grupo, tags e observações lado a lado.
+- **Login e cadastro** em tela própria, com a marca da organização; **Minha conta** dentro do painel com menu lateral.
+- **Configuração do servidor** organizada por seções (Geral, Segurança, Acesso remoto, E-mail, Rede e registros, Dispositivos banidos, Administradores), com chaves liga/desliga, descrição de cada opção, listas editáveis e barra de salvar fixa.
+- Páginas de organização, chaves de API, downloads, implantar, scripts, logs, preferências, personalização, detalhes do dispositivo, alertas, terminal, chat e viewer redesenhadas.
+- **Sobre e créditos** atualizados para o fork mantido por Michael Rodrigues, com crédito ao projeto original.
+
+### API
+- **Swagger** habilitado por padrão em `/swagger`, só para usuários logados, com esquema de autenticação `X-Api-Key` e apenas os endpoints `/api`.
+- Controllers registrados com `AddControllers()`, o que faltava para a documentação listar a API.
+
+### Plataforma
+- **Agents e clientes de desktop migrados para .NET 10** (PowerShell SDK 7.6, Avalonia 11.3) e compilados no CI deste repositório, em vez de virem do último release oficial (2024).
+- Vulnerabilidade do `Tmds.DBus.Protocol` (dependência do Avalonia no Linux) corrigida.
+- Pacotes publicam só os recursos em inglês e português.
+- O indicador de agente desatualizado compara com a versão dos agents distribuídos pelo servidor.
+
+### Release
+- **Pacote do servidor muito menor**: só Linux x64, sem os agents e sem os runtimes de outras plataformas.
+- Agents num pacote separado (`Remotely_Agents.zip`). O `remotely_upgrade.sh` só baixa esse pacote quando ele muda; o `remotely_install.sh` baixa os dois.
+- Imagem Docker montada com os agents compilados no mesmo build.
+- Teste de fumaça cobre Swagger e os arquivos dos agents.
+
 ## v1.0.0 — 2026-11-19
 
 Primeira versão do fork, baseada no último código do [immense/Remotely](https://github.com/immense/Remotely) (dez/2024).

@@ -7,14 +7,44 @@
 
 Solução de **suporte remoto**, **acesso autônomo** e **execução remota de scripts**, feita em .NET, Blazor e SignalR.
 
-Este repositório é um fork do [immense/Remotely](https://github.com/immense/Remotely), cujo desenvolvimento foi encerrado (arquivado em dez/2024). Aqui o projeto segue mantido com correções de segurança, interface em português e servidor em **.NET 10**.
+Este repositório é um fork do [immense/Remotely](https://github.com/immense/Remotely), cujo desenvolvimento foi encerrado (arquivado em dez/2024). Aqui o projeto segue mantido por **Michael Rodrigues**, com correções de segurança, interface nova em português e tudo em **.NET 10** (servidor, agents e clientes de desktop).
 
-![Remotely](.github/media/ask-remote.png)
+![Tela de dispositivos](.github/media/dispositivos.png)
+
+<table>
+  <tr>
+    <td><img src=".github/media/dispositivo-aberto.png" alt="Card do dispositivo aberto com inventário e ações" /></td>
+    <td><img src=".github/media/configuracoes.png" alt="Configuração do servidor organizada por seções" /></td>
+  </tr>
+  <tr>
+    <td align="center">Card aberto: inventário, ações e identificação</td>
+    <td align="center">Configuração do servidor por seções</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/login.png" alt="Tela de login" /></td>
+    <td><img src=".github/media/tema-claro.png" alt="Tema claro" /></td>
+  </tr>
+  <tr>
+    <td align="center">Login</td>
+    <td align="center">Tema claro</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/organizacao.png" alt="Organização, grupos, usuários e convites" /></td>
+    <td><img src=".github/media/swagger.png" alt="Documentação da API no Swagger" /></td>
+  </tr>
+  <tr>
+    <td align="center">Organização, grupos e usuários</td>
+    <td align="center">API documentada no Swagger</td>
+  </tr>
+</table>
+
+<p align="center"><img src=".github/media/celular.png" alt="Tela no celular" width="260" /></p>
 
 ## O que muda neste fork
 
-- **Servidor em .NET 10** (o .NET 8 saiu do suporte em novembro de 2026).
-- **Interface em português (pt-BR)**, com novo visual nos temas escuro e claro e layout responsivo.
+- **Tudo em .NET 10**: servidor, agents (Windows, Linux, macOS) e clientes de desktop, compilados no CI deste repositório (o .NET 8 saiu do suporte em novembro de 2026).
+- **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
+- **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
 - **Segurança:** dezenas de correções. Entre elas:
   - páginas administrativas protegidas também na navegação interativa;
   - filtros de API que negam o acesso em caso de erro;
@@ -23,9 +53,10 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
   - correção de XSS com dados vindos dos dispositivos;
   - IDs de sessão com RNG criptográfico;
   - cabeçalhos de segurança;
-  - Swagger desligado em produção;
+  - documentação da API só para usuários logados;
   - dependências vulneráveis atualizadas.
 - **Imagem Docker própria** (`michechel10/remotely`), sem root e com healthcheck.
+- **Release enxuto**: o pacote do servidor tem só o necessário para Linux x64 e os agents vêm num pacote separado, baixado pelo atualizador apenas quando mudam.
 - **Scripts de instalação e atualização** que usam os releases deste repositório e preservam banco, chaves e instaladores dos agents.
 
 Lista completa em [CHANGELOG.md](CHANGELOG.md) e nos [releases](https://github.com/MichaelRodriguesOficial/Remotely/releases).
@@ -47,7 +78,7 @@ Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta 
 
 - **Dados:** os dados ficam no volume `remotely-data`, montado em `/app/AppData`. Lá estão o banco SQLite, os logs, as gravações e as chaves de criptografia.
 - **Pasta do host em vez do volume:** monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta`, porque o container roda com o usuário `app`.
-- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.0.0` ou `latest`).
+- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.1.0` ou `latest`).
 - **Atualizar:** `docker compose pull && docker compose up -d`.
 
 A imagem também é publicada em `ghcr.io/michaelrodriguesoficial/remotely`.
@@ -61,7 +92,7 @@ curl -fsSLO https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/m
 chmod +x remotely_install.sh
 sudo ./remotely_install.sh
 # versão específica:
-sudo REMOTELY_VERSION=v1.0.0 ./remotely_install.sh
+sudo REMOTELY_VERSION=v1.1.0 ./remotely_install.sh
 ```
 
 | Script | Para que serve |
@@ -71,6 +102,15 @@ sudo REMOTELY_VERSION=v1.0.0 ./remotely_install.sh
 | `remotely_remove.sh` | Remove a instalação, com backup final do banco. |
 
 Os arquivos ficam em `/var/www/remotely`, com os dados em `/var/www/remotely/AppData`. O Kestrel escuta só em `127.0.0.1:5000`; o acesso externo é feito pelo Nginx.
+
+Cada release traz dois pacotes:
+
+| Pacote | Conteúdo |
+|---|---|
+| `Remotely_Server_Linux-x64.zip` | Servidor (usa o ASP.NET Core Runtime 10 instalado). |
+| `Remotely_Agents.zip` | Agents e clientes de suporte instantâneo, extraídos em `wwwroot/Content`. |
+
+O `remotely_upgrade.sh` compara o SHA-256 do pacote de agents com o da instalação e só baixa de novo quando há agents novos.
 
 ## HTTPS e proxy reverso
 
@@ -92,7 +132,7 @@ Opções exclusivas deste fork (`ApplicationOptions`, ou variáveis `Remotely_Ap
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `EnableSwagger` | `false` | Publica o Swagger (`/swagger`) fora do ambiente de desenvolvimento. |
+| `EnableSwagger` | `true` | Publica a documentação da API em `/swagger`. Só abre para usuários logados no painel. |
 | `AllowedFrameAncestors` | vazio | Origens que podem exibir o Remotely em `<iframe>` (ex.: `https://glpi.suaempresa.com.br`). Vazio = só o próprio Remotely. |
 | `AuthRateLimitPerMinute` | `20` | Tentativas de login/cadastro/redefinição por IP por minuto. |
 
@@ -102,7 +142,7 @@ Banco de dados: `DbProvider` aceita `SQLite` (padrão), `SQLServer` ou `PostgreS
 
 Os instaladores dos agents (Windows, Linux, macOS) e os clientes de suporte instantâneo estão na página **Downloads**. A página **Implantar** traz um comando pronto para copiar e colar.
 
-Os binários dos agents vêm do último release oficial do Remotely e são incluídos na imagem Docker e no pacote do release. O protocolo com o servidor é o mesmo.
+Os agents e clientes de desktop são compilados em **.NET 10** pelo workflow de release (no Windows) e entram na imagem Docker e no pacote `Remotely_Agents.zip`. Agents já instalados de versões anteriores se atualizam sozinhos quando o servidor passa a distribuir os novos. A tela de dispositivos marca como **desatualizado** quem estiver com versão anterior à distribuída (`wwwroot/Content/AgentVersion.txt`).
 
 ## API
 
@@ -116,14 +156,15 @@ Content-Type: text/plain
 Get-Location
 ```
 
-Para navegar pela API, ative `EnableSwagger` e acesse `/swagger`.
+A documentação interativa fica em `/swagger` (menu **Administração → API (Swagger)**). Ela abre para quem está logado; as chamadas feitas por lá usam a sua sessão, ou a chave informada em **Authorize**.
 
 A API de alertas (`POST /api/Alerts/Create`) permite criar alertas no painel, enviar e-mails e chamar webhooks, como n8n ou Chatwoot.
 
 ## Desenvolvimento
 
-- **SDK:** .NET 10 para servidor e testes; .NET 8 para agents e desktop.
+- **SDK:** .NET 10 para toda a solução.
 - **Windows:** necessário para compilar a solução inteira (`Desktop.Win`).
+- **Agents:** `pwsh Utilities/Build-Agents.ps1` gera os agents, os clientes de desktop e o `AgentVersion.txt` em `Server/wwwroot/Content`.
 
 ```bash
 dotnet build Remotely.sln
@@ -139,15 +180,17 @@ Os arquivos `.ts` do viewer (`Server/wwwroot/src`) são compilados para `.js` no
 ### CI e releases
 
 - **Tests:** compila a solução e roda os testes a cada push e PR.
-- **Release:** em PRs e pushes, compila a imagem Docker e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões e cabeçalhos.
+- **Release:** em PRs e pushes, compila os agents no Windows, monta a imagem Docker com eles e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões, Swagger, cabeçalhos e os arquivos dos agents.
 - **Publicar uma nova versão:**
-  1. Altere o arquivo `VERSION` (ex.: `1.0.1`).
-  2. Adicione a seção `## v1.0.1` no `CHANGELOG.md`.
-  3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` + SHA-256 e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
+  1. Altere o arquivo `VERSION` (ex.: `1.1.1`).
+  2. Adicione a seção `## v1.1.1` no `CHANGELOG.md`.
+  3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` e `Remotely_Agents.zip` (com SHA-256) e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
   - O Docker Hub exige os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
 
 ## Créditos e licença
 
-Projeto original: [immense/Remotely](https://github.com/immense/Remotely), de Jared Goodwin e colaboradores.
+Fork mantido por [Michael Rodrigues](https://github.com/MichaelRodriguesOficial).
+
+Projeto original: [immense/Remotely](https://github.com/immense/Remotely), de Jared Goodwin (Immense Networks) e colaboradores.
 
 Licença: [GPL-3.0](LICENSE), a mesma do projeto original. As bibliotecas de terceiros estão listadas na página **Créditos** do sistema.

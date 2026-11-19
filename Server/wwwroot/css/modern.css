@@ -1359,3 +1359,7 @@ label, .form-label {
 /* Minha conta */
 .account-panel h3 { font-size: 1.15rem; margin-bottom: 1rem; }
 .account-panel .row > [class*="col-"] { width: 100%; max-width: 560px; flex: 0 0 auto; }
+
+.auth-card .form-check { display: flex; align-items: center; gap: 0.5rem; padding-left: 0; }
+.auth-card .form-check .form-check-input { float: none; margin: 0; }
+.auth-card .form-check-label { margin: 0; }

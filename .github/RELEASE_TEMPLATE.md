@@ -15,7 +15,9 @@ sudo bash remotely_install.sh
 
 **Atualizar uma instalação existente:** `sudo ./remotely_upgrade.sh`. O banco é preservado e movido para `AppData`, se preciso.
 
-O pacote `Remotely_Server_Linux-x64.zip` e o SHA-256 são anexados a este release pelo workflow **Release**.
+Pacotes anexados pelo workflow **Release** (com SHA-256):
+- `Remotely_Server_Linux-x64.zip`: servidor;
+- `Remotely_Agents.zip`: agents e clientes de suporte (extraídos em `wwwroot/Content`).
 
 ---
 
