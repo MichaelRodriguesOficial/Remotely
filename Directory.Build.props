@@ -1,7 +1,13 @@
 <Project>
     <PropertyGroup>
         <Nullable>enable</Nullable>
-      <RootNamespace>Remotely.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+        <RootNamespace>Remotely.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+        <!-- Publica só os recursos traduzidos em inglês e português (o PowerShell SDK traz mais de dez idiomas). -->
+        <SatelliteResourceLanguages>en;pt-BR</SatelliteResourceLanguages>
+        <Authors>Michael Rodrigues</Authors>
+        <Company>Michael Rodrigues</Company>
+        <Product>Remotely</Product>
+        <Copyright>Copyright © Michael Rodrigues. Baseado no Remotely de Jared Goodwin (Immense Networks). GPL-3.0.</Copyright>
+        <RepositoryUrl>https://github.com/MichaelRodriguesOficial/Remotely</RepositoryUrl>
     </PropertyGroup>
 </Project>
-   

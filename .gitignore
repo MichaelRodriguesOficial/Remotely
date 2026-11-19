@@ -297,3 +297,10 @@ Server.Installer/Properties/launchSettings.json
 !/.vscode/tasks.json
 /Server/appsettings.Development.json
 /Server/AppData
+
+# Agents compilados para o build da imagem Docker
+/docker/agents/*
+!/docker/agents/README.md
+/agents-content/
+/Server/wwwroot/Content/AgentVersion.txt
+/Server/wwwroot/Content/Linux-x64/

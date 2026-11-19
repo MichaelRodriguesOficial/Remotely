@@ -3,8 +3,11 @@
 # Build (na raiz do repositório):
 #   docker build -f Server/Dockerfile -t michechel10/remotely:dev .
 #
-# Os instaladores/agents (wwwroot/Content) vêm do último release oficial do
-# Remotely, já que os agents não são compilados neste repositório.
+# Instaladores/agents (wwwroot/Content):
+#   - no CI, os agents compilados no mesmo build (.NET 10) são colocados em docker/agents;
+#   - num build local sem essa pasta, o pacote Remotely_Agents.zip do último release
+#     deste fork é baixado (AGENTS_URL). Para gerar os agents localmente, rode
+#     Utilities/Build-Agents.ps1 -OutDir docker/agents no Windows.
 
 ARG DOTNET_VERSION=10.0
 
@@ -34,12 +37,24 @@ RUN dotnet publish Server/Server.csproj \
 
 # ---------- Instaladores dos agents ----------
 FROM alpine:3.20 AS content
-ARG AGENTS_URL=https://github.com/immense/Remotely/releases/latest/download/Remotely_Server_Linux-x64.zip
-RUN apk add --no-cache curl unzip \
-    && curl -fsSL "$AGENTS_URL" -o /tmp/server.zip \
-    && unzip -q /tmp/server.zip "wwwroot/Content/*" -d /tmp/extract \
-    && mv /tmp/extract/wwwroot/Content /content \
-    && rm -rf /tmp/server.zip /tmp/extract
+ARG AGENTS_URL=https://github.com/MichaelRodriguesOficial/Remotely/releases/latest/download/Remotely_Agents.zip
+COPY Server/wwwroot/Content/ /content/
+COPY docker/agents/ /tmp/agents/
+RUN set -e; \
+    if [ -f /tmp/agents/Remotely-Win-x64.zip ]; then \
+        echo "Usando os agents compilados neste build"; \
+        cp -a /tmp/agents/. /content/; \
+    elif [ -n "$AGENTS_URL" ]; then \
+        echo "Baixando agents de $AGENTS_URL"; \
+        apk add --no-cache curl unzip > /dev/null; \
+        curl -fsSL "$AGENTS_URL" -o /tmp/agents.zip; \
+        unzip -oq /tmp/agents.zip -d /content; \
+        rm -f /tmp/agents.zip; \
+    else \
+        echo "AVISO: imagem sem os instaladores dos agents"; \
+    fi; \
+    rm -f /content/README.md; \
+    rm -rf /tmp/agents
 
 # ---------- Runtime ----------
 FROM mcr.microsoft.com/dotnet/aspnet:${DOTNET_VERSION}

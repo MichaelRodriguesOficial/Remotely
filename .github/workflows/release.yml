@@ -1,10 +1,11 @@
 name: Release
 
-# - Pull requests: compila a imagem Docker e faz um teste de fumaça (sem publicar).
+# - Pull requests: compila os agents (.NET 10, no Windows), a imagem Docker com esses
+#   agents e faz um teste de fumaça (sem publicar).
 # - Push no master com uma versão nova no arquivo VERSION (ex.: 1.0.1): cria a tag
 #   vX.Y.Z e o release com as notas do CHANGELOG.md, publica a imagem no Docker Hub
 #   (se os secrets DOCKERHUB_USERNAME/DOCKERHUB_TOKEN existirem) e no GHCR, e anexa
-#   o pacote do servidor ao release.
+#   ao release o pacote do servidor e, separado, o pacote dos agents.
 # - Release publicado manualmente ou execução manual: publica imagem e pacote.
 
 on:
@@ -27,7 +28,6 @@ permissions:
 env:
   DOCKERHUB_IMAGE: michechel10/remotely
   GHCR_IMAGE: ghcr.io/michaelrodriguesoficial/remotely
-  AGENTS_URL: https://github.com/immense/Remotely/releases/latest/download/Remotely_Server_Linux-x64.zip
 
 jobs:
 
@@ -89,8 +89,59 @@ jobs:
             --repo "${{ github.repository }}"
           echo "::notice title=Release::Release $TAG criado"
 
+  agents:
+    needs: version
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-agents-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props') }}
+          restore-keys: nuget-agents-${{ runner.os }}-
+
+      - name: Compilar agents e clientes de desktop
+        shell: pwsh
+        run: |
+          ./Utilities/Build-Agents.ps1 -OutDir "$env:GITHUB_WORKSPACE/agents-content" 2>&1 | Tee-Object -FilePath agents.log
+          if ($LASTEXITCODE -ne 0 -or -not $?) {
+            Select-String -Path agents.log -Pattern ": error |falhou" |
+              Select-Object -ExpandProperty Line -Unique -First 40 |
+              ForEach-Object { Write-Output "::error title=Agents::$_" }
+            exit 1
+          }
+          foreach ($f in @("Remotely-Win-x64.zip", "Remotely-Win-x86.zip", "Remotely-Linux.zip",
+                           "Remotely-MacOS-x64.zip", "Remotely-MacOS-arm64.zip",
+                           "Win-x64/Remotely_Desktop.exe", "Win-x86/Remotely_Desktop.exe",
+                           "Linux-x64/Remotely_Desktop", "AgentVersion.txt")) {
+            if (-not (Test-Path "agents-content/$f")) {
+              Write-Output "::error title=Agents::Arquivo ausente: $f"
+              exit 1
+            }
+          }
+          $total = (Get-ChildItem agents-content -Recurse -File | Measure-Object Length -Sum).Sum / 1MB
+          Write-Output ("::notice title=Agents::Versão {0}, {1:N0} MB no total" -f (Get-Content agents-content/AgentVersion.txt), $total)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agents-content
+          path: agents-content/
+          compression-level: 0
+          retention-days: 7
+
   docker:
-    needs: [ version, create-release ]
+    needs: [ version, create-release, agents ]
     if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     env:
@@ -100,6 +151,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.version.outputs.ref }}
+
+      - name: Agents compilados neste build
+        uses: actions/download-artifact@v4
+        with:
+          name: agents-content
+          path: docker/agents
 
       - uses: docker/setup-buildx-action@v3
 
@@ -112,7 +169,6 @@ jobs:
           tags: remotely:test
           build-args: |
             VERSION=${{ needs.version.outputs.version }}
-            AGENTS_URL=${{ env.AGENTS_URL }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -151,8 +207,12 @@ jobs:
           done
           hdr=$(curl -sI http://localhost:5000/ | tr -d '\r')
           echo "$hdr" | grep -qi '^x-content-type-options: nosniff' || { echo "::error title=Smoke test::Cabeçalhos de segurança ausentes"; exit 1; }
-          docker exec remotely-test test -f /app/wwwroot/Content/Remotely-Win-x64.zip \
-            || { echo "::error title=Smoke test::Instaladores dos agents ausentes"; exit 1; }
+          for f in Remotely-Win-x64.zip Remotely-Linux.zip Win-x64/Remotely_Desktop.exe AgentVersion.txt; do
+            docker exec remotely-test test -f "/app/wwwroot/Content/$f" \
+              || { echo "::error title=Smoke test::Arquivo dos agents ausente na imagem: $f"; exit 1; }
+          done
+          c=$(curl -s -o /dev/null -w '%{http_code}' -I http://localhost:5000/Content/Remotely-Win-x64.zip)
+          [ "$c" = "200" ] || { echo "::error title=Smoke test::Download do agent Windows retornou $c"; exit 1; }
           # Cadastro do primeiro usuário (vira admin do servidor) e login via cookie:
           # exercita Identity + EF Core no .NET 10 de ponta a ponta.
           curl -s -c jar -b jar http://localhost:5000/Account/Register -o reg.html
@@ -227,7 +287,6 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             VERSION=${{ needs.version.outputs.version }}
-            AGENTS_URL=${{ env.AGENTS_URL }}
           cache-from: type=gha
 
       - name: Resumo
@@ -235,7 +294,7 @@ jobs:
         run: echo "::notice title=Imagem publicada::${{ steps.tags.outputs.tags }}"
 
   server-package:
-    needs: [ version, create-release ]
+    needs: [ version, create-release, agents ]
     if: ${{ !failure() && !cancelled() && needs.version.outputs.publish == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -247,28 +306,32 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Publicar servidor
+      - name: Publicar servidor (Linux x64, usa o runtime instalado)
         run: |
           dotnet publish Server/Server.csproj -c Release -o publish \
+            -r linux-x64 --self-contained false \
+            -p:DebugType=None -p:DebugSymbols=false \
             -p:TypeScriptCompileBlocked=true \
             -p:Version=${{ needs.version.outputs.version }} \
             -p:InformationalVersion=${{ needs.version.outputs.version }}
+          # Os agents vão no pacote separado.
+          find publish/wwwroot/Content -type f ! -name 'Install-*' -delete
+          find publish/wwwroot/Content -mindepth 1 -type d -empty -delete
 
-      - name: Adicionar instaladores dos agents
-        run: |
-          curl -fsSL "$AGENTS_URL" -o upstream.zip
-          unzip -q upstream.zip "wwwroot/Content/*" -d upstream
-          mkdir -p publish/wwwroot
-          cp -r upstream/wwwroot/Content publish/wwwroot/
-          test -f publish/wwwroot/Content/Remotely-Win-x64.zip
+      - name: Agents compilados neste build
+        uses: actions/download-artifact@v4
+        with:
+          name: agents-content
+          path: agents-content
 
       - name: Empacotar
         run: |
-          cd publish
-          zip -qr ../Remotely_Server_Linux-x64.zip .
-          cd ..
+          (cd publish && zip -qr ../Remotely_Server_Linux-x64.zip .)
+          (cd agents-content && zip -qr -0 ../Remotely_Agents.zip .)
           sha256sum Remotely_Server_Linux-x64.zip > Remotely_Server_Linux-x64.zip.sha256
-          cat Remotely_Server_Linux-x64.zip.sha256
+          sha256sum Remotely_Agents.zip > Remotely_Agents.zip.sha256
+          ls -lh *.zip
+          echo "::notice title=Pacotes::Servidor $(du -h Remotely_Server_Linux-x64.zip | cut -f1), agents $(du -h Remotely_Agents.zip | cut -f1)"
 
       - name: Anexar ao release
         env:
@@ -276,4 +339,5 @@ jobs:
         run: |
           gh release upload "${{ needs.version.outputs.tag }}" \
             Remotely_Server_Linux-x64.zip Remotely_Server_Linux-x64.zip.sha256 \
+            Remotely_Agents.zip Remotely_Agents.zip.sha256 \
             --clobber --repo "${{ github.repository }}"

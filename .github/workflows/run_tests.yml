@@ -36,10 +36,8 @@ jobs:
     - name: Install .NET
       uses: actions/setup-dotnet@v4
       with:
-        # Servidor e testes em .NET 10; agents/desktop ainda em .NET 8.
-        dotnet-version: |
-          8.0.x
-          10.0.x
+        # Servidor, agents, desktop e testes em .NET 10.
+        dotnet-version: 10.0.x
 
     - name: Restore
       id: restore
