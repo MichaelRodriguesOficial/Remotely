@@ -1,23 +1,23 @@
 ﻿@attribute [Authorize]
 @inherits AuthComponentBase
 
-<h3>Devices</h3>
+<h3>Dispositivos</h3>
 
 <div @onclick="ClearSelectedCard">
     <div id="deviceControlsWrapper">
         <div>
             <div>
-                <div>Device Group</div>
+                <div>Grupo de dispositivos</div>
                 <div class="text-nowrap">
                     <select class="form-control d-inline" style="width: 150px" @bind="_selectedGroupId">
-                        <option value="@_deviceGroupAll">All</option>
-                        <option value="@_deviceGroupNone">None</option>
+                        <option value="@_deviceGroupAll">Todos</option>
+                        <option value="@_deviceGroupNone">Nenhum</option>
                         @foreach (var group in _deviceGroups)
                         {
                             <option @key="group.ID" value="@group.ID">@group.Name</option>
                         }
                     </select>
-                    <button class="btn btn-sm btn-secondary" title="Wake Devices in Group" style="width: 40px; margin-left: 5px;" @onclick="WakeDevices">
+                    <button class="btn btn-sm btn-secondary" title="Ligar dispositivos do grupo (Wake-on-LAN)" style="width: 40px; margin-left: 5px;" @onclick="WakeDevices">
                         <span class="oi oi-power-standby"></span>
                     </button>
 
@@ -25,7 +25,7 @@
             </div>
 
             <div>
-                <div class="mt-1">Sort</div>
+                <div class="mt-1">Ordenar</div>
                 <select class="form-control d-inline" style="width: 150px" @bind="_selectedSortProperty">
                     <option value=""></option>
                     @foreach (var prop in _sortableProperties)
@@ -33,28 +33,28 @@
                         <option value="@prop.Name">@GetDisplayName(prop)</option>
                     }
                 </select>
-                <button class="btn btn-sm btn-secondary" title="Sort Direction" style="width: 40px; margin-left: 5px;" @onclick="ToggleSortDirection">
+                <button class="btn btn-sm btn-secondary" title="Direção da ordenação" style="width: 40px; margin-left: 5px;" @onclick="ToggleSortDirection">
                     <span class="oi @GetSortIcon()"></span>
                 </button>
             </div>
 
             <div class="custom-control custom-checkbox mt-2">
                 <input id="hideOfflineDevicesCheckbox" type="checkbox" class="custom-control-input align-middle" @bind="_hideOfflineDevices" />
-                <label class="custom-control-label align-middle" for="hideOfflineDevicesCheckbox">Hide offline devices</label>
+                <label class="custom-control-label align-middle" for="hideOfflineDevicesCheckbox">Ocultar dispositivos offline</label>
             </div>
             <div class="mt-2">
-                <button class="btn btn-sm btn-secondary me-2" @onclick="SelectAllCards">Select All</button>
-                <button class="btn btn-sm btn-primary" @onclick="HandleRefreshClicked">Refresh</button>
+                <button class="btn btn-sm btn-secondary me-2" @onclick="SelectAllCards">Selecionar todos</button>
+                <button class="btn btn-sm btn-primary" @onclick="HandleRefreshClicked">Atualizar</button>
             </div>
         </div>
          
         <div>
             <div class="d-inline-block text-start">
                 <div>
-                    <div>Search</div>
+                    <div>Pesquisar</div>
                     <input class="form-control d-inline"
                            style="width: 200px"
-                           placeholder="Search device properties"
+                           placeholder="Pesquisar nos dispositivos"
                            @bind="_filter" />
                 </div>
 
@@ -62,9 +62,9 @@
                     <button class="btn btn-sm btn-secondary" @onclick="PageDown">
                         <i class="oi oi-chevron-left"></i>
                     </button>
-                    <span class="small">Page</span>
+                    <span class="small">Página</span>
                     <input id="currentPageInput" style="width:75px; text-align: center" pattern="[0-9]" @bind="_currentPage" @bind:event="oninput" />
-                    <span class="small">of</span>
+                    <span class="small">de</span>
                     <span>@TotalPages</span>
                     <button class="btn btn-sm btn-secondary" @onclick="PageUp">
                         <i class="oi oi-chevron-right"></i>
@@ -78,7 +78,7 @@
                         <option value="100">100</option>
                         <option value="200">200</option>
                     </select>
-                    <span class="ms-1 small">per page</span>
+                    <span class="ms-1 small">por página</span>
                 </div>
             </div>
            

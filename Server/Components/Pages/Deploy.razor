@@ -16,17 +16,17 @@
 }
 
 <h4 class="text-success mt-3">
-    Persistent Agents
+    Agentes permanentes
 </h4>
 <p class="text-info mb-3">
-    Copy and paste on a remote computer to install the agent.
+    Copie e cole em um computador remoto para instalar o agente.
 </p>
 
 <div class="row">
 
     <div class="col-sm-12 mb-3">
         <div class="mb-1">
-            <strong>Windows 10/11 (32-Bit and 64-Bit)</strong>
+            <strong>Windows 10/11 (32 e 64 bits)</strong>
         </div>
 
         <div class="input-group">
@@ -39,7 +39,7 @@
 
     <div class="col-sm-12 mb-3">
         <div class="mb-1">
-            <strong>Ubuntu (64-Bit)</strong>
+            <strong>Ubuntu (64 bits)</strong>
         </div>
 
         <div class="input-group">
@@ -52,7 +52,7 @@
 
     <div class="col-sm-12 mb-3">
         <div class="mb-1">
-            <strong>Manjaro (64-Bit)</strong>
+            <strong>Manjaro (64 bits)</strong>
         </div>
 
         <div class="input-group">
@@ -65,34 +65,33 @@
 </div>
 
 <h4 class="text-success mt-3">
-    Attended Support
+    Suporte assistido
 </h4>
 <p class="text-info">
-    You can upload custom versions of the attended support client (i.e. "Remotely_Desktop.exe")
-    and send the download link to end-users when they need support. For example, you could sign
-    the EXE with a commercial certificate so the end-user (hopefully) doesn't see a SmartScreen
-    warning about the file.
+    Você pode enviar versões personalizadas do cliente de suporte assistido ("Remotely_Desktop.exe")
+    e mandar o link de download para os usuários quando precisarem de suporte. Por exemplo, você pode
+    assinar o EXE com um certificado comercial para evitar o aviso do SmartScreen no computador do usuário.
 </p>
 <p class="mb-3 text-warning">
-    NOTE: These binaries must be manually updated each time a new Docker image is pulled.
+    OBSERVAÇÃO: estes binários precisam ser enviados de novo a cada nova imagem Docker.
 </p>
 
 <div class="row">
     <div class="col-sm-12 mb-4">
         <div class="mb-1">
-            <strong>Windows 10/11 (64-Bit)</strong>
+            <strong>Windows 10/11 (64 bits)</strong>
         </div>
 
         @if (_winX64File?.Exists != true)
         {
             <div class="text-danger mb-2">
-                Note: A custom binary for this file hasn't been uploaded yet.
+                Observação: ainda não foi enviado um binário personalizado para este arquivo.
             </div>
         }
         else if (_winX64File?.PhysicalPath is not null)
         {
             <div class="text-info mb-2">
-                Created Date: @(_winX64CreatedDate) UTC
+                Data de criação: @(_winX64CreatedDate) UTC
             </div>
         }
 
@@ -102,13 +101,13 @@
                 <FileInputButton ClassNames="btn btn-primary"
                                  OnChanged="HandleWin64FileChanged">
                     <ButtonContent>
-                        <i class="oi oi-data-transfer-upload" title="Upload File"></i>
-                        <span class="ms-2">Upload File</span>
+                        <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
+                        <span class="ms-2">Enviar arquivo</span>
                     </ButtonContent>
                 </FileInputButton>
                 <div class="mt-1">
                     <span class="text-primary">
-                        Note: Only server admins will have this button.
+                        Observação: somente administradores do servidor veem este botão.
                     </span>
                 </div>
             </div>
@@ -125,19 +124,19 @@
 
     <div class="col-sm-12 mb-4">
         <div class="mb-1">
-            <strong>Windows 10/11 (32-Bit)</strong>
+            <strong>Windows 10/11 (32 bits)</strong>
         </div>
 
         @if (_winX86File?.Exists != true)
         {
             <div class="text-danger mb-2">
-                Note: A custom binary for this file hasn't been uploaded yet.
+                Observação: ainda não foi enviado um binário personalizado para este arquivo.
             </div>
         }
         else if (_winX86File?.PhysicalPath is not null)
         {
             <div class="text-info mb-2">
-                Created Date: @(_winX86CreatedDate) UTC
+                Data de criação: @(_winX86CreatedDate) UTC
             </div>
         }
 
@@ -147,13 +146,13 @@
                 <FileInputButton ClassNames="btn btn-primary"
                                  OnChanged="HandleWin86FileChanged">
                     <ButtonContent>
-                        <i class="oi oi-data-transfer-upload" title="Upload File"></i>
-                        <span class="ms-2">Upload File</span>
+                        <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
+                        <span class="ms-2">Enviar arquivo</span>
                     </ButtonContent>
                 </FileInputButton>
                 <div class="mt-1">
                     <span class="text-primary">
-                        Note: Only server admins will have this button.
+                        Observação: somente administradores do servidor veem este botão.
                     </span>
                 </div>
             </div>
@@ -214,7 +213,7 @@
             var result = await JsInterop.SetClipboardText(script);
             if (result)
             {
-                Toasts.ShowToast2("Script copied to clipboard", ToastType.Success);
+                Toasts.ShowToast2("Script copiado para a área de transferência", ToastType.Success);
                 return;
             }
         }
@@ -222,7 +221,7 @@
         {
             Logger.LogError(ex, "Error while copying script to clipboard.");
         }
-        Toasts.ShowToast2("Failed to set clipboard content", ToastType.Error);
+        Toasts.ShowToast2("Não foi possível copiar para a área de transferência", ToastType.Error);
     }
 
     private async Task CopyUriToClipboard(string uri)
@@ -232,7 +231,7 @@
             var result = await JsInterop.SetClipboardText(uri);
             if (result)
             {
-                Toasts.ShowToast2("URI copied to clipboard", ToastType.Success);
+                Toasts.ShowToast2("Link copiado para a área de transferência", ToastType.Success);
                 return;
             }
         }
@@ -240,7 +239,7 @@
         {
             Logger.LogError(ex, "Error while copying URI to clipboard.");
         }
-        Toasts.ShowToast2("Failed to set clipboard content", ToastType.Error);
+        Toasts.ShowToast2("Não foi possível copiar para a área de transferência", ToastType.Error);
     }
 
     private string GetLinuxScript(string platformId)
@@ -305,11 +304,11 @@
         {
             if (fileInfo?.PhysicalPath is null)
             {
-                Toasts.ShowToast2("Unable to find save path", ToastType.Error);
+                Toasts.ShowToast2("Não foi possível encontrar a pasta de destino", ToastType.Error);
                 return;
             }
 
-            _loadingMessage = "Uploading file";
+            _loadingMessage = "Enviando arquivo";
             _isLoading = true;
             await InvokeAsync(StateHasChanged);
 
@@ -317,13 +316,13 @@
             await using var rs = ev.File.OpenReadStream(500_000_000);
             await using var fs = File.Open(fileInfo.PhysicalPath, FileMode.Create);
             await rs.CopyToAsync(fs);
-            Toasts.ShowToast2("Custom binary uploaded successfully", ToastType.Success);
+            Toasts.ShowToast2("Binário personalizado enviado com sucesso", ToastType.Success);
             SetFileInfos();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while uploading custom binary.");
-            Toasts.ShowToast2("Failed to upload custom binary", ToastType.Error);
+            Toasts.ShowToast2("Falha ao enviar o binário personalizado", ToastType.Error);
         }
         finally
         {

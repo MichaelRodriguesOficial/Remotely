@@ -138,22 +138,22 @@ export function ApplyInputHandlers() {
         }
 
         if (!navigator.clipboard?.readText) {
-            alert("Clipboard access isn't supported on this browser.");
+            alert("Este navegador não permite acessar a área de transferência.");
             return;
         }
 
         if (ViewerApp.ViewOnlyMode) {
-            alert("View-only mode is enabled.");
+            alert("O modo somente visualização está ativado.");
             return;
         }
 
         navigator.clipboard.readText().then(
             async (text) => {
                 await ViewerApp.MessageSender.SendTextTransfer(text, true);
-                ShowToast("Clipboard sent!");
+                ShowToast("Área de transferência enviada!");
             },
             (reason) => {
-                alert("Unable to read clipboard.  Please check your permissions.");
+                alert("Não foi possível ler a área de transferência. Verifique as permissões.");
                 console.log("Unable to read clipboard.  Reason: " + reason);
             }
         );
@@ -166,7 +166,7 @@ export function ApplyInputHandlers() {
     });
     CtrlAltDelButton.addEventListener("click", async () => {
         if (ViewerApp.ViewOnlyMode) {
-            alert("View-only mode is enabled.");
+            alert("O modo somente visualização está ativado.");
             return;
         }
 
@@ -175,8 +175,8 @@ export function ApplyInputHandlers() {
     });
     DisconnectButton.addEventListener("click", (ev) => {
         ConnectButton.removeAttribute("disabled");
-        ConnectButton.innerText = "Connect";
-        SetStatusMessage("Connection closed.");
+        ConnectButton.innerText = "Conectar";
+        SetStatusMessage("Conexão encerrada.");
         ViewerApp.ViewerHubConnection.Connection.stop();
         if (location.search.includes("fromApi=true")) {
             window.close();
@@ -257,7 +257,7 @@ export function ApplyInputHandlers() {
     });
     FileDownloadButton.addEventListener("click", async (ev) => {
         if (ViewerApp.ViewOnlyMode) {
-            alert("View-only mode is enabled.");
+            alert("O modo somente visualização está ativado.");
             return;
         }
 
@@ -285,7 +285,7 @@ export function ApplyInputHandlers() {
     });
     BlockInputButton.addEventListener("click", async (ev) => {
         if (ViewerApp.ViewOnlyMode) {
-            alert("View-only mode is enabled.");
+            alert("O modo somente visualização está ativado.");
             return;
         }
         BlockInputButton.classList.toggle("toggled");
@@ -303,7 +303,7 @@ export function ApplyInputHandlers() {
             url = `${location.origin}${location.pathname}?mode=Unattended&sessionId=${ViewerApp.SessionId}&accessKey=${ViewerApp.AccessKey}`;
         }
         ViewerApp.ClipboardWatcher.SetClipboardText(url);
-        ShowToast("Link copied to clipboard.");
+        ShowToast("Link copiado para a área de transferência.");
     });
     KeyboardButton.addEventListener("click", (ev) => {
         CloseAllPopupMenus(null);
@@ -744,8 +744,8 @@ export function ApplyInputHandlers() {
         await ViewerApp.MessageSender.GetWindowsSessions();
     });
     WindowsSessionSelect.addEventListener("change", async () => {
-        SetStatusMessage("Switching sessions");
-        ShowToast("Switching sessions");
+        SetStatusMessage("Trocando de sessão");
+        ShowToast("Trocando de sessão");
         await ViewerApp.MessageSender.ChangeWindowsSession(
             Number(WindowsSessionSelect.selectedOptions[0].value)
         );

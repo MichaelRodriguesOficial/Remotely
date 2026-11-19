@@ -18,12 +18,12 @@
 @inject IDataService DataService
 @inject IWebHostEnvironment HostEnv
 
-<PageTitle>Register</PageTitle>
-<h1>Register</h1>
+<PageTitle>Cadastrar</PageTitle>
+<h1>Cadastrar</h1>
 
 @if (!_registrationEnabled)
 {
-    <h2>Registration is disabled.</h2>
+    <h2>O cadastro está desativado.</h2>
 }
 else
 {
@@ -33,30 +33,30 @@ else
             <StatusMessage Message="@Message" />
             <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
                 <DataAnnotationsValidator />
-                <h2>Create a new account.</h2>
+                <h2>Crie uma nova conta.</h2>
                 <hr />
                 <ValidationSummary class="text-danger" role="alert" />
                 <div class="form-floating mb-3">
-                    <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
-                    <label for="email">Email</label>
+                    <InputText @bind-Value="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="nome@exemplo.com.br" />
+                    <label for="email">E-mail</label>
                     <ValidationMessage For="() => Input.Email" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                    <label for="password">Password</label>
+                    <InputText type="password" @bind-Value="Input.Password" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
+                    <label for="password">Senha</label>
                     <ValidationMessage For="() => Input.Password" class="text-danger" />
                 </div>
                 <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="password" />
-                    <label for="confirm-password">Confirm Password</label>
+                    <InputText type="password" @bind-Value="Input.ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" placeholder="senha" />
+                    <label for="confirm-password">Confirmar senha</label>
                     <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
                 </div>
-                <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+                <button type="submit" class="w-100 btn btn-lg btn-primary">Cadastrar</button>
             </EditForm>
         </div>
         @*<div class="col-md-6 col-md-offset-2">
             <section>
-                <h3>Use another service to register.</h3>
+                <h3>Use outro serviço para se cadastrar.</h3>
                 <hr />
                 <ExternalLoginPicker />
             </section>
@@ -171,18 +171,18 @@ else
     {
         [Required]
         [EmailAddress]
-        [Display(Name = "Email")]
+        [Display(Name = "E-mail")]
         public string Email { get; set; } = "";
 
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 8)]
+        [StringLength(100, ErrorMessage = "O campo {0} deve ter entre {2} e {1} caracteres.", MinimumLength = 8)]
         [DataType(DataType.Password)]
-        [Display(Name = "Password")]
+        [Display(Name = "Senha")]
         public string Password { get; set; } = "";
 
         [DataType(DataType.Password)]
-        [Display(Name = "Confirm password")]
-        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        [Display(Name = "Confirmar senha")]
+        [Compare("Senha", ErrorMessage = "A senha e a confirmação não conferem.")]
         public string ConfirmPassword { get; set; } = "";
     }
 }

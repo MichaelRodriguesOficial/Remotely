@@ -91,11 +91,11 @@ public partial class DeviceDetails : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Are you sure you want to delete the remote logs?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer excluir os logs remotos?");
         if (result)
         {
             await CircuitConnection.DeleteRemoteLogs(_device.ID);
-            ToastService.ShowToast("Delete command sent.");
+            ToastService.ShowToast("Comando de exclusão enviado.");
         }
     }
 
@@ -197,8 +197,8 @@ public partial class DeviceDetails : AuthComponentBase
             _device.DeviceGroupID,
             _device.Notes);
 
-        _alertMessage = "Device details saved.";
-        ToastService.ShowToast("Device details saved.");
+        _alertMessage = "Detalhes do dispositivo salvos.";
+        ToastService.ShowToast("Detalhes do dispositivo salvos.");
 
         return Task.CompletedTask;
     }
@@ -221,7 +221,7 @@ public partial class DeviceDetails : AuthComponentBase
             // Drive info comes from the device, so it must be HTML-encoded.
             builder.AddMarkupContent(0, $"<div style='white-space: pre'>{WebUtility.HtmlEncode(disksString)}</div>");
         }
-        ModalService.ShowModal($"All Disks for {_device.DeviceName}", modalBody);
+        ModalService.ShowModal($"Todos os discos de {_device.DeviceName}", modalBody);
     }
 
     private void ShowFullScriptOutput(ScriptResult result)
@@ -242,6 +242,6 @@ public partial class DeviceDetails : AuthComponentBase
             builder.AddMarkupContent(5, $"<textarea readonly style=\"{textareaStyle}\">{WebUtility.HtmlEncode(error)}</textarea>");
         }
 
-        ModalService.ShowModal("Script Input/Output", outputModal);
+        ModalService.ShowModal("Entrada/saída do script", outputModal);
     }
 }

@@ -13,7 +13,7 @@
 <div id="alertsFrame" class="bg-secondary @FrameClass">
     <div class="text-end">
         <button id="clearAllAlertsButton" class="btn btn-secondary mt-2 me-2 align-top" @onclick="ClearAllAlerts">
-            Clear All
+            Limpar tudo
         </button>
         <button id="closeAlertsFrameButton" class="btn btn-secondary btn-sm mt-2 me-2 align-top" @onclick="ToggleOpen">
             <span class="oi oi-x pointer"></span>
@@ -34,7 +34,7 @@
                     {
                         <div class="small">
                             <button class="btn btn-link" @onclick="() => ShowAlertDetails(alert)">
-                                View Details
+                                Ver detalhes
                             </button>
                         </div>
                     }
@@ -44,7 +44,7 @@
                                 class="btn btn-sm btn-secondary alert-dismiss-button"
                                 type="button"
                                 @onclick="()=> { _ = ClearAlert(alert); }">
-                            Dismiss
+                            Dispensar
                         </button>
                     </div>
                 </div>
@@ -94,7 +94,7 @@
     private void ShowAlertDetails(Alert alert)
     {
         var body = alert.Details?.Split('\n') ?? Array.Empty<string>();
-        ModalService.ShowModal($"Alert Details for {alert.Device?.DeviceName}", body);
+        ModalService.ShowModal($"Detalhes do alerta de {alert.Device?.DeviceName}", body);
     }
 
     private void ToggleOpen()

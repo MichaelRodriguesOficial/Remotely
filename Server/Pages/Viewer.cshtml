@@ -8,7 +8,7 @@
 
 <!DOCTYPE html>
 
-<html>
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=0.9, user-scalable=no" />
@@ -50,47 +50,47 @@
     </div>
 
     <div id="clipboardTransferMenu" class="popup-menu">
-        <button id="typeClipboardButton">Type Clipboard</button>
+        <button id="typeClipboardButton">Digitar área de transferência</button>
     </div>
 
     <div id="fileTransferMenu" class="popup-menu">
-        <button id="fileUploadButton">Upload File</button>
-        <button id="fileDownloadButton">Download File</button>
+        <button id="fileUploadButton">Enviar arquivo</button>
+        <button id="fileDownloadButton">Baixar arquivo</button>
     </div>
 
     <div id="windowsSessionMenu" class="popup-menu">
         <div class="text-center" style="margin-bottom: 5px;">
-            Change Windows Session
+            Trocar sessão do Windows
         </div>
         <select id="windowsSessionSelect"
-                title="Switch to a different Windows session.">
+                title="Trocar para outra sessão do Windows.">
         </select>
     </div>
 
     <div id="extrasMenu" class="popup-menu">
 
         <button id="audioButton"
-                title="Windows only.  Stream the remote audio to the browser.">
+                title="Somente Windows. Transmite o áudio remoto para o navegador.">
             <i class="fas fa-volume-up"></i>
-            Audio
+            Áudio
         </button>
 
         <button id="fileTransferButton"
-                title="Transfer files to the remote computer.">
+                title="Transferir arquivos para o computador remoto.">
             <i class="fas fa-file-upload"></i>
-            File Transfer
+            Transferir arquivos
         </button>
 
         <button id="inviteButton"
-                title="Copy a link that lets another person view the remote screen.">
+                title="Copiar um link para outra pessoa ver a tela remota.">
             <i class="fas fa-user-plus"></i>
-            Invite Others
+            Convidar outras pessoas
         </button>
 
         <button id="metricsButton"
-            title="Toggle display of session metrics.">
+            title="Mostrar/ocultar métricas da sessão.">
             <i class="fas fa-gauge"></i>
-            Metrics
+            Métricas
         </button>
     </div>
 
@@ -120,22 +120,22 @@
     <div class="connection-box-wrapper">
         <div class="text-center">
             <h2 id="connectHeader" class="connect-header" style="display: none">
-                Connect to a Client
+                Conectar a um cliente
             </h2>
         </div>
         <div id="connectBox" class="center-connection-box" style="display: none">
             <form id="connectForm">
                 <div class="form-block">
-                    <label class="input-label">Your Name (shown to client)</label>
+                    <label class="input-label">Seu nome (exibido para o cliente)</label>
                     <input id="nameInput" type="text" required value="@Model.UserDisplayName" />
                 </div>
                 <div class="form-block">
-                    <label class="input-label">Session ID</label>
+                    <label class="input-label">ID da sessão</label>
                     <input id="sessionIDInput" required type="text" pattern="[0-9 ]+" />
                 </div>
                 <div>
                     <button id="connectButton" disabled>
-                        Connect
+                        Conectar
                     </button>
                 </div>
 
@@ -155,31 +155,31 @@
                 </div>
                 <div class="menu-column menu-column-middle">
                     <button id="changeScreenButton"
-                            title="Switch monitors on remote multi-monitor setups.">
+                            title="Alternar entre monitores no computador remoto.">
                         <i class="fas fa-desktop"></i>
-                        Monitors
+                        Monitores
                     </button>
 
                     <button id="viewOnlyButton"
-                            title="If toggled, prevents sending commnads and input to the remote computer.">
+                            title="Quando ativado, não envia comandos nem entradas ao computador remoto.">
                         <i class="fas fa-eye"></i>
-                        View Only
+                        Somente visualizar
                     </button>
 
                     <button id="clipboardTransferButton"
-                            title="Type the current clipboard text on the remote computer.">
+                            title="Digita no computador remoto o texto da área de transferência.">
                         <i class="fas fa-clipboard"></i>
-                        Clipboard
+                        Área de transferência
                     </button>
 
                     <button id="blockInputButton"
-                            title="Prevent remote user from using keyboard and mouse.">
+                            title="Impede o usuário remoto de usar teclado e mouse.">
                         <i class="fas fa-mouse"></i>
-                        Block Remote Input
+                        Bloquear teclado/mouse remoto
                     </button>
 
                     <button id="ctrlAltDelButton"
-                            title="Simulate the Ctrl+Alt+Del command on the remote computer.  Must be running as SYSTEM."
+                            title="Envia Ctrl+Alt+Del ao computador remoto. Exige execução como SYSTEM."
                             class="d-none">
                         <i class="fas fa-sign-in-alt"></i>
                         Ctrl+Alt+Del
@@ -188,7 +188,7 @@
 
                 <div class="menu-column menu-column-right">
                     <button id="disconnectButton"
-                            title="Disconnect from the current session.">
+                            title="Desconectar da sessão atual.">
                         x
                     </button>
 
@@ -200,13 +200,13 @@
                         <i class="fa-brands fa-windows"></i>
                     </button>
 
-                    <button id="fullScreenButton" title="Enter fullscreen mode.">
+                    <button id="fullScreenButton" title="Entrar em tela cheia.">
                         <i class="fas fa-window-maximize"></i>
                     </button>
 
                     <button id="fitToScreenButton"
                             class="toggled"
-                            title="If toggled, will resize image to fit in the window.">
+                            title="Quando ativado, ajusta a imagem ao tamanho da janela.">
                         <i class="fas fa-expand"></i>
                     </button>
                 </div>
@@ -219,7 +219,7 @@
 
                 <button 
                     id="keyboardButton" 
-                    title="Invoke the mobile touch keyboard."
+                    title="Abrir o teclado virtual."
                     class="d-none">
                     <i class="fas fa-keyboard align-middle"></i>
                 </button>
@@ -247,7 +247,7 @@
 
     <footer>
         <div class="copyright-text">
-            &copy; @(DateTime.Now.Year) - Immense Networks
+            &copy; @(DateTime.Now.Year) - Immense Networks · fork MichaelRodriguesOficial
         </div>
     </footer>
 

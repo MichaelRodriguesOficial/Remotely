@@ -1,18 +1,18 @@
 ﻿@using Remotely.Server.Models
  
 <div>
-    <div>Color Sample:</div>
+    <div>Amostra de cor:</div>
     <div class="color-sample mb-2" style="background-color:@($"rgb({Red},{Green},{Blue})")"></div>
 
-    <div>Red</div>
+    <div>Vermelho</div>
     <input type="range" min="0" max="255" class="form-control red-picker" @bind="Red" />
     <input type="number" min="0" max="255" class="form-control mb-4" style="width: 150px" @bind="Red" />
 
-    <div>Green</div>
+    <div>Verde</div>
     <input type="range" min="0" max="255" class="form-control green-picker" @bind="Green" />
     <input type="number" min="0" max="255" class="form-control mb-4" style="width: 150px" @bind="Green" />
 
-    <div>Blue</div>
+    <div>Azul</div>
     <input type="range" min="0" max="255" class="form-control blue-picker" @bind="Blue" />
     <input type="number" min="0" max="255" class="form-control mb-4" style="width: 150px" @bind="Blue" />
 </div>

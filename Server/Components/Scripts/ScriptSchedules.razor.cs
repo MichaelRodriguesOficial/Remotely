@@ -106,16 +106,16 @@ public partial class ScriptSchedules : AuthComponentBase
         {
             if (User?.Id != _selectedSchedule.CreatorId)
             {
-                ToastService.ShowToast("You can't delete other people's script schedules.", classString: "bg-warning");
+                ToastService.ShowToast("Você não pode excluir agendamentos de outras pessoas.", classString: "bg-warning");
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Are you sure you want to delete the schedule {_selectedSchedule.Name}?");
+            var result = await JsInterop.Confirm($"Tem certeza de que quer excluir o agendamento {_selectedSchedule.Name}?");
             if (result)
             {
                 await DataService.DeleteScriptSchedule(_selectedSchedule.Id);
-                ToastService.ShowToast("Schedule deleted.");
-                _alertMessage = "Schedule deleted.";
+                ToastService.ShowToast("Agendamento excluído.");
+                _alertMessage = "Agendamento excluído.";
                 CreateNew();
                 await ParentPage.RefreshScripts();
                 await RefreshSchedules();
@@ -124,7 +124,7 @@ public partial class ScriptSchedules : AuthComponentBase
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while deleting script schedule.");
-            ToastService.ShowToast2("Failed to delete schedule", ToastType.Error);
+            ToastService.ShowToast2("Falha ao excluir o agendamento", ToastType.Error);
         }
     }
 
@@ -171,19 +171,19 @@ public partial class ScriptSchedules : AuthComponentBase
 
         if (_selectedScript is null)
         {
-            ToastService.ShowToast("You must select a script to run.", classString: "bg-warning");
+            ToastService.ShowToast("Selecione um script para executar.", classString: "bg-warning");
             return;
         }
 
         if (!CanModifySchedule)
         {
-            ToastService.ShowToast("You can't modify other people's schedules.", classString: "bg-warning");
+            ToastService.ShowToast("Você não pode alterar agendamentos de outras pessoas.", classString: "bg-warning");
             return;
         }
 
         if (!_selectedDevices.Any() && !_selectedDeviceGroups.Any())
         {
-            ToastService.ShowToast("You must select at least one device or device group.", classString: "bg-warning");
+            ToastService.ShowToast("Selecione pelo menos um dispositivo ou grupo.", classString: "bg-warning");
             return;
         }
 
@@ -204,8 +204,8 @@ public partial class ScriptSchedules : AuthComponentBase
         await DataService.AddOrUpdateScriptSchedule(_selectedSchedule);
         CreateNew();
         await RefreshSchedules();
-        ToastService.ShowToast("Schedule saved.");
-        _alertMessage = "Schedule saved.";
+        ToastService.ShowToast("Agendamento salvo.");
+        _alertMessage = "Agendamento salvo.";
     }
 
     private async Task RefreshSchedules()

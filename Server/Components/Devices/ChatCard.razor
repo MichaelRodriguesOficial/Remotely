@@ -11,7 +11,7 @@
             @Session.DeviceName
         </h6>
         <div class="text-end">
-            <button class="btn btn-sm btn-secondary" title="Close" @onclick="CloseChatCard" @onclick:stopPropagation>
+            <button class="btn btn-sm btn-secondary" title="Fechar" @onclick="CloseChatCard" @onclick:stopPropagation>
                 <i class="oi oi-x pointer"></i>
             </button>
         </div>
@@ -37,7 +37,7 @@
                 <div @key="item" class="text-end mt-1">
                     <div class="chat-bubble d-inline-block bg-dark text-white">
                         <div class="small">
-                            You
+                            Você
                             <span class="mx-1">@@</span>
                             @item.Timestamp
                         </div>

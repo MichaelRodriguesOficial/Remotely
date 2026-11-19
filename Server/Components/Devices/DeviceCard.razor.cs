@@ -203,7 +203,7 @@ public partial class DeviceCard : AuthComponentBase
         EnsureUserSet();
         if (!DataService.DoesUserHaveAccessToDevice(Device.ID, User))
         {
-            ToastService.ShowToast("Unauthorized.", classString: "bg-warning");
+            ToastService.ShowToast("Não autorizado.", classString: "bg-warning");
             return;
         }
        
@@ -213,7 +213,7 @@ public partial class DeviceCard : AuthComponentBase
               Device.DeviceGroupID,
               Device.Notes);
 
-        ToastService.ShowToast("Device settings saved.");
+        ToastService.ShowToast("Configurações do dispositivo salvas.");
 
         await CircuitConnection.TriggerHeartbeat(Device.ID);
     }
@@ -224,12 +224,12 @@ public partial class DeviceCard : AuthComponentBase
         {
             EnsureUserSet();
 
-            ToastService.ShowToast("File upload started.");
+            ToastService.ShowToast("Envio do arquivo iniciado.");
 
             if (args.File.Size > AppConstants.MaxUploadFileSize)
             {
                 var maxFileSize = AppConstants.MaxUploadFileSize / 1000 / 1000;
-                ToastService.ShowToast2($"File size exceeds the maximum allowed size of {maxFileSize}MB.", ToastType.Warning);
+                ToastService.ShowToast2($"O arquivo excede o tamanho máximo de {maxFileSize} MB.", ToastType.Warning);
                 return;
             }
             
@@ -239,17 +239,17 @@ public partial class DeviceCard : AuthComponentBase
 
             if (!result)
             {
-                ToastService.ShowToast("Device not found.", classString: "bg-warning");
+                ToastService.ShowToast("Dispositivo não encontrado.", classString: "bg-warning");
             }
             else
             {
-                ToastService.ShowToast("File upload completed.");
+                ToastService.ShowToast("Envio do arquivo concluído.");
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while uploading file to device.");
-            ToastService.ShowToast2("Failed to upload file", ToastType.Error);
+            ToastService.ShowToast2("Falha ao enviar o arquivo", ToastType.Error);
         }
         finally
         {
@@ -289,7 +289,7 @@ public partial class DeviceCard : AuthComponentBase
             builder.AddMarkupContent(0, $"<div style='white-space: pre'>{System.Net.WebUtility.HtmlEncode(disksString)}</div>");
         }
 
-        ModalService.ShowModal($"All Disks for {Device.DeviceName}", modalBody);
+        ModalService.ShowModal($"Todos os discos de {Device.DeviceName}", modalBody);
     }
 
     private void StartChat()
@@ -312,7 +312,7 @@ public partial class DeviceCard : AuthComponentBase
     {
         if (!ServiceSessionCache.TryGetConnectionId(Device.ID, out _))
         {
-            ToastService.ShowToast("Device connection not found", classString: "bg-danger");
+            ToastService.ShowToast("Conexão do dispositivo não encontrada", classString: "bg-danger");
             return;
         }
 
@@ -326,7 +326,7 @@ public partial class DeviceCard : AuthComponentBase
 
         if (!await session.WaitForSessionReady(TimeSpan.FromSeconds(20)))
         {
-            ToastService.ShowToast("Session failed to start", classString: "bg-danger");
+            ToastService.ShowToast("Não foi possível iniciar a sessão", classString: "bg-danger");
             return;
         }
 
@@ -357,7 +357,7 @@ public partial class DeviceCard : AuthComponentBase
 
     private async Task UninstallAgent()
     {
-        var result = await JsInterop.Confirm("Are you sure you want to uninstall this agent?  This is permanent!");
+        var result = await JsInterop.Confirm("Tem certeza de que quer desinstalar este agente? Isso é permanente!");
         if (result)
         {
             await CircuitConnection.UninstallAgents(new[] { Device.ID });
@@ -372,13 +372,13 @@ public partial class DeviceCard : AuthComponentBase
         if (result.IsSuccess)
         {
             ToastService.ShowToast2(
-                $"Wake command sent to peer devices.", 
+                $"Comando Wake-on-LAN enviado aos dispositivos da rede.", 
                 ToastType.Success);
         }
         else
         {
             ToastService.ShowToast2(
-                $"Wake command failed.  Reason: {result.Reason}", 
+                $"Falha no Wake-on-LAN. Motivo: {result.Reason}", 
                 ToastType.Error);
         }
     }

@@ -116,7 +116,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         var (canAccess, key) = CanAccessDevice(deviceId);
         if (!canAccess)
         {
-            _toastService.ShowToast("Access denied.", classString: "bg-warning");
+            _toastService.ShowToast("Acesso negado.", classString: "bg-warning");
             return Task.CompletedTask;
         }
 
@@ -175,7 +175,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         var (canAccess, key) = CanAccessDevice(deviceId);
         if (!canAccess)
         {
-            _toastService.ShowToast("Access denied.", classString: "bg-warning");
+            _toastService.ShowToast("Acesso negado.", classString: "bg-warning");
             return Task.CompletedTask;
         }
 
@@ -198,7 +198,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             var userResult = await _authService.GetUser();
             if (!userResult.IsSuccess)
             {
-                _toastService.ShowToast2("Authorization failure.", Enums.ToastType.Error);
+                _toastService.ShowToast2("Falha de autorização.", Enums.ToastType.Error);
                 return;
             }
             User = userResult.Value;
@@ -223,12 +223,12 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         {
             var message = new DisplayNotificationMessage(
                  "The selected device is not online.",
-                 "Device is not online.",
+                 "O dispositivo não está online.",
                  "bg-warning");
 
             await _messenger.Send(message, ConnectionId);
 
-            return Result.Fail<RemoteControlSession>("Device is not online.");
+            return Result.Fail<RemoteControlSession>("O dispositivo não está online.");
         }
 
 
@@ -239,19 +239,19 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
                 "Remote control attempted by unauthorized user.  Device ID: {deviceId}.  User Name: {userName}.",
                 deviceId,
                 User.UserName);
-            return Result.Fail<RemoteControlSession>("Unauthorized.");
+            return Result.Fail<RemoteControlSession>("Não autorizado.");
 
         }
 
         if (!_agentSessionCache.TryGetConnectionId(targetDevice.ID, out var serviceConnectionId))
         {
             var message = new DisplayNotificationMessage(
-                "Service connection not found.",
-                "Service connection not found.",
+                "Conexão com o agente não encontrada.",
+                "Conexão com o agente não encontrada.",
                 "bg-warning");
             
             await _messenger.Send(message, ConnectionId);
-            return Result.Fail<RemoteControlSession>("Service connection not found.");
+            return Result.Fail<RemoteControlSession>("Conexão com o agente não encontrada.");
         }
 
         var sessionId = Guid.NewGuid();
@@ -345,20 +345,20 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         if (!_agentSessionCache.TryGetByDeviceId(deviceId, out var device) ||
             !_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId))
         {
-            _toastService.ShowToast("Device not found.");
+            _toastService.ShowToast("Dispositivo não encontrado.");
             return;
         }
 
         if (device.OrganizationID != User.OrganizationID)
         {
-            _toastService.ShowToast("Unauthorized.");
+            _toastService.ShowToast("Não autorizado.");
             return;
         }
 
         var orgResult = await _dataService.GetOrganizationNameByUserName($"{User.UserName}");
         if (!orgResult.IsSuccess)
         {
-            _toastService.ShowToast2("Organization not found.", Enums.ToastType.Warning);
+            _toastService.ShowToast2("Organização não encontrada.", Enums.ToastType.Warning);
             return;
         }
 
@@ -452,7 +452,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         {
             if (!_dataService.DoesUserHaveAccessToDevice(device.ID, User.Id))
             {
-                return Result.Fail("Unauthorized.");
+                return Result.Fail("Não autorizado.");
             }
 
             var availableDevices = _agentSessionCache

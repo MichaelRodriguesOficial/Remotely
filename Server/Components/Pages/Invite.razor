@@ -3,35 +3,35 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject IToastService Toasts
 
-<h3>Organization Invite</h3>
+<h3>Convite para organização</h3>
 <hr />
 
 <div class="row">
     <div class="col-sm-12">
         @if (_joinSuccessful)
         {
-            <h5>Congratulations!</h5>
+            <h5>Parabéns!</h5>
             <p class="text-info">
-                You've successfully joined the organization!
+                Você entrou na organização!
             </p>
         }
         else if (string.IsNullOrWhiteSpace(InviteId))
         {
             <div>
-                <strong class="text-danger">Invitation ID is missing from the request.</strong>
+                <strong class="text-danger">O ID do convite não foi informado.</strong>
             </div>
         }
         else
         {
             <div>
                 <div>
-                    <strong class="text-danger">WARNING: </strong>
-                    <p class="text-danger">You will leave your current organization and lose access to its agents unless someone is able to invite you back in.</p>
-                    <p>Are you sure you want to leave your current organization and join this one?</p>
+                    <strong class="text-danger">ATENÇÃO: </strong>
+                    <p class="text-danger">Você sairá da organização atual e perderá acesso aos agentes dela, a menos que alguém convide você de novo.</p>
+                    <p>Tem certeza de que quer sair da organização atual e entrar nesta?</p>
                 </div>
                 <div class="form-group">
-                    <button type="button" class="btn btn-secondary me-3" onclick="location.assign(location.origin)">Cancel</button>
-                    <button type="button" class="btn btn-danger" @onclick="Confirm">Confirm</button>
+                    <button type="button" class="btn btn-secondary me-3" onclick="location.assign(location.origin)">Cancelar</button>
+                    <button type="button" class="btn btn-danger" @onclick="Confirm">Confirmar</button>
                 </div>
             </div>
         }
@@ -49,14 +49,14 @@
     {
         if (string.IsNullOrWhiteSpace(InviteId))
         {
-            Toasts.ShowToast2("Invitation ID is missing from the request.", ToastType.Error);
+            Toasts.ShowToast2("O ID do convite não foi informado.", ToastType.Error);
             return;
         }
 
         var state = await AuthProvider.GetAuthenticationStateAsync();
         if (state.User.Identity is not { IsAuthenticated: true } identity)
         {
-            Toasts.ShowToast2("You must be logged in to join an organization.", ToastType.Error);
+            Toasts.ShowToast2("Você precisa estar logado para entrar em uma organização.", ToastType.Error);
             return;
         }
 

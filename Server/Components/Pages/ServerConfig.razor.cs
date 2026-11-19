@@ -111,7 +111,7 @@ public partial class ServerConfig : AuthComponentBase
         }
         else
         {
-            ToastService.ShowToast2("Invalid IP address.", Enums.ToastType.Warning);
+            ToastService.ShowToast2("Endereço IP inválido.", Enums.ToastType.Warning);
         }
 
         _knownProxyToAdd = string.Empty;
@@ -211,7 +211,7 @@ public partial class ServerConfig : AuthComponentBase
         
         await DataService.SaveSettings(Input);
 
-        ToastService.ShowToast("Configuration saved.");
+        ToastService.ShowToast("Configuração salva.");
     }
 
     private async Task SaveAndTestSmtpSettings()
@@ -222,20 +222,20 @@ public partial class ServerConfig : AuthComponentBase
 
         if (string.IsNullOrWhiteSpace(User.Email))
         {
-            ToastService.ShowToast2("User email is not set.", Enums.ToastType.Warning);
+            ToastService.ShowToast2("O usuário não tem e-mail definido.", Enums.ToastType.Warning);
             return;
         }
 
         var success = await EmailSender.SendEmailAsync(User.Email, "Remotely Test Email", "Congratulations! Your SMTP settings are working!", User.OrganizationID);
         if (success)
         {
-            ToastService.ShowToast($"Test email sent to {User.Email}.  Check your inbox (or spam folder).");
-            _alertMessage = $"Test email sent to {User.Email}.  Check your inbox (or spam folder).";
+            ToastService.ShowToast($"E-mail de teste enviado para {User.Email}. Verifique a caixa de entrada (ou o spam).");
+            _alertMessage = $"E-mail de teste enviado para {User.Email}. Verifique a caixa de entrada (ou o spam).";
         }
         else
         {
-            ToastService.ShowToast("Error sending email.  Check the server logs for details.", classString: "bg-danger");
-            _alertMessage = "Error sending email.  Check the server logs for details.";
+            ToastService.ShowToast("Erro ao enviar o e-mail. Veja os logs do servidor para detalhes.", classString: "bg-danger");
+            _alertMessage = "Erro ao enviar o e-mail. Veja os logs do servidor para detalhes.";
         }
     }
 
@@ -249,7 +249,7 @@ public partial class ServerConfig : AuthComponentBase
         EnsureUserSet();
 
         DataService.SetIsServerAdmin(user.Id, isAdmin, User.Id);
-        ToastService.ShowToast("Server admins updated.");
+        ToastService.ShowToast("Administradores do servidor atualizados.");
     }
 
     private void ShowOutdatedDevices()
@@ -264,11 +264,11 @@ public partial class ServerConfig : AuthComponentBase
                 .Concat(outdatedDeviceNames)
                 .ToArray();
 
-            ModalService.ShowModal("Outdated Devices", body);
+            ModalService.ShowModal("Dispositivos desatualizados", body);
         }
         else
         {
-            ModalService.ShowModal("Outdated Devices", new[] { "There are no outdated devices currently online." });
+            ModalService.ShowModal("Dispositivos desatualizados", new[] { "Não há dispositivos desatualizados online no momento." });
         }
     }
 
@@ -283,13 +283,13 @@ public partial class ServerConfig : AuthComponentBase
 
         if (!OutdatedDevices.Any())
         {
-            ToastService.ShowToast("No agents need updating.");
+            ToastService.ShowToast("Nenhum agente precisa de atualização.");
             return;
         }
 
         var agentConnections = ServiceSessionCache.GetConnectionIdsByDeviceIds(OutdatedDevices);
 
         await AgentHubContext.Clients.Clients(agentConnections).ReinstallAgent();
-        ToastService.ShowToast("Update command sent.");
+        ToastService.ShowToast("Comando de atualização enviado.");
     }
 }

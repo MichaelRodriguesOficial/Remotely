@@ -16,7 +16,7 @@
             {
                 if (IsOutdated)
                 {
-                    <i class="oi oi-power-standby text-warning" title="Agent Outdated"></i>
+                    <i class="oi oi-power-standby text-warning" title="Agente desatualizado"></i>
                 }
                 else
                 {
@@ -39,7 +39,7 @@
         <div class="text-end">
             @if (IsExpanded)
             {
-                <button class="btn btn-sm me-2" title="Open in New Tab"
+                <button class="btn btn-sm me-2" title="Abrir em nova aba"
                         @onclick:stopPropagation
                         @onclick="OpenDeviceDetails">
                     <i class="oi oi-external-link" style="font-size: 1.3em"></i>
@@ -66,7 +66,7 @@
         } 
         <div>
             <div class="font-weight-bold text-info">
-                <label>User</label>
+                <label>Usuário</label>
             </div>
             <div>
                 @Device.CurrentUser
@@ -77,7 +77,7 @@
                 <DropdownButton DropDownMenuClass="dropdown-menu-end mb-2" ButtonClass="btn-primary">
                     <ButtonContent>
                         <i class="oi oi-bolt"></i>
-                        <span class="ms-2">Actions</span>
+                        <span class="ms-2">Ações</span>
                     </ButtonContent>
                     <ChildListItems>
                         <li>
@@ -88,35 +88,35 @@
                         </li>
                         <li>
                             <button class="dropdown-item" @onclick="() => StartRemoteControl(false)">
-                                <i class="oi oi-laptop" title="Remote Control"></i>
-                                <span class="ms-2">Remote Control</span>
+                                <i class="oi oi-laptop" title="Controle remoto"></i>
+                                <span class="ms-2">Controle remoto</span>
                             </button>
                         </li>
                         <li>
                             <button class="dropdown-item" @onclick="() => StartRemoteControl(true)">
-                                <i class="oi oi-eye" title="View Only"></i>
-                                <span class="ms-2">View Only</span>
+                                <i class="oi oi-eye" title="Somente visualizar"></i>
+                                <span class="ms-2">Somente visualizar</span>
                             </button>
                         </li>
                         <li>
                             <button class="dropdown-item" @onclick="() => WakeDevice()">
-                                <i class="oi oi-power-standby" title="Wake Device"></i>
-                                <span class="ms-2">Wake</span>
+                                <i class="oi oi-power-standby" title="Ligar dispositivo (Wake-on-LAN)"></i>
+                                <span class="ms-2">Ligar (WoL)</span>
                             </button>
                         </li>
                         <li>
                             <FileInputButton ClassNames="dropdown-item btn btn-primary"
                                              OnChanged="OnFileInputChanged">
                                 <ButtonContent>
-                                    <i class="oi oi-data-transfer-upload" title="Upload File"></i>
-                                    <span class="ms-2">Upload File</span>
+                                    <i class="oi oi-data-transfer-upload" title="Enviar arquivo"></i>
+                                    <span class="ms-2">Enviar arquivo</span>
                                 </ButtonContent>
                             </FileInputButton>
                         </li>
                         <li>
                             <button class="dropdown-item bg-danger" @onclick="UninstallAgent">
-                                <i class="oi oi-delete" title="Uninstall"></i>
-                                <span class="ms-2">Uninstall</span>
+                                <i class="oi oi-delete" title="Desinstalar"></i>
+                                <span class="ms-2">Desinstalar</span>
                             </button>
                         </li>
                     </ChildListItems>
@@ -124,19 +124,19 @@
             </div>
 
             <div class="font-weight-bold text-info">
-                <label>Platform</label>
+                <label>Plataforma</label>
             </div>
             <div>
                 @Device.Platform
             </div>
 
             <div class="font-weight-bold text-info">
-                <label>Disk</label>
+                <label>Disco</label>
                 <button class="btn btn-link p-0 m-0 expanded-visible"
                         style="font-size: 50%"
                         @onclick="ShowAllDisks" 
                         @onclick:stopPropagation>
-                    (View All)
+                    (Ver todos)
                 </button>
             </div>
             <div>
@@ -144,7 +144,7 @@
             </div>
 
             <div class="font-weight-bold text-info expanded-visible">
-                Total Storage
+                Armazenamento total
             </div>
             <div class="expanded-visible">
                 @(Device.TotalStorage) GB
@@ -152,14 +152,14 @@
 
 
             <div class="font-weight-bold text-info">
-                <label>Memory</label>
+                <label>Memória</label>
             </div>
             <div>
                 @(MathHelper.GetFormattedPercent(Device.UsedMemoryPercent))
             </div>
 
             <div class="font-weight-bold text-info expanded-visible">
-                Total Memory
+                Memória total
             </div>
             <div class="expanded-visible">
                 @(Device.TotalMemory) GB
@@ -181,35 +181,35 @@
                 @if (IsExpanded)
                 {
                     <div class="font-weight-bold text-info mt-2">
-                        Device ID
+                        ID do dispositivo
                     </div>
                     <div>
                         <input class="form-control" readonly value="@Device.ID" />
                     </div>
 
                     <div class="font-weight-bold text-info mt-2">
-                        Agent Version
+                        Versão do agente
                     </div>
                     <div>
                         <input class="form-control" readonly value="@Device.AgentVersion" />
                     </div>
 
                     <div class="font-weight-bold text-info mt-2">
-                        Last Online
+                        Última conexão
                     </div>
                     <div>
                         <input class="form-control" readonly value="@Device.LastOnline" />
                     </div>
 
                     <div class="font-weight-bold text-info mt-2">
-                        Public IP
+                        IP público
                     </div>
                     <div>
                         <input class="form-control" readonly value="@Device.PublicIP" />
                     </div>
 
                     <div class="font-weight-bold text-info mt-2">
-                        MAC Addresses
+                        Endereços MAC
                     </div>
                     <div>
                         <input 
@@ -222,7 +222,7 @@
                         <DataAnnotationsValidator />
 
                         <div class="font-weight-bold text-info mt-2">
-                            Device Alias
+                            Apelido do dispositivo
                         </div>
                         <div>
                             <InputText class="form-control" @bind-Value="@Device.Alias" />
@@ -230,11 +230,11 @@
                         </div>
 
                         <div class="font-weight-bold text-info mt-2">
-                            Device Group
+                            Grupo de dispositivos
                         </div>
                         <div>
                             <InputSelect @bind-Value="Device.DeviceGroupID" class="form-control">
-                                <option value="">None</option>
+                                <option value="">Nenhum</option>
 
                                 @foreach (var group in _deviceGroups)
                                 {
@@ -253,7 +253,7 @@
                         </div>
 
                         <div class="font-weight-bold text-info mt-2">
-                            Notes
+                            Observações
                         </div>
                         <div>
                             <InputTextArea @bind-Value="Device.Notes" style="width:100%; height: 10em;"></InputTextArea>
@@ -265,7 +265,7 @@
                         </div>
 
                         <div class="text-end mt-2">
-                            <button type="submit" class="btn btn-primary">Save</button>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
                         </div>
                     </EditForm>
 

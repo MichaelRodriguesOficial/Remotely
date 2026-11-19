@@ -224,7 +224,7 @@ public partial class DevicesFrame : AuthComponentBase
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while filtering devices.");
-            ToastService.ShowToast2("Filter devices failed", ToastType.Error);
+            ToastService.ShowToast2("Falha ao filtrar os dispositivos", ToastType.Error);
             return Array.Empty<Device>();
         }
         finally
@@ -287,7 +287,7 @@ public partial class DevicesFrame : AuthComponentBase
     private async Task HandleRefreshClicked()
     {
         await Refresh();
-        ToastService.ShowToast("Devices refreshed.");
+        ToastService.ShowToast("Dispositivos atualizados.");
     }
 
     private async Task HandleScriptResultMessage(object subscriber, ScriptResultMessage message)
@@ -382,13 +382,13 @@ public partial class DevicesFrame : AuthComponentBase
         if (result.IsSuccess)
         {
             ToastService.ShowToast2(
-                $"Wake commands sent to peer devices.", 
+                $"Comandos Wake-on-LAN enviados aos dispositivos da rede.", 
                 ToastType.Success);
         }
         else
         {
             ToastService.ShowToast2(
-                $"Failed to send wake commands.  Reason: {result.Reason}", 
+                $"Falha ao enviar Wake-on-LAN. Motivo: {result.Reason}", 
                 ToastType.Error);
         }
     }

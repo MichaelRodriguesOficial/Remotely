@@ -28,7 +28,7 @@ export class ClipboardWatcher {
             console.error(ex);
             if (!localStorage.getItem("clipboardWarning")) {
                 localStorage.setItem("clipboardWarning", "true");
-                alert("Clipboard sync is unavailable for this browser. Please see the console for details.");
+                alert("A sincronização da área de transferência não está disponível neste navegador. Veja o console para detalhes.");
             }
             console.warn("New restrictions have been placed on the Clipboard API in " +
                 "some browsers that make it impossible to sync the clipboard " +
@@ -44,7 +44,7 @@ export class ClipboardWatcher {
                 await navigator.clipboard.writeText(this.NewClipboardText);
                 this.LastClipboardText = this.NewClipboardText;
                 this.NewClipboardText = null;
-                ShowToast("Clipboard updated.");
+                ShowToast("Área de transferência atualizada.");
                 return;
             }
             var newText = await navigator.clipboard.readText();

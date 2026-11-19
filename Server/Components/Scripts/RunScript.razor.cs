@@ -102,14 +102,14 @@ public partial class RunScript : AuthComponentBase
 
         if (_selectedScript is null)
         {
-            ToastService.ShowToast("You must select a script.", classString: "bg-warning");
+            ToastService.ShowToast("Selecione um script.", classString: "bg-warning");
             return;
         }
 
         if (!_selectedDeviceGroups.Any() &&
             !_selectedDevices.Any())
         {
-            ToastService.ShowToast("You must select at least one device or device group.", classString: "bg-warning");
+            ToastService.ShowToast("Selecione pelo menos um dispositivo ou grupo.", classString: "bg-warning");
             return;
         }
 
@@ -147,11 +147,11 @@ public partial class RunScript : AuthComponentBase
 
         await DataService.AddScriptRun(scriptRun);
 
-        ToastService.ShowToast($"Created script run for {scriptRun.Devices.Count} devices.");
+        ToastService.ShowToast($"Execução criada para {scriptRun.Devices.Count} dispositivo(s).");
 
         await CircuitConnection.RunScript(onlineDevices, _selectedScript.Id, scriptRun.Id, ScriptInputType.OneTimeScript, false);
 
-        ToastService.ShowToast($"Running script immediately on {onlineDevices.Count()} devices.");
+        ToastService.ShowToast($"Executando o script agora em {onlineDevices.Count()} dispositivo(s).");
     }
 
     private async Task ScriptSelected(ScriptTreeNode viewModel)

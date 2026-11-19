@@ -57,7 +57,7 @@ public partial class ChatCard : AuthComponentBase
         {
             session.ChatHistory.Enqueue(new ChatHistoryItem()
             {
-                Message = $"{Session.DeviceName} disconnected.",
+                Message = $"{Session.DeviceName} desconectou.",
                 Origin = ChatHistoryItemOrigin.System
             });
         }

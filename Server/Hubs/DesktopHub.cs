@@ -108,7 +108,7 @@ public class DesktopHub : Hub<IDesktopHubClient>
     public async Task NotifySessionChanged(SessionSwitchReasonEx reason, int currentSessionId)
     {
         SessionInfo.StreamerState = StreamerState.ChangingSessions | StreamerState.DisconnectExpected;
-        await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Changing sessions");
+        await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Trocando de sessão");
         await NotifySessionChangedImpl(reason, currentSessionId);
     }
 
@@ -118,12 +118,12 @@ public class DesktopHub : Hub<IDesktopHubClient>
         {
             case SessionEndReasonsEx.Logoff:
                 SessionInfo.StreamerState = StreamerState.WindowsLoggingOff | StreamerState.DisconnectExpected;
-                await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Windows session ending");
+                await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Sessão do Windows encerrando");
                 await NotifySessionChangedImpl(SessionSwitchReasonEx.SessionLogoff, -1);
                 break;
             case SessionEndReasonsEx.SystemShutdown:
                 SessionInfo.StreamerState = StreamerState.WindowsShuttingDown | StreamerState.DisconnectExpected;
-                await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Waiting for device to restart");
+                await _viewerHub.Clients.Clients(ViewerList).ShowMessage("Aguardando o dispositivo reiniciar");
                 break;
             default:
                 break;
@@ -278,7 +278,7 @@ public class DesktopHub : Hub<IDesktopHubClient>
         {
             await _viewerHub.Clients
                 .Clients(SessionInfo.ViewerList)
-                .ShowMessage("Waiting for agent to come online");
+                .ShowMessage("Aguardando o agente ficar online");
 
             return;
         }

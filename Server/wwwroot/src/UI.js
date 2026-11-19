@@ -71,7 +71,7 @@ export function Prompt(promptMessage) {
         var buttonsDiv = document.createElement("div");
         buttonsDiv.classList.add("buttons-footer");
         var cancelButton = document.createElement("button");
-        cancelButton.innerHTML = "Cancel";
+        cancelButton.innerHTML = "Cancelar";
         var okButton = document.createElement("button");
         okButton.innerHTML = "OK";
         buttonsDiv.appendChild(okButton);
@@ -111,7 +111,7 @@ export function ShowToast(message) {
 }
 export function ToggleConnectUI(shown) {
     if (shown) {
-        ConnectButton.innerText = "Connect";
+        ConnectButton.innerText = "Conectar";
         Screen2DContext.clearRect(0, 0, ScreenViewer.width, ScreenViewer.height);
         ScreenViewerWrapper.setAttribute("hidden", "hidden");
         if (ViewerApp.Mode == RemoteControlMode.Attended) {
@@ -187,7 +187,7 @@ export function UpdateWindowsSessions(windowsSessions) {
         var option = document.createElement("option");
         option.value = String(x.ID);
         option.text = `${sessionType} (ID: ${x.ID} | User: ${x.Username})`;
-        option.title = `${sessionType} Session (ID: ${x.ID} | User: ${x.Username})`;
+        option.title = `Sessão ${sessionType} (ID: ${x.ID} | Usuário: ${x.Username})`;
         WindowsSessionSelect.options.add(option);
     });
 }

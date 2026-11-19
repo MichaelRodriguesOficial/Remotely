@@ -19,10 +19,10 @@
                     <span>Remotely</span>
                 }
             </span>
-            <span class="logo-subtitle">Support Portal</span>
+            <span class="logo-subtitle">Portal de Suporte</span>
         </span>
     </a>
-    <button class="navbar-toggler" title="Menu" aria-label="Toggle navigation" @onclick="ToggleNavMenu">
+    <button class="navbar-toggler" title="Menu" aria-label="Alternar navegação" @onclick="ToggleNavMenu">
         <span class="navbar-toggler-icon"></span>
     </button>
 </div>
@@ -30,11 +30,11 @@
 <nav class="@NavMenuCssClass sidebar-nav" @onclick="ToggleNavMenu">
     <ul class="nav flex-column">
 
-        <li class="nav-section">Main</li>
+        <li class="nav-section">Principal</li>
 
         <li class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Home
+                <span class="oi oi-home" aria-hidden="true"></span> Início
             </NavLink>
         </li>
 
@@ -46,7 +46,7 @@
 
         <li class="nav-item">
             <NavLink class="nav-link" href="/Viewer" target="_blank">
-                <span class="oi oi-monitor" aria-hidden="true"></span> Remote Control
+                <span class="oi oi-monitor" aria-hidden="true"></span> Controle remoto
             </NavLink>
         </li>
 
@@ -54,7 +54,7 @@
             <Authorized>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="deploy">
-                        <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> Deploy
+                        <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> Implantar
                     </NavLink>
                 </li>
                 <li class="nav-item">
@@ -64,12 +64,12 @@
                 </li>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="device-details">
-                        <span class="oi oi-info" aria-hidden="true"></span> Device Details
+                        <span class="oi oi-info" aria-hidden="true"></span> Detalhes do dispositivo
                     </NavLink>
                 </li>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="user-options">
-                        <span class="oi oi-cog" aria-hidden="true"></span> User Options
+                        <span class="oi oi-cog" aria-hidden="true"></span> Preferências
                     </NavLink>
                 </li>
             </Authorized>
@@ -77,48 +77,48 @@
 
         @if (_user?.IsAdministrator == true)
         {
-            <li class="nav-section">Admin</li>
+            <li class="nav-section">Administração</li>
 
             <li class="nav-item">
                 <NavLink class="nav-link" href="manage-organization">
-                    <span class="oi oi-briefcase" aria-hidden="true"></span> Organization
+                    <span class="oi oi-briefcase" aria-hidden="true"></span> Organização
                 </NavLink>
             </li>
             <li class="nav-item">
                 <NavLink class="nav-link" href="branding">
-                    <span class="oi oi-brush" aria-hidden="true"></span> Branding
+                    <span class="oi oi-brush" aria-hidden="true"></span> Personalização
                 </NavLink>
             </li>
             <li class="nav-item">
                 <NavLink class="nav-link" href="api-keys">
-                    <span class="oi oi-key" aria-hidden="true"></span> API Keys
+                    <span class="oi oi-key" aria-hidden="true"></span> Chaves de API
                 </NavLink>
             </li>
 
             @if (_user?.IsServerAdmin == true)
             {
-                <li class="nav-section">Server</li>
+                <li class="nav-section">Servidor</li>
 
                 <li class="nav-item">
                     <NavLink class="nav-link" href="server-logs">
-                        <span class="oi oi-document" aria-hidden="true"></span> Server Logs
+                        <span class="oi oi-document" aria-hidden="true"></span> Logs do servidor
                     </NavLink>
                 </li>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="server-config">
-                        <span class="oi oi-wrench" aria-hidden="true"></span> Server Config
+                        <span class="oi oi-wrench" aria-hidden="true"></span> Configuração do servidor
                     </NavLink>
                 </li>
             }
         }
 
-        <li class="nav-section">Account</li>
+        <li class="nav-section">Conta</li>
 
         <AuthorizeView>
             <Authorized>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="oi oi-person" aria-hidden="true"></span> My Account
+                        <span class="oi oi-person" aria-hidden="true"></span> Minha conta
                     </NavLink>
                 </li>
                 <li class="nav-item">
@@ -126,7 +126,7 @@
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@_currentUrl" />
                         <button type="submit" class="nav-link nav-link-button">
-                            <span class="oi oi-account-logout" aria-hidden="true"></span> Log out
+                            <span class="oi oi-account-logout" aria-hidden="true"></span> Sair
                         </button>
                     </form>
                 </li>
@@ -134,14 +134,14 @@
             <NotAuthorized>
                 <li class="nav-item">
                     <NavLink class="nav-link" href="Account/Login">
-                        <span class="oi oi-account-login" aria-hidden="true"></span> Log in
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Entrar
                     </NavLink>
                 </li>
                 @if (_isRegistrationEnabled)
                 {
                     <li class="nav-item">
                         <NavLink class="nav-link" href="Account/Register">
-                            <span class="oi oi-plus" aria-hidden="true"></span> Register
+                            <span class="oi oi-plus" aria-hidden="true"></span> Cadastrar
                         </NavLink>
                     </li>
                 }
@@ -150,7 +150,7 @@
 
         <li class="nav-item">
             <NavLink class="nav-link" href="about">
-                <span class="oi oi-question-mark" aria-hidden="true"></span> About
+                <span class="oi oi-question-mark" aria-hidden="true"></span> Sobre
             </NavLink>
         </li>
 

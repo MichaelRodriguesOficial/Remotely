@@ -10,29 +10,29 @@ public class Device
 {
 
     [Sortable]
-    [Display(Name = "Agent Version")]
+    [Display(Name = "Versão do agente")]
     public string? AgentVersion { get; set; }
 
     public ICollection<Alert>? Alerts { get; set; }
 
     [StringLength(100)]
     [Sortable]
-    [Display(Name = "Alias")]
+    [Display(Name = "Apelido")]
     public string? Alias { get; set; }
 
     [Sortable]
-    [Display(Name = "CPU Utilization")]
+    [Display(Name = "Uso de CPU")]
     public double CpuUtilization { get; set; }
 
     [Sortable]
-    [Display(Name = "Current User")]
+    [Display(Name = "Usuário atual")]
     public string? CurrentUser { get; set; }
 
     public DeviceGroup? DeviceGroup { get; set; }
     public string? DeviceGroupID { get; set; }
 
     [Sortable]
-    [Display(Name = "Device Name")]
+    [Display(Name = "Nome do dispositivo")]
     public string? DeviceName { get; set; }
     public List<Drive>? Drives { get; set; }
 
@@ -43,10 +43,10 @@ public class Device
     public bool IsOnline { get; set; }
 
     [Sortable]
-    [Display(Name = "Last Online")]
+    [Display(Name = "Última conexão")]
     public DateTimeOffset LastOnline { get; set; }
 
-    [Display(Name = "MAC Addresses")]
+    [Display(Name = "Endereços MAC")]
     public string[] MacAddresses { get; set; } = Array.Empty<string>();
 
     [StringLength(5000)]
@@ -59,15 +59,15 @@ public class Device
     public Architecture OSArchitecture { get; set; }
 
     [Sortable]
-    [Display(Name = "OS Description")]
+    [Display(Name = "Sistema operacional")]
     public string? OSDescription { get; set; }
 
     [Sortable]
-    [Display(Name = "Platform")]
+    [Display(Name = "Plataforma")]
     public string? Platform { get; set; }
 
     [Sortable]
-    [Display(Name = "Processor Count")]
+    [Display(Name = "Processadores")]
     public int ProcessorCount { get; set; }
 
     public string? PublicIP { get; set; }
@@ -89,19 +89,19 @@ public class Device
     public string? Tags { get; set; }
 
     [Sortable]
-    [Display(Name = "Memory Total")]
+    [Display(Name = "Memória total")]
     public double TotalMemory { get; set; }
 
     [Sortable]
-    [Display(Name = "Storage Total")]
+    [Display(Name = "Armazenamento total")]
     public double TotalStorage { get; set; }
 
     [Sortable]
-    [Display(Name = "Memory Used")]
+    [Display(Name = "Memória usada")]
     public double UsedMemory { get; set; }
 
     [Sortable]
-    [Display(Name = "Memory Used %")]
+    [Display(Name = "Memória usada %")]
     public double UsedMemoryPercent
     {
         get
@@ -115,11 +115,11 @@ public class Device
     }
 
     [Sortable]
-    [Display(Name = "Storage Used")]
+    [Display(Name = "Armazenamento usado")]
     public double UsedStorage { get; set; }
 
     [Sortable]
-    [Display(Name = "Storage Used %")]
+    [Display(Name = "Armazenamento usado %")]
     public double UsedStoragePercent
     {
         get

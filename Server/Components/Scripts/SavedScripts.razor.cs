@@ -84,14 +84,14 @@ public partial class SavedScripts : AuthComponentBase
 
         if (!CanModifyScript)
         {
-            ToastService.ShowToast("You can't modify other people's scripts.", classString: "bg-warning");
+            ToastService.ShowToast("Você não pode alterar scripts de outras pessoas.", classString: "bg-warning");
             return;
         }
         
         await DataService.AddOrUpdateSavedScript(_selectedScript, User.Id);
         await ParentPage.RefreshScripts();
-        ToastService.ShowToast("Script saved.");
-        _alertMessage = "Script saved.";
+        ToastService.ShowToast("Script salvo.");
+        _alertMessage = "Script salvo.";
     }
 
     private void CreateNew()
@@ -108,16 +108,16 @@ public partial class SavedScripts : AuthComponentBase
         {
             if (!CanDeleteScript)
             {
-                ToastService.ShowToast("You can't delete other people's scripts.", classString: "bg-warning");
+                ToastService.ShowToast("Você não pode excluir scripts de outras pessoas.", classString: "bg-warning");
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Are you sure you want to delete the script {_selectedScript.Name}?");
+            var result = await JsInterop.Confirm($"Tem certeza de que quer excluir o script {_selectedScript.Name}?");
             if (result)
             {
                 await DataService.DeleteSavedScript(_selectedScript.Id);
-                ToastService.ShowToast("Script deleted.");
-                _alertMessage = "Script deleted.";
+                ToastService.ShowToast("Script excluído.");
+                _alertMessage = "Script excluído.";
                 await ParentPage.RefreshScripts();
                 _selectedScript = new()
                 {
@@ -128,7 +128,7 @@ public partial class SavedScripts : AuthComponentBase
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while deleting script.");
-            ToastService.ShowToast2("Failed to delete script", ToastType.Error);
+            ToastService.ShowToast2("Falha ao excluir o script", ToastType.Error);
         }
 
     }
@@ -177,19 +177,19 @@ public partial class SavedScripts : AuthComponentBase
 
     private void ShowAlertErrorHelp()
     {
-        ModalService.ShowModal("Script Error Alerts", new[]
+        ModalService.ShowModal("Alertas de erro de script", new[]
         {
-            "A script will report as having an error if there is anything written to the error output. " +
-            "For CMD, WinPS, and Bash, an exit code of anything other than 0 will also trigger an error. " +
-            "(The integrated PowerShell Core shell does not use exit codes.)",
+            "Um script é considerado com erro quando escreve algo na saída de erro. " +
+            "Em CMD, WinPS e Bash, um código de saída diferente de 0 também conta como erro. " +
+            "(O PowerShell Core integrado não usa códigos de saída.)",
 
-            "For PowerShell Core, any text written Warning or Error output will trigger an alert." +
-            "To manually generate an error based on some logic in your script, use " +
-            "'Write-Error' or 'Write-Warning' anywhere in your PowerShell Core script. ",
+            "No PowerShell Core, qualquer texto nas saídas Warning ou Error gera um alerta. " +
+            "Para gerar um erro conforme alguma lógica do script, use " +
+            "'Write-Error' ou 'Write-Warning' em qualquer ponto do script.",
 
-            "For Windows PowerShell, you can manually trigger an alert by using 'Write-Error'.",
+            "No Windows PowerShell, use 'Write-Error' para gerar um alerta.",
 
-            "For Bash and CMD, you can exit with any non-zero number."
+            "No Bash e no CMD, saia com qualquer código diferente de zero."
         });
     }
 }

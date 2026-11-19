@@ -9,9 +9,9 @@
 @inject SignInManager<RemotelyUser> SignInManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Confirm email change</PageTitle>
+<PageTitle>Confirmar alteração de e-mail</PageTitle>
 
-<h1>Confirm email change</h1>
+<h1>Confirmar alteração de e-mail</h1>
 
 <StatusMessage Message="@message" />
 
@@ -49,7 +49,7 @@
         var result = await UserManager.ChangeEmailAsync(user, Email, code);
         if (!result.Succeeded)
         {
-            message = "Error changing email.";
+            message = "Erro ao alterar o e-mail.";
             return;
         }
 
@@ -58,11 +58,11 @@
         var setUserNameResult = await UserManager.SetUserNameAsync(user, Email);
         if (!setUserNameResult.Succeeded)
         {
-            message = "Error changing user name.";
+            message = "Erro ao alterar o nome de usuário.";
             return;
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        message = "Thank you for confirming your email change.";
+        message = "Obrigado por confirmar a alteração de e-mail.";
     }
 }

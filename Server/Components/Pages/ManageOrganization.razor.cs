@@ -80,7 +80,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        ToastService.ShowToast("Device group created.");
+        ToastService.ShowToast("Grupo de dispositivos criado.");
         _deviceGroups.Add(deviceGroup);
         _newDeviceGroupName = string.Empty;
     }
@@ -105,7 +105,7 @@ public partial class ManageOrganization : AuthComponentBase
         }
 
         DataService.SetIsDefaultOrganization(_organization.ID, isDefault);
-        ToastService.ShowToast("Default organization set.");
+        ToastService.ShowToast("Organização padrão definida.");
     }
 
     private async Task DeleteInvite(InviteLink invite)
@@ -117,7 +117,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Are you sure you want to delete this invitation?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este convite?");
         if (!result)
         {
             return;
@@ -125,7 +125,7 @@ public partial class ManageOrganization : AuthComponentBase
 
         await DataService.DeleteInvite(User.OrganizationID, invite.ID);
         _invites.RemoveAll(x => x.ID == invite.ID);
-        ToastService.ShowToast("Invitation deleted.");
+        ToastService.ShowToast("Convite excluído.");
     }
 
     private async Task DeleteSelectedDeviceGroup()
@@ -142,7 +142,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Are you sure you want to delete this device group?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este grupo de dispositivos?");
         if (!result)
         {
             return;
@@ -164,11 +164,11 @@ public partial class ManageOrganization : AuthComponentBase
 
         if (User.Id == user.Id)
         {
-            ToastService.ShowToast("You can't delete yourself.", classString: "bg-warning");
+            ToastService.ShowToast("Você não pode excluir a si mesmo.", classString: "bg-warning");
             return;
         }
 
-        var result = await JsInterop.Confirm("Are you sure you want to delete this user?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este usuário?");
         if (!result)
         {
             return;
@@ -176,7 +176,7 @@ public partial class ManageOrganization : AuthComponentBase
 
         await DataService.DeleteUser(User.OrganizationID, user.Id);
         _orgUsers.RemoveAll(x => x.Id == user.Id);
-        ToastService.ShowToast("User deleted.");
+        ToastService.ShowToast("Usuário excluído.");
     }
 
     private async Task EditDeviceGroups(RemotelyUser user)
@@ -190,7 +190,7 @@ public partial class ManageOrganization : AuthComponentBase
             builder.AddAttribute(2, EditDeviceGroup.DeviceGroupsPropName, deviceGroups);
             builder.CloseComponent();
         }
-        await ModalService.ShowModal("Device Groups", editDeviceGroupsModal);
+        await ModalService.ShowModal("Grupos de dispositivos", editDeviceGroupsModal);
     }
 
     private async Task EvaluateInviteInputKeypress(KeyboardEventArgs args)
@@ -234,14 +234,14 @@ public partial class ManageOrganization : AuthComponentBase
 
         if (newName.Length > 25)
         {
-            ToastService.ShowToast("Must be 25 characters or less.",
+            ToastService.ShowToast("Use no máximo 25 caracteres.",
                 classString: "bg-warning");
             return;
         }
 
         DataService.UpdateOrganizationName(_organization.ID, newName);
         _organization.OrganizationName = newName;
-        ToastService.ShowToast("Organization name changed.");
+        ToastService.ShowToast("Nome da organização alterado.");
     }
 
     private async Task RefreshData()
@@ -278,7 +278,7 @@ public partial class ManageOrganization : AuthComponentBase
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
         var resetUrl = $"{NavManager.BaseUri}Account/ResetPassword?code={code}";
 
-        await ModalService.ShowModal("Password Reset", builder =>
+        await ModalService.ShowModal("Redefinição de senha", builder =>
         {
             builder.AddMarkupContent(0, $@"<div class=""mb-3"">Password Reset URL:</div>
                     <input readonly value=""{resetUrl}"" class=""form-control"" /> 
@@ -315,12 +315,12 @@ public partial class ManageOrganization : AuthComponentBase
 
                 _inviteAsAdmin = false;
                 _inviteEmail = string.Empty;
-                ToastService.ShowToast("User account created.");
+                ToastService.ShowToast("Conta de usuário criada.");
                 return;
             }
             else
             {
-                ToastService.ShowToast("Create user failed.", classString: "bg-danger");
+                ToastService.ShowToast("Falha ao criar o usuário.", classString: "bg-danger");
                 return;
             }
         }
@@ -336,7 +336,7 @@ public partial class ManageOrganization : AuthComponentBase
 
             if (!newInvite.IsSuccess)
             {
-                ToastService.ShowToast($"Failed to create invite. {newInvite.Reason}", classString: "bg-danger");
+                ToastService.ShowToast($"Falha ao criar o convite. {newInvite.Reason}", classString: "bg-danger");
                 return;
             }
 
@@ -352,7 +352,7 @@ public partial class ManageOrganization : AuthComponentBase
                     User.OrganizationID);
             if (emailResult)
             {
-                ToastService.ShowToast("Invitation sent.");
+                ToastService.ShowToast("Convite enviado.");
 
                 _inviteAsAdmin = false;
                 _inviteEmail = string.Empty;
@@ -360,7 +360,7 @@ public partial class ManageOrganization : AuthComponentBase
             }
             else
             {
-                ToastService.ShowToast("Error sending invititation email.", classString: "bg-danger");
+                ToastService.ShowToast("Erro ao enviar o e-mail de convite.", classString: "bg-danger");
             }
         }
     }
@@ -380,49 +380,49 @@ public partial class ManageOrganization : AuthComponentBase
         }
 
         await DataService.ChangeUserIsAdmin(User.OrganizationID, orgUser.Id, isAdmin);
-        ToastService.ShowToast("Administrator value set.");
+        ToastService.ShowToast("Permissão de administrador atualizada.");
     }
 
     private void ShowDefaultOrgHelp()
     {
-        ModalService.ShowModal("Default Organization", new[]
+        ModalService.ShowModal("Organização padrão", new[]
         {
-            @"This option is only available for server administrators.  When selected,
-                it sets this organization as the default for the server.  If the organization can't
-                be determined in the quick support apps, they will use the default organization's branding."
+            "Opção disponível só para administradores do servidor. Quando marcada, define esta " +
+            "organização como padrão do servidor. Se os apps de suporte rápido não conseguirem " +
+            "identificar a organização, usarão a personalização da organização padrão."
         });
     }
 
     private void ShowDeviceGroupHelp()
     {
-        ModalService.ShowModal("Device Groups", new[]
+        ModalService.ShowModal("Grupos de dispositivos", new[]
        {
-            "Device groups can be used to restrict user permissions and to filter computers on " +
-            "the main page.",
-            "Everyone will have access to devices that are not in a group.  Only " +
-            "administrators and users in a device group will have access to devices in that group."
+            "Grupos de dispositivos servem para restringir permissões de usuários e filtrar " +
+            "computadores na página inicial.",
+            "Todos têm acesso aos dispositivos que não estão em um grupo. Só administradores e " +
+            "usuários de um grupo têm acesso aos dispositivos daquele grupo."
         });
     }
 
     private void ShowInvitesHelp()
     {
-        ModalService.ShowModal("Invitations", new[]
+        ModalService.ShowModal("Convites", new[]
        {
-            "All pending invitations will be shown here and can be revoked by deleting them.",
+            "Os convites pendentes aparecem aqui e podem ser revogados excluindo-os.",
 
-            "If a user does not exist, sending an invite will create their account and add them to the current organization. " +
-            "A password reset URL can be generated from the user table.",
+            "Se o usuário não existir, o convite cria a conta e já o adiciona à organização atual. " +
+            "Um link de redefinição de senha pode ser gerado na tabela de usuários.",
 
-            "The Admin checkbox determines if the new user will have administrator privileges in this organization."
+            "A opção Admin define se o novo usuário terá privilégios de administrador nesta organização."
         });
     }
 
     private void ShowUsersHelp()
     {
-        ModalService.ShowModal("Users", new[]
+        ModalService.ShowModal("Usuários", new[]
         {
-            "All users for the organization are managed here",
-            "Administrators will have access to this management screen as well as all computers."
+            "Todos os usuários da organização são gerenciados aqui.",
+            "Administradores têm acesso a esta tela e a todos os computadores."
         });
     }
 }

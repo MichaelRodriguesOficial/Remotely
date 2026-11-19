@@ -44,7 +44,7 @@ export const ViewerApp = {
             UI.CtrlAltDelButton.classList.remove("d-none");
             UI.WindowsSessionMenuButton.classList.remove("d-none");
             ViewerApp.ViewerHubConnection.Connect();
-            UI.StatusMessage.innerHTML = "Connecting to remote device";
+            UI.StatusMessage.innerHTML = "Conectando ao dispositivo remoto";
         }
         else {
             UI.SessionIDInput.value = ViewerApp.SessionId;
@@ -55,12 +55,12 @@ export const ViewerApp = {
     ConnectToClient: () => {
         ViewerApp.SessionId = UI.SessionIDInput.value.split(" ").join("").trim();
         if (!ViewerApp.SessionId) {
-            UI.ShowToast("Session ID is required");
-            UI.SetStatusMessage("Session ID is required.");
+            UI.ShowToast("Informe o ID da sessão");
+            UI.SetStatusMessage("Informe o ID da sessão.");
             return;
         }
         UI.ConnectButton.disabled = true;
-        UI.ConnectButton.innerText = "Requesting remote control";
+        UI.ConnectButton.innerText = "Solicitando controle remoto";
         ViewerApp.RequesterName = UI.RequesterNameInput.value;
         ViewerApp.Mode = RemoteControlMode.Attended;
         ViewerApp.ViewerHubConnection.Connect();

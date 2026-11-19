@@ -54,7 +54,7 @@ public class LogsManager : ILogsManager
             return;
         }
 
-        await foreach (var file in files.ToAsyncEnumerable())
+        foreach (var file in files)
         {
             try
             {

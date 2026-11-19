@@ -100,7 +100,7 @@ public class ViewerHub : Hub<IViewerHubClient>
         {
             if (SessionInfo.Mode != RemoteControlMode.Unattended)
             {
-                return Result.Fail("Only available in unattended mode.");
+                return Result.Fail("Disponível apenas no modo autônomo.");
             }
 
             SessionInfo.ViewerList.Remove(Context.ConnectionId);
@@ -128,7 +128,7 @@ public class ViewerHub : Hub<IViewerHubClient>
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while changing Windows session.");
-            return Result.Fail("An error occurred while changing Windows session.");
+            return Result.Fail("Erro ao trocar a sessão do Windows.");
         }
     }
 
@@ -142,7 +142,7 @@ public class ViewerHub : Hub<IViewerHubClient>
         if (!sessionResult.IsSuccess)
         {
             _logger.LogError("Timed out while waiting for desktop stream.");
-            await Clients.Caller.ShowMessage("Request timed out");
+            await Clients.Caller.ShowMessage("Tempo esgotado");
             yield break;
         }
 
@@ -219,7 +219,7 @@ public class ViewerHub : Hub<IViewerHubClient>
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            return Result.Fail("Session ID cannot be empty.");
+            return Result.Fail("Informe o ID da sessão.");
         }
 
         // Throttle session ID/access key guessing (tracked per client IP).
@@ -229,13 +229,13 @@ public class ViewerHub : Hub<IViewerHubClient>
                 "Too many failed remote control session attempts.  Connection: {connectionId}.  IP: {ip}",
                 Context.ConnectionId,
                 ClientIp);
-            return Result.Fail("Too many failed attempts.  Please try again later.");
+            return Result.Fail("Muitas tentativas inválidas. Tente novamente mais tarde.");
         }
 
         if (!_desktopSessionCache.TryGetValue(sessionId, out var session))
         {
             RegisterFailedSessionAttempt();
-            return Result.Fail("Session ID not found.");
+            return Result.Fail("ID de sessão não encontrado.");
         }
 
         // MVC filters (like ViewerAuthorizationFilter) don't apply to SignalR hubs,
@@ -248,7 +248,7 @@ public class ViewerHub : Hub<IViewerHubClient>
             var settings = await _dataService.GetSettings();
             if (settings.RemoteControlRequiresAuthentication)
             {
-                return Result.Fail("You must be logged in to connect to a session.");
+                return Result.Fail("Você precisa estar logado para conectar a uma sessão.");
             }
         }
 
@@ -263,7 +263,7 @@ public class ViewerHub : Hub<IViewerHubClient>
                 sessionId,
                 requesterName,
                 Context.ConnectionId);
-            return Result.Fail("Authorization failed.");
+            return Result.Fail("Falha de autorização.");
         }
 
         SessionInfo = session;
@@ -303,7 +303,7 @@ public class ViewerHub : Hub<IViewerHubClient>
 
                 if (result != Shared.Enums.PromptForAccessResult.Accepted)
                 {
-                    return Result.Fail($"Access request failed.  Reason: {result}");
+                    return Result.Fail($"Acesso não concedido. Motivo: {result}");
                 }
             }
 

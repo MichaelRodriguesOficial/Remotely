@@ -40,7 +40,7 @@ public partial class EditDeviceGroup : AuthComponentBase
             }
             else
             {
-                ToastService.ShowToast("User added to group.");
+                ToastService.ShowToast("Usuário adicionado ao grupo.");
             }
 
         }
@@ -49,11 +49,11 @@ public partial class EditDeviceGroup : AuthComponentBase
             var result = await DataService.RemoveUserFromDeviceGroup(EditUser.OrganizationID, group.ID, EditUser.Id);
             if (!result)
             {
-                ToastService.ShowToast("Failed to remove from group.", classString: "bg-warning");
+                ToastService.ShowToast("Falha ao remover do grupo.", classString: "bg-warning");
             }
             else
             {
-                ToastService.ShowToast("Removed user from group.");
+                ToastService.ShowToast("Usuário removido do grupo.");
             }
         }
     }

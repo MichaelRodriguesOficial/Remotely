@@ -16,15 +16,15 @@
                     <div class="container mt-5">
                         <div class="empty-state">
                             <span class="oi oi-lock-locked display-6 mb-3" aria-hidden="true"></span>
-                            <h3>Access denied</h3>
-                            <p class="text-muted">You don't have permission to view this page.</p>
-                            <a class="btn btn-primary" href="">Go to Home</a>
+                            <h3>Acesso negado</h3>
+                            <p class="text-muted">Você não tem permissão para ver esta página.</p>
+                            <a class="btn btn-primary" href="">Ir para o início</a>
                         </div>
                     </div>
                 }
             </NotAuthorized>
             <Authorizing>
-                <div class="container mt-5 text-muted">Checking permissions...</div>
+                <div class="container mt-5 text-muted">Verificando permissões...</div>
             </Authorizing>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
@@ -33,9 +33,9 @@
         <LayoutView Layout="typeof(Layout.MainLayout)">
             <div class="container mt-5">
                 <div class="empty-state">
-                    <h3>Page not found</h3>
-                    <p class="text-muted">The page you requested doesn't exist.</p>
-                    <a class="btn btn-primary" href="">Go to Home</a>
+                    <h3>Página não encontrada</h3>
+                    <p class="text-muted">A página solicitada não existe.</p>
+                    <a class="btn btn-primary" href="">Ir para o início</a>
                 </div>
             </div>
         </LayoutView>

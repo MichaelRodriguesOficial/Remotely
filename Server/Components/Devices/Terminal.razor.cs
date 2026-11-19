@@ -76,7 +76,7 @@ public partial class Terminal : AuthComponentBase, IDisposable
 
             await CircuitConnection.RunScript(CardStore.SelectedDevices, script.Id, scriptRun.Id, ScriptInputType.OneTimeScript, false);
 
-            ToastService.ShowToast($"Running script on {scriptRun.Devices.Count} devices.");
+            ToastService.ShowToast($"Executando o script em {scriptRun.Devices.Count} dispositivo(s).");
         });
 
     [Inject]
@@ -165,7 +165,7 @@ public partial class Terminal : AuthComponentBase, IDisposable
             var devices = CardStore.SelectedDevices.ToArray();
             if (devices.Length == 0)
             {
-                ToastService.ShowToast("You must select at least one device.", classString: "bg-warning");
+                ToastService.ShowToast("Selecione pelo menos um dispositivo.", classString: "bg-warning");
                 return;
             }
             CircuitConnection.ExecuteCommandOnAgent(_shell, InputText, devices);
@@ -195,13 +195,13 @@ public partial class Terminal : AuthComponentBase, IDisposable
         {
             if (_shell != ScriptingShell.PSCore && _shell != ScriptingShell.WinPS)
             {
-                ToastService.ShowToast("PowerShell is required for tab completion.", classString: "bg-warning");
+                ToastService.ShowToast("O autocompletar com Tab exige PowerShell.", classString: "bg-warning");
                 return;
             }
 
             if (!CardStore.SelectedDevices.Any())
             {
-                ToastService.ShowToast("No devices are selected.", classString: "bg-warning");
+                ToastService.ShowToast("Nenhum dispositivo selecionado.", classString: "bg-warning");
                 return;
             }
 
@@ -276,13 +276,13 @@ public partial class Terminal : AuthComponentBase, IDisposable
         var quickScripts = await DataService.GetQuickScripts(User.Id);
         if (quickScripts.Count == 0)
         {
-            ToastService.ShowToast("No quick scripts saved.", classString: "bg-warning");
+            ToastService.ShowToast("Nenhum script rápido salvo.", classString: "bg-warning");
             return;
         }
 
         if (!CardStore.SelectedDevices.Any())
         {
-            ToastService.ShowToast("You must select at least one device.", classString: "bg-warning");
+            ToastService.ShowToast("Selecione pelo menos um dispositivo.", classString: "bg-warning");
             return;
         }
 
@@ -295,28 +295,28 @@ public partial class Terminal : AuthComponentBase, IDisposable
             builder.CloseComponent();
         }
 
-        await ModalService.ShowModal("Quick Scripts", showModal);
+        await ModalService.ShowModal("Scripts rápidos", showModal);
     }
 
     private void ShowTerminalHelp()
     {
-        ModalService.ShowModal("Terminal Help",
+        ModalService.ShowModal("Ajuda do terminal",
         [
-            "Enter terminal commands that will execute on all selected devices.",
+            "Digite comandos que serão executados em todos os dispositivos selecionados.",
 
-            "Tab completion is available for PowerShell Core (PSCore) and Windows PowerShell (WinPS).  Tab and Shift + Tab " +
-            "will cycle through potential completions.  Ctrl + Space will show all available completions.",
+            "O autocompletar está disponível para PowerShell Core (PSCore) e Windows PowerShell (WinPS). Tab e Shift + Tab " +
+            "percorrem as sugestões. Ctrl + Espaço mostra todas as opções.",
 
-            "If more than one devices is selected, the first device's file system will be used when " +
-            "auto-completing file and directory paths.",
+            "Com mais de um dispositivo selecionado, o sistema de arquivos do primeiro é usado para " +
+            "completar caminhos de arquivos e pastas.",
 
-            "PowerShell Core is cross-platform and is available on all client operating systems.  Bash is available " +
-            "on Windows 10 if WSL (Windows Subsystem for Linux) is installed.",
+            "O PowerShell Core é multiplataforma e funciona em todos os sistemas. O Bash funciona " +
+            "no Windows se o WSL (Subsistema do Windows para Linux) estiver instalado.",
 
-            "Up and down arrow keys will cycle through terminal input history.  Ctrl + Q will clear the output window.",
+            "As setas para cima e para baixo navegam pelo histórico. Ctrl + Q limpa a saída.",
 
-            "Note: The first PS Core command or tab completion takes a few moments while the service is " +
-            "starting on the remote device."
+            "Observação: o primeiro comando ou autocompletar no PS Core leva alguns segundos enquanto o serviço " +
+            "inicia no dispositivo remoto."
         ]);
     }
 

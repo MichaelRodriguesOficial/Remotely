@@ -28,32 +28,32 @@
                     </div>
 
                     <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Script Name</label>
-                        <InputText class="form-control" DisplayName="Script Name" @bind-Value="_selectedScript.Name" placeholder="Script name" />
+                        <label>Nome do script</label>
+                        <InputText class="form-control" DisplayName="Script Name" @bind-Value="_selectedScript.Name" placeholder="Nome do script" />
                         <ValidationMessage For="() => _selectedScript.Name" />
                     </div>
 
                     <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Folder Path</label>
-                        <InputText class="form-control" DisplayName="Folder Path" @bind-Value="_selectedScript.FolderPath" placeholder="Example: or/portland/quick burger #5" />
+                        <label>Pasta</label>
+                        <InputText class="form-control" DisplayName="Folder Path" @bind-Value="_selectedScript.FolderPath" placeholder="Exemplo: filial/sao-paulo/financeiro" />
                         <ValidationMessage For="() => _selectedScript.FolderPath" />
                     </div>
 
 
                     <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Public?</label>
+                        <label>Público?</label>
                         <br />
                         <InputCheckbox DisplayName="Public?" @bind-Value="_selectedScript.IsPublic" />
                         <ValidationMessage For="() => _selectedScript.IsPublic" />
                     </div>
                     <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Quick Script?</label>
+                        <label>Script rápido?</label>
                         <br />
                         <InputCheckbox DisplayName="Quick Script?" @bind-Value="_selectedScript.IsQuickScript" />
                         <ValidationMessage For="() => _selectedScript.IsQuickScript" />
                     </div>
                     <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Creator</label>
+                        <label>Criador</label>
                         <br />
                         <input class="form-control" readonly value="@_selectedScript.Creator?.UserName" />
                     </div>
@@ -61,41 +61,41 @@
                         <button class="btn btn-primary"
                                 type="submit"
                                 disabled="@(!CanModifyScript)">
-                            Save
+                            Salvar
                         </button>
 
                         <button class="btn btn-success ms-3" type="button" @onclick="CreateNew">
-                            New
+                            Novo
                         </button>
                         <button class="btn btn-danger ms-3" type="button"
                                 disabled="@(!CanDeleteScript)"
                                 @onclick="DeleteSelectedScript">
-                            Delete
+                            Excluir
                         </button>
                     </div>
                     <div class="mt-2 col-12">
                         <button type="button" class="btn btn-link me-3" @onclick="ToggleAlertOptionsShown">
-                            Alert Options
+                            Opções de alerta
                         </button>
                         <button type="button" class="btn btn-link" @onclick="ToggleEnvironmentVarsShown">
-                            Environment Variables
+                            Variáveis de ambiente
                         </button>
                     </div>
                     <div class="my-2 col-12 collapse @_alertOptionsShowClass">
                         <h5>
-                            <span class="me-2">On Error</span>
+                            <span class="me-2">Em caso de erro</span>
                             <button class="btn btn-sm btn-secondary" type="button" @onclick="ShowAlertErrorHelp">
                                 <span class="oi oi-question-mark" />
                             </button>
                         </h5>
                         <div class="row">
                             <div class="mt-2 col-md-6">
-                                <label>Send Email</label>
+                                <label>Enviar e-mail</label>
                                 <br />
                                 <InputCheckbox DisplayName="Send Email on Error" @bind-Value="_selectedScript.SendEmailOnError" />
                                 <ValidationMessage For="() => _selectedScript.SendEmailOnError" />
                                 <br />
-                                to
+                                para
                                 <br />
                                 <InputText type="email"
                                            class="form-control"
@@ -105,7 +105,7 @@
                                 <ValidationMessage For="() => _selectedScript.SendErrorEmailTo" />
                             </div>
                             <div class="mt-2 col-md-6">
-                                <label>Generate Alert</label>
+                                <label>Gerar alerta</label>
                                 <br />
                                 <InputCheckbox DisplayName="Alert on Error" @bind-Value="_selectedScript.GenerateAlertOnError" />
                                 <ValidationMessage For="() => _selectedScript.GenerateAlertOnError" />
@@ -113,16 +113,16 @@
                         </div>
                     </div>
                     <div class="my-2 col-12 collapse @_environmentVarsShowClass">
-                        <h5>Environment Variables</h5>
+                        <h5>Variáveis de ambiente</h5>
                         <div class="row">
                             <div class="mt-2 col-md-6">
-                                <div>Device ID</div>
-                                <div class="small text-muted mt-1">The device ID (GUID) of the computer currently running the script.</div>
+                                <div>ID do dispositivo</div>
+                                <div class="small text-muted mt-1">O ID (GUID) do computador que está executando o script.</div>
                                 <input type="text" readonly class="form-control" value="DeviceId" />
                             </div>
                             <div class="mt-2 col-md-6">
-                                <div>Server URL</div>
-                                <div class="small text-muted mt-1">The URL of the server that the device connects to (e.g. https://app.example.com).</div>
+                                <div>URL do servidor</div>
+                                <div class="small text-muted mt-1">A URL do servidor ao qual o dispositivo se conecta (ex.: https://remotely.exemplo.com.br).</div>
                                 <input type="text" readonly class="form-control" value="ServerUrl" />
                             </div>
                         </div>
@@ -136,17 +136,17 @@
                                class="h-100 w-100"
                                spellcheck="false"
                                autocomplete="off"
-                               placeholder="Enter script text here" />
+                               placeholder="Digite o script aqui" />
                 <ValidationMessage For="() => _selectedScript.Content" />
             </div>
         </div>
     </EditForm>
     <div class="tree-view-wrapper-grid h-100 pb-3">
         <div>
-            <h5>Saved Scripts</h5>
+            <h5>Scripts salvos</h5>
             <div>
                 <input type="checkbox" @bind="ParentPage.ShowOnlyMyScripts" />
-                <span class="align-top">Show only mine</span>
+                <span class="align-top">Mostrar só os meus</span>
             </div>
         </div>
         <TreeView DataSource="ParentPage.TreeNodes"

@@ -27,13 +27,13 @@ export class ViewerHubConnection {
             this.SendScreenCastRequestToDevice();
         }).catch(err => {
             console.error(err.toString());
-            console.log("Connection closed.");
-            UI.StatusMessage.textContent = `Connection error: ${err.message}`;
+            console.log("Conexão encerrada.");
+            UI.StatusMessage.textContent = `Erro de conexão: ${err.message}`;
             UI.ToggleConnectUI(true);
         });
         this.Connection.onclose(() => {
             if (!UI.StatusMessage.innerText) {
-                UI.SetStatusMessage("Connection closed.");
+                UI.SetStatusMessage("Conexão encerrada.");
             }
             UI.ToggleConnectUI(true);
         });
@@ -102,7 +102,7 @@ export class ViewerHubConnection {
             complete: () => {
                 streamingState.StreamEnded = true;
                 if (!UI.StatusMessage.innerText) {
-                    UI.SetStatusMessage("Stream ended.");
+                    UI.SetStatusMessage("Transmissão encerrada.");
                 }
                 ViewerApp.SessionRecorder.Stop();
                 UI.ToggleConnectUI(true);
@@ -111,7 +111,7 @@ export class ViewerHubConnection {
                 console.warn(err);
                 streamingState.StreamEnded = true;
                 if (!UI.StatusMessage.innerText) {
-                    UI.SetStatusMessage("Stream ended.");
+                    UI.SetStatusMessage("Transmissão encerrada.");
                 }
                 ViewerApp.SessionRecorder.Stop();
                 UI.ToggleConnectUI(true);
@@ -124,33 +124,33 @@ export class ViewerHubConnection {
         });
         hubConnection.on("ConnectionFailed", () => {
             UI.ConnectButton.removeAttribute("disabled");
-            UI.ConnectButton.innerText = "Connect";
-            UI.SetStatusMessage("Connection failed or was denied.");
-            ShowToast("Connection failed.  Please reconnect.");
+            UI.ConnectButton.innerText = "Conectar";
+            UI.SetStatusMessage("A conexão falhou ou foi negada.");
+            ShowToast("A conexão falhou. Conecte novamente.");
             this.Connection.stop();
         });
         hubConnection.on("ReconnectFailed", () => {
             UI.ConnectButton.removeAttribute("disabled");
-            UI.ConnectButton.innerText = "Connect";
-            UI.SetStatusMessage("Unable to reconnect.");
-            ShowToast("Unable to reconnect.");
+            UI.ConnectButton.innerText = "Conectar";
+            UI.SetStatusMessage("Não foi possível reconectar.");
+            ShowToast("Não foi possível reconectar.");
             this.Connection.stop();
         });
         hubConnection.on("ConnectionRequestDenied", () => {
-            UI.ConnectButton.innerText = "Connect";
+            UI.ConnectButton.innerText = "Conectar";
             this.Connection.stop();
-            UI.SetStatusMessage("Connection request denied.");
-            ShowToast("Connection request denied.");
+            UI.SetStatusMessage("Pedido de conexão negado.");
+            ShowToast("Pedido de conexão negado.");
         });
         hubConnection.on("ViewerRemoved", () => {
             UI.ConnectButton.removeAttribute("disabled");
-            UI.ConnectButton.innerText = "Connect";
-            UI.SetStatusMessage("The session was stopped by your partner.");
-            ShowToast("Session ended");
+            UI.ConnectButton.innerText = "Conectar";
+            UI.SetStatusMessage("A sessão foi encerrada pelo outro lado.");
+            ShowToast("Sessão encerrada");
             this.Connection.stop();
         });
         hubConnection.on("ScreenCasterDisconnected", () => {
-            UI.SetStatusMessage("The host has disconnected.");
+            UI.SetStatusMessage("O computador remoto desconectou.");
             this.Connection.stop();
         });
         hubConnection.on("RelaunchedScreenCasterReady", (newSessionId, newAccessKey) => {
@@ -161,9 +161,9 @@ export class ViewerHubConnection {
             ViewerApp.AccessKey = newAccessKey;
             this.SendScreenCastRequestToDevice();
         });
-        hubConnection.on("Reconnecting", () => {
-            UI.SetStatusMessage("Reconnecting");
-            ShowToast("Reconnecting");
+        hubConnection.on("Reconectando", () => {
+            UI.SetStatusMessage("Reconectando");
+            ShowToast("Reconectando");
         });
         hubConnection.on("CursorChange", (cursor) => {
             UI.UpdateCursor(cursor.ImageBytes, cursor.HotSpot.X, cursor.HotSpot.Y, cursor.CssOverride);

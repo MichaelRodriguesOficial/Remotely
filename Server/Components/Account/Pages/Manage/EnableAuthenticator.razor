@@ -15,7 +15,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<EnableAuthenticator> Logger
 
-<PageTitle>Configure authenticator app</PageTitle>
+<PageTitle>Configurar app autenticador</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -24,49 +24,47 @@
 else
 {
     <StatusMessage Message="@message" />
-    <h3>Configure authenticator app</h3>
+    <h3>Configurar app autenticador</h3>
     <div>
-        <p>To use an authenticator app go through the following steps:</p>
+        <p>Para usar um app autenticador, siga os passos:</p>
         <ol class="list">
             <li>
                 <p>
-                    Download a two-factor authenticator app like Microsoft Authenticator for
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> and
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> or
-                    Google Authenticator for
-                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> and
+                    Baixe um app autenticador de dois fatores, como o Microsoft Authenticator para
+                    <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> e
+                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> ou o Google Authenticator para
+                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> e
                     <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a>.
                 </p>
             </li>
             <li>
-                <p>Scan the QR Code or enter this key <kbd>@sharedKey</kbd> into your two factor authenticator app. Spaces and casing do not matter.</p>
+                <p>Leia o QR Code ou digite esta chave <kbd>@sharedKey</kbd> no seu app autenticador. Espaços e maiúsculas/minúsculas não importam.</p>
                 <div>
                     @if (!string.IsNullOrWhiteSpace(_qrCodeDataUri))
                     {
-                        <img src="@_qrCodeDataUri" alt="QR code" class="img-fluid" />
+                        <img src="@_qrCodeDataUri" alt="QR Code" class="img-fluid" />
                     }
                     else
                     {
-                        <div class="alert alert-warning">Failed to generate QR code.</div>
+                        <div class="alert alert-warning">Não foi possível gerar o QR Code.</div>
                     }
                 </div>
                 <div data-url="@authenticatorUri"></div>
             </li>
             <li>
                 <p>
-                    Once you have scanned the QR code or input the key above, your two factor authentication app will provide you
-                    with a unique code. Enter the code in the confirmation box below.
+                    Depois de ler o QR Code ou digitar a chave acima, o app autenticador mostrará um código. Digite esse código no campo de confirmação abaixo.
                 </p>
                 <div class="row">
                     <div class="col-md-6">
                         <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
                             <DataAnnotationsValidator />
                             <div class="form-floating mb-3">
-                                <InputText @bind-Value="Input.Code" class="form-control" autocomplete="off" placeholder="Please enter the code." />
-                                <label for="code" class="control-label form-label">Verification Code</label>
+                                <InputText @bind-Value="Input.Code" class="form-control" autocomplete="off" placeholder="Informe o código." />
+                                <label for="code" class="control-label form-label">Código de verificação</label>
                                 <ValidationMessage For="() => Input.Code" class="text-danger" />
                             </div>
-                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verify</button>
+                            <button type="submit" class="w-100 btn btn-lg btn-primary">Verificar</button>
                             <ValidationSummary class="text-danger" role="alert" />
                         </EditForm>
                     </div>
@@ -109,7 +107,7 @@ else
 
         if (!is2faTokenValid)
         {
-            message = "Error: Verification code is invalid.";
+            message = "Erro: código de verificação inválido.";
             return;
         }
 
@@ -117,7 +115,7 @@ else
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
 
-        message = "Your authenticator app has been verified.";
+        message = "Seu app autenticador foi verificado.";
 
         if (await UserManager.CountRecoveryCodesAsync(user) == 0)
         {
@@ -192,9 +190,9 @@ else
     private sealed class InputModel
     {
         [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(7, ErrorMessage = "O campo {0} deve ter entre {2} e {1} caracteres.", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Verification Code")]
+        [Display(Name = "Código de verificação")]
         public string Code { get; set; } = "";
     }
 }

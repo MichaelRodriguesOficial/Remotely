@@ -11,7 +11,7 @@
 @inject IToastService ToastService
 
 
-<h3>API Keys</h3>
+<h3>Chaves de API</h3>
 
 @if (!string.IsNullOrWhiteSpace(_alertMessage))
 {
@@ -20,27 +20,27 @@
 
 @if (_isLoading)
 {
-    <h5>Loading...</h5>
+    <h5>Carregando...</h5>
 }
 else if (User is not null)
 {
     if (!string.IsNullOrWhiteSpace(_newKeySecret))
     {
-        <h5 class="text-warning font-weight-bold mb-2 mt-4">Warning: The key's secret will only be shown once.  Save it now.</h5>
+        <h5 class="text-warning font-weight-bold mb-2 mt-4">Atenção: o segredo da chave só será exibido uma vez. Salve-o agora.</h5>
         <h5 class="mb-4">
-            <label class="me-1">Key Secret:</label>
+            <label class="me-1">Segredo da chave:</label>
             <input class="form-control custom-control-inline" readonly value="@_newKeySecret" style="width:400px" />
         </h5>
     }
 
 
     <div class="mb-2 mt-4">
-        <label class="me-1">New Token Name:</label>
+        <label class="me-1">Nome da nova chave:</label>
         <input @bind="_createKeyName" @bind:event="oninput"
                class="form-control form-control-sm custom-control-inline me-1 d-inline-block"
                style="width:200px" />
 
-        <button class="btn btn-primary" type="button" @onclick="CreateNewKey">Create</button>
+        <button class="btn btn-primary" type="button" @onclick="CreateNewKey">Criar</button>
 
         <button class="btn btn-sm btn-secondary ms-2" @onclick="ShowApiKeyHelp">
             <span class="oi oi-question-mark"></span>
@@ -50,9 +50,9 @@ else if (User is not null)
     <table class="table table-dark table-hover table-striped">
         <thead>
             <tr>
-                <th>Name</th>
+                <th>Nome</th>
                 <th>ID</th>
-                <th>Last Used</th>
+                <th>Último uso</th>
                 <th></th>
                 <th></th>
             </tr>
@@ -65,10 +65,10 @@ else if (User is not null)
                     <td>@apiToken.ID</td>
                     <td>@apiToken.LastUsed</td>
                     <td>
-                        <button type="button" class="btn btn-primary" @onclick="() => RenameKey(apiToken.ID)">Rename</button>
+                        <button type="button" class="btn btn-primary" @onclick="() => RenameKey(apiToken.ID)">Renomear</button>
                     </td>
                     <td>
-                        <button type="submit" class="btn btn-danger" @onclick="() => DeleteKey(apiToken.ID)">Delete</button>
+                        <button type="submit" class="btn btn-danger" @onclick="() => DeleteKey(apiToken.ID)">Excluir</button>
                     </td>
                 </tr>
             }
@@ -104,7 +104,7 @@ else if (User is not null)
             return;
         }
         RefreshData();
-        _alertMessage = "Key created.";
+        _alertMessage = "Chave criada.";
         _newKeySecret = secret;
     }
 
@@ -112,7 +112,7 @@ else if (User is not null)
     {
         EnsureUserSet();
 
-        var result = await JsInterop.Confirm("Are you sure you want to delete this key?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer excluir esta chave?");
         if (!result)
         {
             return;
@@ -125,7 +125,7 @@ else if (User is not null)
             return;
         }
         RefreshData();
-        _alertMessage = "Key deleted.";
+        _alertMessage = "Chave excluída.";
     }
 
     private void RefreshData()
@@ -147,16 +147,16 @@ else if (User is not null)
         {
             await DataService.RenameApiToken(UserName, keyId, newName);
             RefreshData();
-            _alertMessage = "Key renamed.";
+            _alertMessage = "Chave renomeada.";
         }
     }
 
     private void ShowApiKeyHelp()
     {
-        ModalService.ShowModal("Using API Keys", new[]
+        ModalService.ShowModal("Como usar chaves de API", new[]
         {
-            "API keys should be added to the request header when making API calls.  The key should be \"X-Api-Key\", and value should be \"{key-id}:{key-secret}\".  Note the colon in between.",
-            "Example: X-Api-Key=e5da1c09-e851-4bd4-a8c1-532144b3f894:7uY6h5zBYm4+90pZVek4lD6ewbQ83nKcDpghBfG00hhZu6Ew"
+            "Envie a chave de API no cabeçalho das requisições. O nome do cabeçalho é \"X-Api-Key\" e o valor é \"{id-da-chave}:{segredo}\", separados por dois-pontos.",
+            "Exemplo: X-Api-Key=e5da1c09-e851-4bd4-a8c1-532144b3f894:7uY6h5zBYm4+90pZVek4lD6ewbQ83nKcDpghBfG00hhZu6Ew"
         });
     }
 }

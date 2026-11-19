@@ -7,7 +7,7 @@
 @using Remotely.Server.Models
 @using System.ComponentModel.DataAnnotations
 
-<h3 class="mb-3">Branding</h3>
+<h3 class="mb-3">Personalização</h3>
 
 <AlertBanner Message="@_alertMessage" />
 
@@ -17,13 +17,13 @@
             <DataAnnotationsValidator />
 
             <div class="form-group mb-5">
-                <label class="text-info font-weight-bold">Product Name</label>
+                <label class="text-info font-weight-bold">Nome do produto</label>
                 <InputText class="form-control" @bind-Value="_inputModel.ProductName" />
                 <ValidationMessage For="() => _inputModel.ProductName" />
             </div>
 
             <div class="form-group mb-4">
-                <label class="text-info font-weight-bold d-block">Current Icon</label>
+                <label class="text-info font-weight-bold d-block">Ícone atual</label>
                 <br />
                 @if (!string.IsNullOrWhiteSpace(_base64Icon))
                 {
@@ -36,12 +36,12 @@
             </div>
 
             <div class="form-group mb-5">
-                <label class="text-info font-weight-bold">New Icon</label>
+                <label class="text-info font-weight-bold">Novo ícone</label>
                 <InputFile type="file" accept="image/png" class="form-control" OnChange="IconUploadInputChanged" />
             </div>
             <div class="form-group text-end">
-                <button class="btn btn-secondary me-3" type="button" @onclick="ResetBranding">Reset</button>
-                <button class="btn btn-primary" type="submit">Submit</button>
+                <button class="btn btn-secondary me-3" type="button" @onclick="ResetBranding">Redefinir</button>
+                <button class="btn btn-primary" type="submit">Enviar</button>
             </div>
         </EditForm>
     </div>
@@ -55,7 +55,7 @@
     {
         [StringLength(25)]
         [Required]
-        [Display(Name = "Product Name")]
+        [Display(Name = "Nome do produto")]
         public string ProductName { get; set; } = string.Empty;
 
         public byte[] IconBytes { get; set; } = Array.Empty<byte>();
@@ -82,8 +82,8 @@
             _base64Icon = Convert.ToBase64String(_inputModel.IconBytes);
         }
 
-        _alertMessage = "Branding saved.";
-        ToastService.ShowToast("Branding saved.");
+        _alertMessage = "Personalização salva.";
+        ToastService.ShowToast("Personalização salva.");
     }
 
     private async Task IconUploadInputChanged(InputFileChangeEventArgs args)
@@ -95,7 +95,7 @@
 
         if (args.File.Size > 1_024_000)
         {
-            ToastService.ShowToast("File size must be under 1 MB.", classString: "bg-warning");
+            ToastService.ShowToast("O arquivo deve ter menos de 1 MB.", classString: "bg-warning");
             return;
         }
 
@@ -134,13 +134,13 @@
     private async Task ResetBranding()
     {
         EnsureUserSet();
-        var result = await JsInterop.Confirm("Are you sure you want to reset branding to default?");
+        var result = await JsInterop.Confirm("Tem certeza de que quer voltar à personalização padrão?");
         if (result)
         {
             await DataService.ResetBranding(User.OrganizationID);
             _base64Icon = string.Empty;
             await LoadBrandingInfo();
-            ToastService.ShowToast("Branding reset.");
+            ToastService.ShowToast("Personalização restaurada.");
         }
     }
 }
