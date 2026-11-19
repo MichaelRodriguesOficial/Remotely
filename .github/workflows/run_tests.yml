@@ -7,39 +7,45 @@ on:
     branches: [ master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
 
-  build:
+  test:
 
     strategy:
       matrix:
         configuration: [Release]
 
-    runs-on: windows-latest  # For a list of available runner types, refer to
-                             # https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjob_idruns-on
+    # Desktop.Win targets Windows, so the full solution must build on Windows.
+    runs-on: windows-latest
 
     env:
-      Solution_Name: Remotely.sln                               # Replace with your solution name, i.e. MyWpfApp.sln.
       Configuration: ${{ matrix.configuration }}
-      Test_Project_Path: Tests\Tests.csproj                     # Replace with the path to your test project, i.e. MyWpfApp.Tests\MyWpfApp.Tests.csproj.
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v3.5.2
+      uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
 
-    # Install the .NET Core workload
-    - name: Install .NET Core
-      uses: actions/setup-dotnet@v3.0.3
+    - name: Install .NET
+      uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: 7
-      
-    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v1
+        dotnet-version: 8.0.x
 
-    # Execute all unit tests in the solution
+    - name: Restore
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore -c ${{ env.Configuration }}
+
     - name: Execute unit tests
-      run: dotnet test
+      run: dotnet test --no-build -c ${{ env.Configuration }} --verbosity normal
+
+    - name: List vulnerable packages
+      run: dotnet list package --vulnerable --include-transitive
