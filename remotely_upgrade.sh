@@ -24,6 +24,8 @@ PRODUCTION_DIR="/var/www/remotely"
 GITHUB_REPO="MichaelRodriguesOficial/Remotely"
 TARGET_VERSION="latest"
 PACKAGE_NAME="Remotely_Server_Linux-x64.zip"
+# Pacote separado dos agents (desde a v1.1.0). Só é baixado quando muda.
+AGENTS_PACKAGE="Remotely_Agents.zip"
 SQLITE_ENV_LINE="Environment=Remotely_ConnectionStrings__SQLite=DataSource=/var/www/remotely/AppData/Remotely.db"
 # Indica se a pasta de produção já foi alterada (usado em check_error)
 PRODUCTION_TOUCHED=false
@@ -480,6 +482,30 @@ check_error "Falha ao extrair o pacote"
 
 [ -f "$RELEASE_DIR/app/Remotely_Server.dll" ]
 check_error "Pacote inválido: Remotely_Server.dll não encontrado"
+
+# Agents: compara o checksum publicado com o da instalação atual e só baixa se mudou.
+AGENTS_ACTION="keep"
+if curl -fsSL "$RELEASE_URL/$AGENTS_PACKAGE.sha256" -o "$RELEASE_DIR/$AGENTS_PACKAGE.sha256"; then
+    NEW_AGENTS_SUM=$(cut -d' ' -f1 "$RELEASE_DIR/$AGENTS_PACKAGE.sha256")
+    OLD_AGENTS_SUM=$(cut -d' ' -f1 "$TEMP_DATA/AppData/.agents-package.sha256" 2>/dev/null || true)
+    if [ -n "$OLD_AGENTS_SUM" ] && [ "$NEW_AGENTS_SUM" = "$OLD_AGENTS_SUM" ] && \
+       [ -f "$TEMP_DATA/wwwroot/Content/Remotely-Win-x64.zip" ]; then
+        log_success "Agents sem alteração nesta versão; download do pacote de agents dispensado"
+    else
+        log_info "Baixando $AGENTS_PACKAGE (agents atualizados)..."
+        curl -fSL --progress-bar "$RELEASE_URL/$AGENTS_PACKAGE" -o "$RELEASE_DIR/$AGENTS_PACKAGE"
+        check_error "Falha ao baixar $RELEASE_URL/$AGENTS_PACKAGE"
+        (cd "$RELEASE_DIR" && sha256sum -c "$AGENTS_PACKAGE.sha256")
+        check_error "Checksum SHA-256 do pacote de agents não confere"
+        mkdir -p "$RELEASE_DIR/app/wwwroot/Content"
+        unzip -oq "$RELEASE_DIR/$AGENTS_PACKAGE" -d "$RELEASE_DIR/app/wwwroot/Content"
+        check_error "Falha ao extrair o pacote de agents"
+        AGENTS_ACTION="updated"
+    fi
+elif [ -f "$RELEASE_DIR/app/wwwroot/Content/Remotely-Win-x64.zip" ]; then
+    # Releases antigos (v1.0.x) traziam os agents dentro do pacote do servidor.
+    AGENTS_ACTION="bundled"
+fi
 log_success "Pacote pronto"
 
 # ============================================================================
@@ -503,10 +529,15 @@ if [ -d "$TEMP_DATA/AppData" ]; then
     log_success "Banco de dados restaurado"
 fi
 
-if [ ! -f "$PRODUCTION_DIR/wwwroot/Content/Remotely-Win-x64.zip" ] && [ -d "$TEMP_DATA/wwwroot/Content" ]; then
-    mkdir -p "$PRODUCTION_DIR/wwwroot"
-    cp -a "$TEMP_DATA/wwwroot/Content" "$PRODUCTION_DIR/wwwroot/"
-    log_success "Instaladores anteriores restaurados"
+if [ "$AGENTS_ACTION" = "keep" ] && [ -d "$TEMP_DATA/wwwroot/Content" ]; then
+    # Mantém os agents instalados; os scripts de instalação do pacote novo prevalecem.
+    mkdir -p "$PRODUCTION_DIR/wwwroot/Content"
+    cp -a "$TEMP_DATA/wwwroot/Content/." "$PRODUCTION_DIR/wwwroot/Content/"
+    cp -a "$RELEASE_DIR/app/wwwroot/Content/." "$PRODUCTION_DIR/wwwroot/Content/"
+    log_success "Agents atuais mantidos"
+elif [ "$AGENTS_ACTION" = "updated" ]; then
+    cp "$RELEASE_DIR/$AGENTS_PACKAGE.sha256" "$PRODUCTION_DIR/AppData/.agents-package.sha256"
+    log_success "Agents atualizados"
 fi
 
 # Garante que o serviço use o banco dentro de AppData

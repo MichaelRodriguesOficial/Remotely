@@ -260,6 +260,8 @@ log_step "6/10 - DOWNLOAD DO REMOTELY (RELEASE DO GITHUB)"
 # ============================================================================
 GITHUB_REPO="MichaelRodriguesOficial/Remotely"
 PACKAGE_NAME="Remotely_Server_Linux-x64.zip"
+# Desde a v1.1.0 os agents vêm num pacote separado (o do servidor ficou bem menor).
+AGENTS_PACKAGE="Remotely_Agents.zip"
 # Versão específica: sudo REMOTELY_VERSION=v1.0.0 ./remotely_install.sh
 REMOTELY_VERSION="${REMOTELY_VERSION:-latest}"
 
@@ -290,6 +292,23 @@ fi
 mkdir -p "$RELEASE_DIR/app"
 unzip -q "$RELEASE_DIR/$PACKAGE_NAME" -d "$RELEASE_DIR/app"
 check_error "Falha ao extrair o pacote"
+
+log_info "Baixando $AGENTS_PACKAGE (agents e clientes de suporte)..."
+if curl -fSL --progress-bar "$RELEASE_URL/$AGENTS_PACKAGE" -o "$RELEASE_DIR/$AGENTS_PACKAGE"; then
+    if curl -fsSL "$RELEASE_URL/$AGENTS_PACKAGE.sha256" -o "$RELEASE_DIR/$AGENTS_PACKAGE.sha256"; then
+        (cd "$RELEASE_DIR" && sha256sum -c "$AGENTS_PACKAGE.sha256")
+        check_error "Checksum SHA-256 do pacote de agents não confere"
+    fi
+    mkdir -p "$RELEASE_DIR/app/wwwroot/Content"
+    unzip -oq "$RELEASE_DIR/$AGENTS_PACKAGE" -d "$RELEASE_DIR/app/wwwroot/Content"
+    check_error "Falha ao extrair o pacote de agents"
+elif [ ! -f "$RELEASE_DIR/app/wwwroot/Content/Remotely-Win-x64.zip" ]; then
+    log_error "Não foi possível baixar $AGENTS_PACKAGE"
+    exit 1
+else
+    # Releases antigos (v1.0.x) traziam os agents dentro do pacote do servidor.
+    log_info "Release com os agents dentro do pacote do servidor"
+fi
 
 if [ ! -f "$RELEASE_DIR/app/Remotely_Server.dll" ] || [ ! -f "$RELEASE_DIR/app/wwwroot/Content/Remotely-Win-x64.zip" ]; then
     log_error "Pacote incompleto (servidor ou instaladores dos agents ausentes)"
@@ -346,6 +365,11 @@ if [ "$KEEP_EXISTING_DATA" = true ]; then
         cp "$BACKUP_PATH/appsettings.json" /var/www/remotely/appsettings.json
     fi
     log_success "Dados existentes preservados"
+fi
+
+# Guarda o checksum do pacote de agents para o remotely_upgrade.sh só baixá-lo de novo quando mudar.
+if [ -f "$RELEASE_DIR/$AGENTS_PACKAGE.sha256" ]; then
+    cp "$RELEASE_DIR/$AGENTS_PACKAGE.sha256" /var/www/remotely/AppData/.agents-package.sha256
 fi
 
 log_info "Ajustando permissões..."
