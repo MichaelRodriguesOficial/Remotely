@@ -2,6 +2,27 @@
 
 A remote control and remote scripting solution, built with .NET, Blazor, and SignalR Core.
 
+## Sobre este fork (MichaelRodriguesOficial/Remotely)
+
+Fork mantido para uso interno, baseado no último código do projeto original (`immense/Remotely`, arquivado em dez/2024), com correções de segurança, bugs e interface.
+
+Principais mudanças:
+
+- **Segurança:** filtros de API que negam o acesso em caso de erro; páginas administrativas protegidas também na navegação interativa; bloqueio de conta após 5 tentativas; rate limit nos logins; validação do ID da organização nos instaladores; correção de XSS com dados vindos dos dispositivos; IDs de sessão com RNG criptográfico; cabeçalhos de segurança; Swagger desligado em produção; chaves de Data Protection persistidas em `AppData`.
+- **Bugs:** upload de arquivos pela API, download de resultados de script, link de reset de senha via API, usuários convidados não encontrados, reconexão de sessões autônomas, CI que nunca compilava (.NET 7 x .NET 8), entre outros.
+- **Interface:** novo visual (temas escuro e claro), barra lateral reorganizada e layout responsivo.
+- **Scripts (`remotely_install.sh`, `remotely_upgrade.sh`, `remotely_remove.sh`):** a atualização preserva os instaladores dos agents e o `appsettings.json`, para o serviço antes do backup e religa a versão anterior se o build falhar; o certificado Let's Encrypt renova sozinho; o Kestrel escuta só em `127.0.0.1`.
+
+### Novas opções (`ApplicationOptions` no `appsettings.json` ou variáveis `Remotely_ApplicationOptions__*`)
+
+| Opção | Padrão | Descrição |
+|---|---|---|
+| `EnableSwagger` | `false` | Publica o Swagger (`/swagger`) fora do ambiente de desenvolvimento. |
+| `AllowedFrameAncestors` | vazio | Origens autorizadas a exibir o Remotely em `<iframe>` (ex.: `https://glpi.exemplo.com.br`). Vazio = só o próprio Remotely. |
+| `AuthRateLimitPerMinute` | `20` | Tentativas de login/registro/reset por IP por minuto. |
+
+> Após atualizar, os usuários precisam fazer login novamente uma vez (as chaves de criptografia passaram a ficar em `AppData/DataProtectionKeys`). O download de logs do servidor (`/api/ServerLogs/Download`) agora exige um administrador do servidor logado; chaves de API não têm mais acesso a ele.
+
 [![Build Status](https://dev.azure.com/immybot/Remotely/_apis/build/status%2Fimmense.Remotely?branchName=master)](https://dev.azure.com/immybot/Remotely/_build/latest?definitionId=2&branchName=master)
 [![Tests](https://github.com/immense/Remotely/actions/workflows/run_tests.yml/badge.svg?branch=master)](https://github.com/immense/Remotely/actions/workflows/run_tests.yml)
 
