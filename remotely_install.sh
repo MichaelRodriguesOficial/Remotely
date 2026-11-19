@@ -116,8 +116,8 @@ echo "║        🚀 INSTALAÇÃO COMPLETA DO REMOTELY SERVER 🚀           �
 echo "║                 COM SSL E ACESSO EXTERNO                      ║"
 echo "║                                                               ║"
 echo "║  Este script irá instalar:                                    ║"
-echo "║  • Dependências (Node.js, .NET, PowerShell)                   ║"
-echo "║  • Remotely Server                                            ║"
+echo "║  • ASP.NET Core Runtime 10                                    ║"
+echo "║  • Remotely Server (release do GitHub do fork)                ║"
 echo "║  • Agents para Windows, Linux e MacOS                         ║"
 echo "║  • Nginx com SSL (Let's Encrypt)                              ║"
 echo "║  • Proxy reverso para acesso externo seguro                   ║"
@@ -193,7 +193,7 @@ if [[ ! $REPLY =~ ^[Ss]$ ]]; then
 fi
 
 # ============================================================================
-log_step "1/16 - ATUALIZAÇÃO DO SISTEMA"
+log_step "1/10 - ATUALIZAÇÃO DO SISTEMA"
 # ============================================================================
 log_info "Atualizando pacotes do sistema..."
 apt update && apt upgrade -y
@@ -201,7 +201,7 @@ check_error "Falha ao atualizar o sistema"
 log_success "Sistema atualizado"
 
 # ============================================================================
-log_step "2/16 - CONFIGURAÇÃO DE TIMEZONE"
+log_step "2/10 - CONFIGURAÇÃO DE TIMEZONE"
 # ============================================================================
 if [ -f /etc/timezone ] && grep -q "America/Sao_Paulo" /etc/timezone; then
     log_warning "Timezone já configurado para São Paulo"
@@ -215,68 +215,36 @@ else
 fi
 
 # ============================================================================
-log_step "3/16 - INSTALAÇÃO DE UTILITÁRIOS BÁSICOS"
+log_step "3/10 - INSTALAÇÃO DE UTILITÁRIOS BÁSICOS"
 # ============================================================================
 log_info "Instalando utilitários básicos..."
-apt install -y nano git curl wget unzip net-tools
+apt install -y nano curl wget unzip jq net-tools lsb-release
 check_error "Falha ao instalar utilitários"
 log_success "Utilitários instalados"
 
 # ============================================================================
-log_step "4/16 - INSTALAÇÃO DO NODE.JS 20.x"
+log_step "4/10 - INSTALAÇÃO DO ASP.NET CORE RUNTIME 10"
 # ============================================================================
-if command -v node &> /dev/null; then
-    NODE_VERSION=$(node --version)
-    log_warning "Node.js já está instalado ($NODE_VERSION)"
+# O servidor vem compilado no release do GitHub: basta o runtime (sem SDK,
+# Node.js, LibMan ou PowerShell no servidor).
+if dotnet --list-runtimes 2>/dev/null | grep -q "Microsoft.AspNetCore.App 10\."; then
+    log_warning "ASP.NET Core Runtime 10 já está instalado"
 else
-    log_info "Instalando Node.js 20.x..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt install -y nodejs
-    check_error "Falha ao instalar Node.js"
-    log_success "Node.js instalado: $(node --version)"
-fi
-
-# ============================================================================
-log_step "5/16 - INSTALAÇÃO DO .NET 8 SDK"
-# ============================================================================
-if command -v dotnet &> /dev/null; then
-    DOTNET_VERSION=$(dotnet --version)
-    log_warning ".NET SDK já está instalado ($DOTNET_VERSION)"
-else
-    log_info "Instalando .NET 8 SDK..."
-    
-    # Detectar versão do Ubuntu
+    log_info "Instalando ASP.NET Core Runtime 10..."
     UBUNTU_VERSION=$(lsb_release -rs)
-    
-    if [ "$UBUNTU_VERSION" == "24.04" ]; then
-        wget https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
-    else
-        wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+    if [ "$UBUNTU_VERSION" != "24.04" ]; then
+        # Ubuntu 22.04: o .NET 10 vem do PPA oficial de backports do Ubuntu.
+        apt install -y software-properties-common
+        add-apt-repository -y ppa:dotnet/backports
     fi
-    
-    dpkg -i packages-microsoft-prod.deb
-    rm packages-microsoft-prod.deb
     apt update
-    apt install -y dotnet-sdk-8.0
-    check_error "Falha ao instalar .NET SDK"
-    log_success ".NET SDK instalado: $(dotnet --version)"
+    apt install -y aspnetcore-runtime-10.0
+    check_error "Falha ao instalar o ASP.NET Core Runtime 10"
+    log_success "Runtime instalado: $(dotnet --list-runtimes | grep AspNetCore | tail -n 1)"
 fi
 
 # ============================================================================
-log_step "6/16 - INSTALAÇÃO DO POWERSHELL"
-# ============================================================================
-if command -v pwsh &> /dev/null; then
-    PWSH_VERSION=$(pwsh --version | head -n 1)
-    log_warning "PowerShell já está instalado ($PWSH_VERSION)"
-else
-    log_info "Instalando PowerShell..."
-    apt install -y powershell
-    check_error "Falha ao instalar PowerShell"
-    log_success "PowerShell instalado: $(pwsh --version | head -n 1)"
-fi
-
-# ============================================================================
-log_step "7/16 - INSTALAÇÃO DO NGINX E CERTBOT"
+log_step "5/10 - INSTALAÇÃO DO NGINX E CERTBOT"
 # ============================================================================
 log_info "Instalando Nginx e Certbot..."
 apt install -y nginx certbot python3-certbot-nginx
@@ -288,153 +256,49 @@ ufw allow 'OpenSSH'
 log_success "Nginx e Certbot instalados"
 
 # ============================================================================
-log_step "8/16 - CLONANDO REPOSITÓRIO REMOTELY"
+log_step "6/10 - DOWNLOAD DO REMOTELY (RELEASE DO GITHUB)"
 # ============================================================================
-if [ -d "/app/Remotely" ]; then
-    log_warning "Repositório já existe em /app/Remotely"
-    log_info "Atualizando repositório..."
-    cd /app/Remotely
-    # Versões antigas deste script alteravam o libman.json localmente, o que
-    # impedia o "git pull". Descarta só essa alteração antes de atualizar.
-    git checkout -- Server/libman.json 2>/dev/null || true
-    git pull
-    git submodule update --init --recursive
+GITHUB_REPO="MichaelRodriguesOficial/Remotely"
+PACKAGE_NAME="Remotely_Server_Linux-x64.zip"
+# Versão específica: sudo REMOTELY_VERSION=v1.0.0 ./remotely_install.sh
+REMOTELY_VERSION="${REMOTELY_VERSION:-latest}"
+
+if [ "$REMOTELY_VERSION" = "latest" ]; then
+    log_info "Obtendo a versão mais recente..."
+    REMOTELY_VERSION=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r .tag_name)
+fi
+if [ -z "$REMOTELY_VERSION" ] || [ "$REMOTELY_VERSION" = "null" ]; then
+    log_error "Não foi possível descobrir a versão em github.com/$GITHUB_REPO/releases"
+    exit 1
+fi
+log_success "Versão: $REMOTELY_VERSION"
+
+RELEASE_DIR=$(mktemp -d /tmp/remotely_release_XXXXXX)
+RELEASE_URL="https://github.com/$GITHUB_REPO/releases/download/$REMOTELY_VERSION"
+log_info "Baixando $PACKAGE_NAME..."
+curl -fSL --progress-bar "$RELEASE_URL/$PACKAGE_NAME" -o "$RELEASE_DIR/$PACKAGE_NAME"
+check_error "Falha ao baixar $RELEASE_URL/$PACKAGE_NAME"
+
+if curl -fsSL "$RELEASE_URL/$PACKAGE_NAME.sha256" -o "$RELEASE_DIR/$PACKAGE_NAME.sha256"; then
+    (cd "$RELEASE_DIR" && sha256sum -c "$PACKAGE_NAME.sha256")
+    check_error "Checksum SHA-256 do pacote não confere"
+    log_success "Checksum SHA-256 conferido"
 else
-    log_info "Clonando repositório do GitHub..."
-    mkdir -p /app
-    cd /app
-    git clone https://github.com/MichaelRodriguesOficial/Remotely.git --recurse-submodules
-    check_error "Falha ao clonar repositório"
-    log_success "Repositório clonado"
+    log_warning "Release sem arquivo .sha256; checksum não verificado"
 fi
 
-cd /app/Remotely
+mkdir -p "$RELEASE_DIR/app"
+unzip -q "$RELEASE_DIR/$PACKAGE_NAME" -d "$RELEASE_DIR/app"
+check_error "Falha ao extrair o pacote"
 
-# ============================================================================
-log_step "9/16 - INSTALAÇÃO DO LIBMAN"
-# ============================================================================
-export PATH="$PATH:/root/.dotnet/tools"
-
-if command -v libman &> /dev/null; then
-    log_warning "LibMan já está instalado"
-    log_info "Atualizando LibMan..."
-    dotnet tool update -g Microsoft.Web.LibraryManager.CLI 2>/dev/null || true
-else
-    log_info "Instalando LibMan..."
-    dotnet tool install -g Microsoft.Web.LibraryManager.CLI
-    check_error "Falha ao instalar LibMan"
-fi
-
-# Adicionar ao PATH permanente
-if ! grep -q "/.dotnet/tools" /root/.bashrc; then
-    echo 'export PATH="$PATH:/root/.dotnet/tools"' >> /root/.bashrc
-fi
-
-log_success "LibMan configurado"
-
-# ============================================================================
-log_step "10/16 - VERIFICAÇÃO DO LIBMAN.JSON"
-# ============================================================================
-# O libman.json do repositório já usa o jsDelivr. Ele não é mais sobrescrito
-# aqui, para não deixar o repositório com alterações locais (o que travava o
-# script de atualização).
-cd /app/Remotely/Server
-git checkout -- libman.json 2>/dev/null || true
-log_success "libman.json do repositório será usado"
-
-# ============================================================================
-log_step "11/16 - RESTAURAÇÃO DE DEPENDÊNCIAS"
-# ============================================================================
-log_info "Restaurando dependências do .NET..."
-cd /app/Remotely/Server
-dotnet restore
-check_error "Falha ao restaurar dependências do .NET"
-
-log_info "Limpando cache do LibMan..."
-/root/.dotnet/tools/libman cache clean
-
-log_info "Restaurando bibliotecas do LibMan..."
-/root/.dotnet/tools/libman restore
-check_error "Falha ao restaurar bibliotecas do LibMan"
-
-log_success "Dependências restauradas"
-
-# ============================================================================
-log_step "12/16 - BUILD DO SERVIDOR"
-# ============================================================================
-log_info "Compilando servidor Remotely (pode demorar 5-10 minutos)..."
-cd /app/Remotely/Server
-dotnet publish -c Release -o bin/publish
-check_error "Falha ao compilar servidor"
-
-# Verificar se gerou o arquivo principal
-if [ ! -f "bin/publish/Remotely_Server.dll" ]; then
-    log_error "Arquivo Remotely_Server.dll não foi gerado!"
+if [ ! -f "$RELEASE_DIR/app/Remotely_Server.dll" ] || [ ! -f "$RELEASE_DIR/app/wwwroot/Content/Remotely-Win-x64.zip" ]; then
+    log_error "Pacote incompleto (servidor ou instaladores dos agents ausentes)"
     exit 1
 fi
-
-log_success "Servidor compilado com sucesso"
-
-# ============================================================================
-log_step "13/16 - DOWNLOAD DOS INSTALADORES"
-# ============================================================================
-
-# ✅ CORREÇÃO: Instalar dependências necessárias
-log_info "Instalando dependências necessárias..."
-apt-get update > /dev/null 2>&1
-apt-get install -y jq unzip wget > /dev/null 2>&1
-
-log_info "Criando pasta Content para instaladores..."
-mkdir -p /app/Remotely/Server/bin/publish/wwwroot/Content/
-cd /app/Remotely/Server/bin/publish/wwwroot/Content/
-
-log_info "Baixando instaladores do GitHub..."
-log_warning "Isso pode demorar alguns minutos dependendo da conexão..."
-
-# ============================================================
-# 1️⃣ Obter tag da última release no GitHub
-# ============================================================
-log_info "Obtendo informações da última release..."
-latest_tag=$(curl -s https://api.github.com/repos/immense/Remotely/releases/latest | jq -r .tag_name)
-if [ -z "$latest_tag" ] || [ "$latest_tag" == "null" ]; then
-    log_error "Falha ao obter a versão mais recente do Remotely."
-    exit 1
-fi
-log_success "Última versão detectada: $latest_tag"
-
-# ============================================================
-# 2️⃣ Baixar e extrair o conteúdo do servidor (Content/)
-# ============================================================
-SERVER_ZIP="Remotely_Server_Linux-x64.zip"
-SERVER_URL="https://github.com/immense/Remotely/releases/download/${latest_tag}/${SERVER_ZIP}"
-
-log_info "Baixando arquivos do servidor ($SERVER_ZIP)..."
-wget -q --show-progress "$SERVER_URL" -O "$SERVER_ZIP"
-
-if [ $? -eq 0 ]; then
-    log_success "$SERVER_ZIP baixado ($(du -h $SERVER_ZIP | cut -f1))"
-    log_info "Extraindo conteúdo da pasta 'wwwroot/Content'..."
-    unzip -o "$SERVER_ZIP" "wwwroot/Content/*" -d /tmp/remotely_server >/dev/null
-    cp -r /tmp/remotely_server/wwwroot/Content/* ./
-    rm -rf /tmp/remotely_server "$SERVER_ZIP"
-    log_success "Conteúdo do servidor copiado para $(pwd)"
-else
-    log_error "Falha crítica ao baixar $SERVER_ZIP"
-    exit 1
-fi
-
-# ============================================================
-# 3️⃣ Verificar se os instaladores principais estão presentes
-# ============================================================
-if [ ! -f "Remotely-Win-x64.zip" ]; then
-    log_error "Instalador principal (Win-x64) não foi encontrado!"
-    exit 1
-fi
-
-log_success "Instaladores prontos"
+log_success "Pacote do servidor e instaladores dos agents prontos"
 
 # ============================================================================
-log_step "14/16 - CÓPIA PARA PRODUÇÃO"
+log_step "7/10 - CÓPIA PARA PRODUÇÃO"
 # ============================================================================
 log_info "Preparando diretório de produção..."
 
@@ -450,7 +314,7 @@ if [ -d "/var/www/remotely" ]; then
 
     # Sem esta etapa, a reinstalação começaria com um banco de dados vazio
     # (usuários, dispositivos e configurações ficariam apenas no backup).
-    if [ -d "$BACKUP_PATH/AppData" ]; then
+    if [ -d "$BACKUP_PATH/AppData" ] || [ -f "$BACKUP_PATH/Remotely.db" ]; then
         echo ""
         read -p "Deseja manter o banco de dados e as configurações existentes? (S/n): " -n 1 -r
         echo
@@ -462,7 +326,7 @@ fi
 
 log_info "Copiando arquivos para /var/www/remotely..."
 mkdir -p /var/www/remotely
-cp -r /app/Remotely/Server/bin/publish/* /var/www/remotely/
+cp -a "$RELEASE_DIR/app/." /var/www/remotely/
 check_error "Falha ao copiar arquivos"
 
 log_info "Criando diretório de dados..."
@@ -470,7 +334,13 @@ mkdir -p /var/www/remotely/AppData
 
 if [ "$KEEP_EXISTING_DATA" = true ]; then
     log_info "Restaurando banco de dados e configurações do backup..."
-    cp -a "$BACKUP_PATH/AppData/." /var/www/remotely/AppData/
+    [ -d "$BACKUP_PATH/AppData" ] && cp -a "$BACKUP_PATH/AppData/." /var/www/remotely/AppData/
+    # Instalações antigas gravavam o banco na raiz (/var/www/remotely/Remotely.db)
+    if [ ! -f /var/www/remotely/AppData/Remotely.db ] && [ -f "$BACKUP_PATH/Remotely.db" ]; then
+        for f in Remotely.db Remotely.db-wal Remotely.db-shm; do
+            [ -f "$BACKUP_PATH/$f" ] && cp -a "$BACKUP_PATH/$f" /var/www/remotely/AppData/
+        done
+    fi
     if [ -f "$BACKUP_PATH/appsettings.json" ]; then
         cp /var/www/remotely/appsettings.json /var/www/remotely/appsettings.json.new
         cp "$BACKUP_PATH/appsettings.json" /var/www/remotely/appsettings.json
@@ -490,7 +360,7 @@ find /var/www/remotely/AppData -type f -exec chmod 640 {} \;
 log_success "Arquivos copiados para produção"
 
 # ============================================================================
-log_step "15/16 - CONFIGURAÇÃO DO SERVIÇO SYSTEMD"
+log_step "8/10 - CONFIGURAÇÃO DO SERVIÇO SYSTEMD"
 # ============================================================================
 # Parar serviço se estiver rodando
 systemctl stop remotely 2>/dev/null || true
@@ -512,6 +382,7 @@ KillSignal=SIGINT
 SyslogIdentifier=remotely
 User=www-data
 Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=Remotely_ConnectionStrings__SQLite=DataSource=/var/www/remotely/AppData/Remotely.db
 Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
 Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
 TimeoutStartSec=180
@@ -527,7 +398,7 @@ check_error "Falha ao criar serviço"
 log_success "Serviço criado"
 
 # ============================================================================
-log_step "16/16 - CONFIGURAÇÃO NGINX E SSL"
+log_step "9/10 - CONFIGURAÇÃO NGINX E SSL"
 # ============================================================================
 
 # ✅ CORREÇÃO: Limpeza completa das configurações anteriores
@@ -706,7 +577,7 @@ check_error "Falha ao reiniciar Nginx"
 log_success "Nginx configurado com sucesso!"
 
 # ============================================================================
-log_step "17/16 - INICIALIZAÇÃO DO SERVIÇO"
+log_step "10/10 - INICIALIZAÇÃO DO SERVIÇO"
 # ============================================================================
 log_info "Recarregando configurações do systemd..."
 systemctl daemon-reload

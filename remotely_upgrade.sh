@@ -19,9 +19,12 @@ NC='\033[0m'
 BACKUP_DIR="/app/backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="remotely_backup_${TIMESTAMP}"
-REPO_DIR="/app/Remotely"
 PRODUCTION_DIR="/var/www/remotely"
-REPO_URL="https://github.com/MichaelRodriguesOficial/Remotely.git"
+# Releases do fork (pacote do servidor já compilado + instaladores dos agents)
+GITHUB_REPO="MichaelRodriguesOficial/Remotely"
+TARGET_VERSION="latest"
+PACKAGE_NAME="Remotely_Server_Linux-x64.zip"
+SQLITE_ENV_LINE="Environment=Remotely_ConnectionStrings__SQLite=DataSource=/var/www/remotely/AppData/Remotely.db"
 # Indica se a pasta de produção já foi alterada (usado em check_error)
 PRODUCTION_TOUCHED=false
 
@@ -82,7 +85,7 @@ show_usage() {
     echo "  sudo ./update-remotely.sh                    # Atualização normal"
     echo "  sudo ./update-remotely.sh --rollback NOME    # Restaurar backup"
     echo "  sudo ./update-remotely.sh --list-backups     # Listar backups"
-    echo "  sudo ./update-remotely.sh --custom-repo URL  # Usar repositório customizado"
+    echo "  sudo ./update-remotely.sh --version v1.0.0   # Instalar uma versão específica"
     echo ""
     exit 0
 }
@@ -105,7 +108,7 @@ list_backups() {
         DATE=$(echo $backup | sed 's/remotely_backup_//' | sed 's/_/ /')
         
         # Verificar se contém banco de dados
-        if [ -f "$BACKUP_DIR/$backup/AppData/Remotely.db" ]; then
+        if [ -f "$BACKUP_DIR/$backup/AppData/Remotely.db" ] || [ -f "$BACKUP_DIR/$backup/Remotely.db" ]; then
             DB_STATUS="✅ DB"
         else
             DB_STATUS="❌ No DB"
@@ -167,6 +170,14 @@ rollback() {
     rm -rf "$PRODUCTION_DIR"
     cp -r "$BACKUP_DIR/$BACKUP_TO_RESTORE" "$PRODUCTION_DIR"
     check_error "Falha ao restaurar arquivos"
+
+    # Backups de versões antigas têm o banco na raiz; o serviço agora lê de AppData.
+    if [ -f "$PRODUCTION_DIR/Remotely.db" ] && [ ! -f "$PRODUCTION_DIR/AppData/Remotely.db" ]; then
+        mkdir -p "$PRODUCTION_DIR/AppData"
+        for f in Remotely.db Remotely.db-wal Remotely.db-shm; do
+            [ -f "$PRODUCTION_DIR/$f" ] && cp -a "$PRODUCTION_DIR/$f" "$PRODUCTION_DIR/AppData/"
+        done
+    fi
     
     # Ajustar permissões
     log_info "Ajustando permissões..."
@@ -207,8 +218,8 @@ echo "║                                                               ║"
 echo "║  Este script irá:                                             ║"
 echo "║  • Fazer backup completo do sistema atual                     ║"
 echo "║  • Preservar banco de dados e configurações                   ║"
-echo "║  • Atualizar código do repositório                            ║"
-echo "║  • Recompilar e instalar nova versão                          ║"
+echo "║  • Baixar a versão mais recente do GitHub (releases)          ║"
+echo "║  • Instalar a nova versão (sem compilar no servidor)          ║"
 echo "║                                                               ║"
 echo "║  Autor: Michael Rodrigues            Data: 10/2025            ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
@@ -232,13 +243,13 @@ case "$1" in
     --rollback|-r)
         rollback "$2"
         ;;
-    --custom-repo)
+    --version|-v)
         if [ -z "$2" ]; then
-            log_error "URL do repositório não especificada"
+            log_error "Versão não especificada (ex.: v1.0.0)"
             exit 1
         fi
-        REPO_URL="$2"
-        log_info "Usando repositório customizado: $REPO_URL"
+        TARGET_VERSION="$2"
+        log_info "Versão solicitada: $TARGET_VERSION"
         ;;
     "")
         # Continuar com atualização normal
@@ -277,6 +288,9 @@ echo "Status do serviço: $SERVICE_STATUS"
 if [ -f "$PRODUCTION_DIR/AppData/Remotely.db" ]; then
     DB_SIZE=$(du -sh "$PRODUCTION_DIR/AppData/Remotely.db" | cut -f1)
     echo "Tamanho do banco: $DB_SIZE"
+elif [ -f "$PRODUCTION_DIR/Remotely.db" ]; then
+    DB_SIZE=$(du -sh "$PRODUCTION_DIR/Remotely.db" | cut -f1)
+    echo "Tamanho do banco: $DB_SIZE (local antigo: $PRODUCTION_DIR/Remotely.db)"
 else
     log_warning "Banco de dados não encontrado!"
 fi
@@ -356,20 +370,38 @@ log_info "Criando backup temporário de dados..."
 TEMP_DATA=$(mktemp -d /tmp/remotely_data_XXXXXX)
 chmod 700 "$TEMP_DATA"
 
-# Preservar banco de dados
-if [ -f "$PRODUCTION_DIR/AppData/Remotely.db" ]; then
-    log_info "Preservando banco de dados..."
-    cp -r "$PRODUCTION_DIR/AppData" "$TEMP_DATA/"
+# Preservar AppData (banco, logs, gravações, chaves de criptografia)
+if [ -d "$PRODUCTION_DIR/AppData" ]; then
+    log_info "Preservando AppData..."
+    cp -a "$PRODUCTION_DIR/AppData" "$TEMP_DATA/"
+fi
+mkdir -p "$TEMP_DATA/AppData"
+
+# Instalações antigas gravavam o SQLite em /var/www/remotely/Remotely.db
+# (fora de AppData). Antes desta correção, a atualização apagava esse banco.
+# Ele é movido para AppData e o serviço passa a apontar para lá.
+if [ -f "$PRODUCTION_DIR/Remotely.db" ]; then
+    if [ -f "$TEMP_DATA/AppData/Remotely.db" ]; then
+        log_warning "Existem dois bancos (raiz e AppData). Mantendo o de AppData; o antigo fica no backup."
+    else
+        log_info "Movendo o banco do local antigo para AppData..."
+        for f in Remotely.db Remotely.db-wal Remotely.db-shm; do
+            [ -f "$PRODUCTION_DIR/$f" ] && cp -a "$PRODUCTION_DIR/$f" "$TEMP_DATA/AppData/"
+        done
+    fi
+fi
+
+if [ -f "$TEMP_DATA/AppData/Remotely.db" ]; then
     log_success "Banco de dados preservado"
 else
-    log_warning "Banco de dados não encontrado (primeira instalação?)"
+    log_warning "Banco de dados SQLite não encontrado (usa SQL Server/PostgreSQL ou é a primeira instalação?)"
 fi
 
 # Preservar instaladores/agents (wwwroot/Content). Eles foram baixados na
 # instalação e não fazem parte do build: sem isso, a página de Downloads e a
 # atualização automática dos agents quebravam após cada atualização.
 if [ -d "$PRODUCTION_DIR/wwwroot/Content" ]; then
-    log_info "Preservando instaladores (wwwroot/Content)..."
+    log_info "Preservando instaladores atuais (usados só se o release não trouxer)..."
     mkdir -p "$TEMP_DATA/wwwroot"
     cp -a "$PRODUCTION_DIR/wwwroot/Content" "$TEMP_DATA/wwwroot/"
 fi
@@ -389,95 +421,66 @@ fi
 log_success "Dados críticos preservados em: $TEMP_DATA"
 
 # ============================================================================
-log_step "4/8 - ATUALIZANDO CÓDIGO DO REPOSITÓRIO"
+log_step "4/8 - VERIFICANDO ASP.NET CORE RUNTIME 10"
 # ============================================================================
 
-if [ -d "$REPO_DIR" ]; then
-    log_info "Repositório já existe, atualizando..."
-    cd "$REPO_DIR"
-    
-    # Versões antigas do instalador alteravam o libman.json localmente.
-    # Essa alteração não é mais necessária e é descartada automaticamente.
-    git checkout -- Server/libman.json 2>/dev/null || true
-
-    # Verificar se há modificações locais
-    if ! git diff --quiet || ! git diff --cached --quiet; then
-        log_warning "Há modificações locais não commitadas"
-        read -p "Deseja descartar modificações locais? (s/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Ss]$ ]]; then
-            git reset --hard HEAD
-            git clean -fd
-        else
-            log_error "Não é possível continuar com modificações locais"
-            exit 1
-        fi
-    fi
-    
-    # Atualizar
-    log_info "Baixando atualizações..."
-    git fetch origin
-    git pull origin master
-    git submodule update --init --recursive --force
-    check_error "Falha ao atualizar repositório"
+if dotnet --list-runtimes 2>/dev/null | grep -q "Microsoft.AspNetCore.App 10\."; then
+    log_success "ASP.NET Core Runtime 10 já instalado"
 else
-    log_info "Clonando repositório..."
-    mkdir -p /app
-    cd /app
-    git clone "$REPO_URL" --recurse-submodules --depth 1
-    check_error "Falha ao clonar repositório"
+    log_info "Instalando ASP.NET Core Runtime 10..."
+    UBUNTU_VERSION=$(lsb_release -rs 2>/dev/null)
+    if [ "$UBUNTU_VERSION" != "24.04" ]; then
+        # Ubuntu 22.04: o .NET 10 vem do PPA oficial de backports do Ubuntu.
+        apt-get install -y software-properties-common > /dev/null 2>&1
+        add-apt-repository -y ppa:dotnet/backports
+    fi
+    apt-get update
+    apt-get install -y aspnetcore-runtime-10.0
+    check_error "Falha ao instalar o ASP.NET Core Runtime 10"
+    log_success "ASP.NET Core Runtime 10 instalado"
 fi
 
-log_success "Código atualizado"
-
-# Obter nova versão (se disponível)
-cd "$REPO_DIR"
-NEW_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
-log_info "Nova versão: $NEW_VERSION"
-
 # ============================================================================
-log_step "5/8 - RESTAURANDO DEPENDÊNCIAS"
+log_step "5/8 - BAIXANDO NOVA VERSÃO"
 # ============================================================================
 
-cd "$REPO_DIR/Server"
-
-log_info "Limpando builds anteriores..."
-dotnet clean > /dev/null 2>&1
-rm -rf bin/ obj/
-
-# Remover pasta wwwroot/Components se existir (correção do bug)
-if [ -d "wwwroot/Components" ]; then
-    log_warning "Removendo pasta wwwroot/Components (arquivos gerados)..."
-    rm -rf "wwwroot/Components"
+if ! command -v jq &> /dev/null || ! command -v unzip &> /dev/null; then
+    apt-get install -y jq unzip > /dev/null 2>&1
 fi
 
-log_info "Restaurando dependências do .NET..."
-dotnet restore
-check_error "Falha ao restaurar dependências do .NET"
+if [ "$TARGET_VERSION" = "latest" ]; then
+    NEW_VERSION=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | jq -r .tag_name)
+else
+    NEW_VERSION="$TARGET_VERSION"
+fi
+[ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "null" ]
+check_error "Não foi possível descobrir a versão mais recente em github.com/$GITHUB_REPO/releases"
+log_info "Versão a instalar: $NEW_VERSION"
 
-log_info "Restaurando bibliotecas do LibMan..."
-export PATH="$PATH:/root/.dotnet/tools"
-/root/.dotnet/tools/libman cache clean
-/root/.dotnet/tools/libman restore
-check_error "Falha ao restaurar bibliotecas do LibMan"
-
-log_success "Dependências restauradas"
+RELEASE_DIR=$(mktemp -d /tmp/remotely_release_XXXXXX)
+RELEASE_URL="https://github.com/$GITHUB_REPO/releases/download/$NEW_VERSION"
+curl -fSL --progress-bar "$RELEASE_URL/$PACKAGE_NAME" -o "$RELEASE_DIR/$PACKAGE_NAME"
+check_error "Falha ao baixar $RELEASE_URL/$PACKAGE_NAME"
 
 # ============================================================================
-log_step "6/8 - COMPILANDO NOVA VERSÃO"
+log_step "6/8 - VERIFICANDO PACOTE"
 # ============================================================================
 
-log_info "Compilando servidor (pode demorar 5-10 minutos)..."
-dotnet publish -c Release -o bin/publish --no-restore
-check_error "Falha ao compilar servidor"
-
-# Verificar se compilou
-if [ ! -f "bin/publish/Remotely_Server.dll" ]; then
-    log_error "Arquivo Remotely_Server.dll não foi gerado!"
-    exit 1
+if curl -fsSL "$RELEASE_URL/$PACKAGE_NAME.sha256" -o "$RELEASE_DIR/$PACKAGE_NAME.sha256"; then
+    (cd "$RELEASE_DIR" && sha256sum -c "$PACKAGE_NAME.sha256")
+    check_error "Checksum SHA-256 do pacote não confere"
+    log_success "Checksum SHA-256 conferido"
+else
+    log_warning "Release sem arquivo .sha256; checksum não verificado"
 fi
 
-log_success "Servidor compilado com sucesso"
+mkdir -p "$RELEASE_DIR/app"
+unzip -q "$RELEASE_DIR/$PACKAGE_NAME" -d "$RELEASE_DIR/app"
+check_error "Falha ao extrair o pacote"
+
+[ -f "$RELEASE_DIR/app/Remotely_Server.dll" ]
+check_error "Pacote inválido: Remotely_Server.dll não encontrado"
+log_success "Pacote pronto"
 
 # ============================================================================
 log_step "7/8 - INSTALANDO NOVA VERSÃO"
@@ -489,7 +492,7 @@ rm -rf "$PRODUCTION_DIR"/*
 check_error "Falha ao limpar diretório de produção"
 
 log_info "Copiando nova versão..."
-cp -r "$REPO_DIR/Server/bin/publish/"* "$PRODUCTION_DIR/"
+cp -a "$RELEASE_DIR/app/." "$PRODUCTION_DIR/"
 check_error "Falha ao copiar nova versão"
 
 # Restaurar dados preservados
@@ -500,10 +503,17 @@ if [ -d "$TEMP_DATA/AppData" ]; then
     log_success "Banco de dados restaurado"
 fi
 
-if [ -d "$TEMP_DATA/wwwroot/Content" ]; then
+if [ ! -f "$PRODUCTION_DIR/wwwroot/Content/Remotely-Win-x64.zip" ] && [ -d "$TEMP_DATA/wwwroot/Content" ]; then
     mkdir -p "$PRODUCTION_DIR/wwwroot"
     cp -a "$TEMP_DATA/wwwroot/Content" "$PRODUCTION_DIR/wwwroot/"
-    log_success "Instaladores restaurados"
+    log_success "Instaladores anteriores restaurados"
+fi
+
+# Garante que o serviço use o banco dentro de AppData
+SERVICE_FILE="/etc/systemd/system/remotely.service"
+if [ -f "$SERVICE_FILE" ] && ! grep -q "Remotely_ConnectionStrings__SQLite" "$SERVICE_FILE"; then
+    log_info "Ajustando o serviço para usar o banco em AppData..."
+    sed -i "/^Environment=ASPNETCORE_ENVIRONMENT=/a $SQLITE_ENV_LINE" "$SERVICE_FILE"
 fi
 
 if [ -f "$TEMP_DATA/appsettings.json.backup" ]; then
@@ -534,7 +544,7 @@ fi
 log_success "Nova versão instalada"
 
 # Limpar dados temporários
-rm -rf "$TEMP_DATA"
+rm -rf "$TEMP_DATA" "$RELEASE_DIR"
 
 # ============================================================================
 log_step "8/8 - REINICIANDO SERVIÇO"

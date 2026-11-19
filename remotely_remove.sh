@@ -374,7 +374,7 @@ echo "┌───────────────────────�
 echo "│ ⚙️  FERRAMENTAS PRESERVADAS                                  │"
 echo "├─────────────────────────────────────────────────────────────┤"
 if command -v dotnet &> /dev/null; then
-    echo "│ ✅ .NET SDK: $(dotnet --version)                           "
+    echo "│ ✅ .NET: $(dotnet --list-runtimes 2>/dev/null | grep AspNetCore | tail -n 1 | awk '{print $1" "$2}')"
 else
     echo "│ ❌ .NET SDK: Não instalado                                 │"
 fi
