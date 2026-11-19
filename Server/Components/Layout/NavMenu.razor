@@ -2,94 +2,94 @@
 @inject NavigationManager NavigationManager
 @inject IAuthService AuthService 
 @inject IDataService DataService
-@inject IDataService DataService
 
-<div class="ps-4 pb-1 pe-0 pt-0 navbar navbar-dark" style="background-color: rgba(0,0,0,0.3)">
-    <a class="navbar-brand text-start" href="">
-        <div class="logo-title">
-            @if (!string.IsNullOrWhiteSpace(_organization?.OrganizationName))
-            {
-                @_organization.OrganizationName
-            }
-            else
-            {
-                <span>Remotely</span>
-            }
-        </div>
-        <div class="logo-subtitle">Support Portal</div>
+<div class="sidebar-brand navbar navbar-dark">
+    <a class="navbar-brand" href="">
+        <span class="brand-mark" aria-hidden="true">
+            <span class="oi oi-monitor"></span>
+        </span>
+        <span class="brand-text">
+            <span class="logo-title">
+                @if (!string.IsNullOrWhiteSpace(_organization?.OrganizationName))
+                {
+                    @_organization.OrganizationName
+                }
+                else
+                {
+                    <span>Remotely</span>
+                }
+            </span>
+            <span class="logo-subtitle">Support Portal</span>
+        </span>
     </a>
-    <button class="navbar-toggler" @onclick="ToggleNavMenu">
+    <button class="navbar-toggler" title="Menu" aria-label="Toggle navigation" @onclick="ToggleNavMenu">
         <span class="navbar-toggler-icon"></span>
     </button>
 </div>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
+<nav class="@NavMenuCssClass sidebar-nav" @onclick="ToggleNavMenu">
     <ul class="nav flex-column">
 
-        <li class="nav-item px-3">
+        <li class="nav-section">Main</li>
+
+        <li class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="oi oi-home" aria-hidden="true"></span> Home
             </NavLink>
         </li>
 
-
-        <li class="nav-item px-3">
+        <li class="nav-item">
             <NavLink class="nav-link" href="downloads">
                 <span class="oi oi-cloud-download" aria-hidden="true"></span> Downloads
             </NavLink>
         </li>
 
-        <li class="nav-item px-3">
+        <li class="nav-item">
             <NavLink class="nav-link" href="/Viewer" target="_blank">
                 <span class="oi oi-monitor" aria-hidden="true"></span> Remote Control
             </NavLink>
-
         </li>
 
         <AuthorizeView>
             <Authorized>
-                <li class="nav-item px-3">
+                <li class="nav-item">
                     <NavLink class="nav-link" href="deploy">
                         <span class="oi oi-data-transfer-upload" aria-hidden="true"></span> Deploy
                     </NavLink>
                 </li>
-                <li class="nav-item px-3">
+                <li class="nav-item">
                     <NavLink class="nav-link" href="scripts">
                         <span class="oi oi-script" aria-hidden="true"></span> Scripts
                     </NavLink>
                 </li>
-                <li class="nav-item px-3">
+                <li class="nav-item">
                     <NavLink class="nav-link" href="device-details">
                         <span class="oi oi-info" aria-hidden="true"></span> Device Details
                     </NavLink>
                 </li>
-                <li class="nav-item px-3">
+                <li class="nav-item">
                     <NavLink class="nav-link" href="user-options">
-                        <span class="oi oi-pencil" aria-hidden="true"></span> User Options
+                        <span class="oi oi-cog" aria-hidden="true"></span> User Options
                     </NavLink>
                 </li>
-
             </Authorized>
         </AuthorizeView>
 
-
         @if (_user?.IsAdministrator == true)
         {
-            <li class="nav-item px-3 pt-3 small text-muted">
-                Admin
-            </li>
+            <li class="nav-section">Admin</li>
 
-            <li class="nav-item px-3">
+            <li class="nav-item">
                 <NavLink class="nav-link" href="manage-organization">
                     <span class="oi oi-briefcase" aria-hidden="true"></span> Organization
                 </NavLink>
             </li>
-            <li class="nav-item px-3">
+            <li class="nav-item">
                 <NavLink class="nav-link" href="branding">
                     <span class="oi oi-brush" aria-hidden="true"></span> Branding
                 </NavLink>
             </li>
-            <li class="nav-item px-3">
+            <li class="nav-item">
                 <NavLink class="nav-link" href="api-keys">
                     <span class="oi oi-key" aria-hidden="true"></span> API Keys
                 </NavLink>
@@ -97,12 +97,14 @@
 
             @if (_user?.IsServerAdmin == true)
             {
-                <li class="nav-item px-3">
+                <li class="nav-section">Server</li>
+
+                <li class="nav-item">
                     <NavLink class="nav-link" href="server-logs">
                         <span class="oi oi-document" aria-hidden="true"></span> Server Logs
                     </NavLink>
                 </li>
-                <li class="nav-item px-3">
+                <li class="nav-item">
                     <NavLink class="nav-link" href="server-config">
                         <span class="oi oi-wrench" aria-hidden="true"></span> Server Config
                     </NavLink>
@@ -110,41 +112,57 @@
             }
         }
 
+        <li class="nav-section">Account</li>
+
         <AuthorizeView>
             <Authorized>
-                <li class="px-3 mt-3">
-                    <a class="btn btn-link text-light" href="Account/Manage">
-                        Account
-                    </a>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="Account/Manage">
+                        <span class="oi oi-person" aria-hidden="true"></span> My Account
+                    </NavLink>
                 </li>
-                <li class="px-3">
+                <li class="nav-item">
                     <form action="Account/Logout" method="post">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@_currentUrl" />
-                        <button type="submit" class="btn btn-link text-light">
-                            Logout
+                        <button type="submit" class="nav-link nav-link-button">
+                            <span class="oi oi-account-logout" aria-hidden="true"></span> Log out
                         </button>
                     </form>
                 </li>
             </Authorized>
             <NotAuthorized>
-                <li class="px-3 mt-3">
-                    <a class="btn btn-link text-light" href="Account/Login">Log in</a>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="Account/Login">
+                        <span class="oi oi-account-login" aria-hidden="true"></span> Log in
+                    </NavLink>
                 </li>
                 @if (_isRegistrationEnabled)
                 {
-                    <li class="px-3">
-                        <a class="btn btn-link text-light" href="Account/Register">Register</a>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="Account/Register">
+                            <span class="oi oi-plus" aria-hidden="true"></span> Register
+                        </NavLink>
                     </li>
                 }
             </NotAuthorized>
         </AuthorizeView>
 
-        <li class="px-3 mt-3">
-            <a class="btn btn-link text-light" href="/about">About</a>
+        <li class="nav-item">
+            <NavLink class="nav-link" href="about">
+                <span class="oi oi-question-mark" aria-hidden="true"></span> About
+            </NavLink>
         </li>
+
+        @if (!string.IsNullOrWhiteSpace(_user?.UserName))
+        {
+            <li class="nav-user" title="@_user.UserName">
+                <span class="nav-user-avatar" aria-hidden="true">@GetInitial(_user.UserName)</span>
+                <span class="nav-user-name">@_user.UserName</span>
+            </li>
+        }
     </ul>
-</div>
+</nav>
 
 @code {
     private bool collapseNavMenu = true;
@@ -196,6 +214,13 @@
     }
 
     private string NavMenuCssClass => collapseNavMenu ? "collapse" : "";
+
+    private static string GetInitial(string? userName)
+    {
+        return string.IsNullOrWhiteSpace(userName) ?
+            "?" :
+            userName.Trim()[..1].ToUpperInvariant();
+    }
 
 
     private void ToggleNavMenu()

@@ -1,13 +1,14 @@
 ﻿@inject AuthenticationStateProvider AuthProvider
 @inject IDataService DataService
-@inject IDataService DataService
 @inject IThemeProvider ThemeProvider
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=550, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="@(_theme == Theme.Dark ? "dark" : "light")" />
+    <meta name="theme-color" content="#0f172a" />
     <title>Remotely</title>
     <base href="/" />
     <link href="css/site.css" rel="stylesheet" />
@@ -24,10 +25,11 @@
         <link rel="stylesheet" href="/css/Themes/yeti.min.css" />
         <link rel="stylesheet" href="/css/Themes/yeti.custom.css" />
     }
+    <link rel="stylesheet" href="/css/modern.css" />
 
     <HeadOutlet @rendermode="RenderModeForPage" />
 </head>
-<body>
+<body class="@(_theme == Theme.Dark ? "theme-dark" : "theme-light")">
     <Routes @rendermode="RenderModeForPage" />
     <script src="_framework/blazor.web.js"></script>
     <script src="/lib/bootstrap/bootstrap.bundle.min.js"></script>

@@ -5,18 +5,23 @@
     <NotAuthorized>
         <div class="jumbotron">
             <h3 class="display-4">Remotely</h3>
-            <p class="lead">
-                An open-source remote support solution.
+            <p class="lead text-muted mb-4">
+                Remote support, unattended access and scripting for all your devices.
             </p>
-            <hr class="my-4">
-            <p class="lead">
-                <a class="btn btn-primary btn-lg me-2" href="Account/Login" role="button">Log In</a>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-primary btn-lg" href="Account/Login" role="button">
+                    <span class="oi oi-account-login me-2" aria-hidden="true"></span>Log In
+                </a>
 
                 @if (_isRegistrationEnabled)
                 {
-                    <a class="btn btn-primary btn-lg" href="Account/Register" role="button">Register</a>
+                    <a class="btn btn-secondary btn-lg" href="Account/Register" role="button">Register</a>
                 }
-            </p>
+
+                <a class="btn btn-secondary btn-lg" href="/Viewer" target="_blank" role="button">
+                    <span class="oi oi-monitor me-2" aria-hidden="true"></span>Join a Session
+                </a>
+            </div>
         </div>
     </NotAuthorized>
     <Authorized>

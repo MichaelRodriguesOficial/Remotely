@@ -5,10 +5,6 @@ html, body {
     overscroll-behavior-y: contain;
 }
 
-a, .btn-link {
-    color: #0366d6;
-}
-
 /*.btn-primary {
     color: #fff;
     background-color: #1b6ec2;
@@ -71,10 +67,6 @@ footer {
 input[type="checkbox"] {
     height: 1.3em;
     width: 1.3em;
-}
-
-input[disabled], input[readonly], select[disabled] {
-    background-color: #adadad !important;
 }
 
 .pointer {

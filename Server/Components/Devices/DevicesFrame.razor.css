@@ -3,16 +3,25 @@
     grid-template-columns: 1fr 1fr;
     grid-column-gap: 20px;
     grid-row-gap: 10px;
-    margin-bottom: 5px;
-    margin-right: 5px;
-    padding-top: 3px;
+    margin-bottom: 0.5rem;
+    margin-right: 0;
 }
 
     #deviceControlsWrapper > :last-child {
         text-align: right;
     }
 
-#deviceListDiv{
+#deviceListDiv {
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+@media (max-width: 640.98px) {
+    #deviceControlsWrapper {
+        grid-template-columns: 1fr;
+    }
+
+        #deviceControlsWrapper > :last-child {
+            text-align: left;
+        }
 }

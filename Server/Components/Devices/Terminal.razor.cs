@@ -322,8 +322,17 @@ public partial class Terminal : AuthComponentBase, IDisposable
 
     private async void TerminalStore_TerminalLinesChanged(object? sender, EventArgs e)
     {
-        await InvokeAsync(StateHasChanged);
-        JsInterop.ScrollToEnd(_terminalWindow);
+        // async void event handler: an unhandled exception here would tear down
+        // the whole process, so it must be caught (e.g. circuit already disposed).
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+            JsInterop.ScrollToEnd(_terminalWindow);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Error while refreshing terminal output.");
+        }
     }
     private void ToggleTerminalOpen()
     {

@@ -1,55 +1,56 @@
 ﻿.device-card {
-    transition: box-shadow .25s;
     cursor: pointer;
     display: inline-block;
-    width: 15rem;
-    transition: .25s ease all;
+    width: 16rem;
     max-width: 100%;
+    vertical-align: top;
+    border-radius: var(--rm-radius, 12px);
+    transition: box-shadow .2s ease, transform .2s ease, width .25s ease, border-color .2s ease;
 }
 
     .device-card.expanded {
         cursor: unset;
         display: block;
-        width: 35rem;
+        width: 38rem;
         height: auto;
-        transition: .25s ease all;
     }
 
         .device-card.expanded .card-body {
             overflow-y: auto;
             height: 30rem;
-            transition: .25s ease all;
         }
 
         .device-card.expanded .card-header {
             cursor: pointer;
         }
 
-    .device-card:hover {
-        transition: all .25s;
-    }
-
-    .device-card.light:hover {
-        box-shadow: 0px 0px 10px 0px rgb(25,25,25);
-    }
-
-    .device-card.dark:hover {
-        box-shadow: 0px 0px 10px 0px rgb(150 150 150)
+    .device-card:not(.expanded):hover {
+        transform: translateY(-2px);
+        box-shadow: var(--rm-shadow-hover, 0 0 10px 0 rgb(25, 25, 25));
+        border-color: rgba(var(--rm-accent-rgb, 59, 130, 246), 0.45) !important;
     }
 
     .device-card .card-body {
-        font-size: 0.9rem;
+        font-size: 0.875rem;
         overflow: hidden;
         white-space: nowrap;
-        transition: .25s ease all;
+        padding: 0.85rem 1rem;
     }
 
         .device-card .card-body > div {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-column-gap: 2rem;
-            grid-row-gap: .25rem;
-            transition: .25s ease all;
+            grid-column-gap: 1.5rem;
+            grid-row-gap: .3rem;
+        }
+
+        .device-card .card-body label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--rm-text-muted, #6c757d);
+            margin-bottom: 0;
         }
 
     .device-card .expanded-visible {
@@ -62,31 +63,48 @@
 
     .device-card.expanded .card-body > div {
         grid-template-columns: 1fr 1fr 1fr 1fr;
-        transition: .25s ease all;
     }
 
     .device-card.expanded .card-body {
         overflow-y: auto;
         grid-template-columns: 1fr 1fr;
-        transition: .25s ease all;
     }
 
     .device-card .card-header {
         display: grid;
         grid-template-columns: auto 1fr auto;
+        align-items: center;
         white-space: nowrap;
         align-content: start;
         user-select: none;
+        padding: 0.7rem 1rem;
+        border-top-left-radius: var(--rm-radius, 12px);
+        border-top-right-radius: var(--rm-radius, 12px);
+        font-weight: 600;
     }
 
+        .device-card .card-header .text-muted {
+            font-weight: 400;
+        }
 
     .device-card input[readonly] {
         cursor: default;
     }
 
-
 @media (max-width: 641px) {
     .device-card {
-        width: calc(50% - 1rem);
+        width: calc(100% - 1rem);
+    }
+
+        .device-card.expanded {
+            width: 100%;
+        }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .device-card,
+    .device-card:not(.expanded):hover {
+        transition: none;
+        transform: none;
     }
 }
