@@ -1,17 +1,18 @@
-﻿@using Remotely.Server.Services
+@using Remotely.Server.Services
 @inject IToastService ToastService
 
-<div class="toast-harness">
+<div class="toast-harness" role="status" aria-live="polite">
     @foreach (var toast in ToastService.Toasts)
     {
-        <div @key="toast.Guid" class="toast-message @toast.ClassString" style="animation-delay: @(toast.Expiration.TotalMilliseconds.ToString() + "ms"); @toast.StyleOverrides">
-            @toast.Message
+        var kind = GetKind(toast.ClassString);
+        <div @key="toast.Guid" class="toast-message toast-@kind" style="--toast-delay: @(toast.Expiration.TotalMilliseconds)ms; @toast.StyleOverrides">
+            <i class="toast-icon fa-solid @GetIcon(kind)" aria-hidden="true"></i>
+            <span>@toast.Message</span>
         </div>
     }
 </div>
 
 @code {
-
     protected override Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -21,7 +22,32 @@
                 InvokeAsync(StateHasChanged);
             };
         }
-        return base.OnInitializedAsync();
-
+        return base.OnAfterRenderAsync(firstRender);
     }
+
+    private static string GetKind(string? classString)
+    {
+        var value = classString ?? string.Empty;
+        if (value.Contains("danger") || value.Contains("error"))
+        {
+            return "error";
+        }
+        if (value.Contains("warning"))
+        {
+            return "warning";
+        }
+        if (value.Contains("info") || value.Contains("primary") || value.Contains("secondary"))
+        {
+            return "info";
+        }
+        return "success";
+    }
+
+    private static string GetIcon(string kind) => kind switch
+    {
+        "error" => "fa-circle-xmark",
+        "warning" => "fa-triangle-exclamation",
+        "info" => "fa-circle-info",
+        _ => "fa-circle-check"
+    };
 }

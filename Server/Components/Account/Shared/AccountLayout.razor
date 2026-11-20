@@ -14,7 +14,7 @@
 else
 {
     <div class="auth-shell">
-        <section class="auth-aside" aria-hidden="true">
+        <section class="auth-aside">
             <div class="auth-brand">
                 <span class="brand-mark"><i class="fa-solid fa-display"></i></span>
                 <span>@_brandName</span>
@@ -23,14 +23,35 @@ else
             <div>
                 <h2>Suporte remoto rápido, seguro e no seu servidor.</h2>
                 <p>Acesse os computadores da sua equipe, execute scripts e acompanhe tudo em um só lugar.</p>
-                <ul class="auth-features">
-                    <li><i class="fa-solid fa-desktop"></i> Controle remoto com e sem acompanhamento</li>
-                    <li><i class="fa-solid fa-terminal"></i> PowerShell, Bash e scripts agendados</li>
-                    <li><i class="fa-solid fa-shield-halved"></i> 2FA, bloqueio por tentativas e dados no seu servidor</li>
-                </ul>
+
+                <div class="auth-downloads">
+                    <div class="auth-downloads-head">
+                        <strong><i class="fa-solid fa-headset"></i> Precisa de suporte agora?</strong>
+                        <span>Baixe o cliente, abra e informe o código ao técnico. Não precisa instalar.</span>
+                    </div>
+                    <div class="auth-downloads-grid">
+                        <a class="auth-download" href="@GetDownloadUrl("WindowsDesktop-x64")" target="_blank">
+                            <i class="fa-brands fa-windows"></i>
+                            <span><strong>Windows</strong><small>64 bits</small></span>
+                        </a>
+                        <a class="auth-download" href="@GetDownloadUrl("WindowsDesktop-x86")" target="_blank">
+                            <i class="fa-brands fa-windows"></i>
+                            <span><strong>Windows</strong><small>32 bits</small></span>
+                        </a>
+                        <a class="auth-download" href="@GetDownloadUrl("UbuntuDesktop")" target="_blank">
+                            <i class="fa-brands fa-linux"></i>
+                            <span><strong>Linux</strong><small>64 bits</small></span>
+                        </a>
+                    </div>
+                </div>
             </div>
 
-            <small class="text-muted">Remotely · mantido por Michael Rodrigues</small>
+            <div class="auth-footer-links">
+                <a href="/Viewer" target="_blank"><i class="fa-solid fa-desktop"></i> Entrar em uma sessão</a>
+                <a href="downloads"><i class="fa-solid fa-download"></i> Todos os downloads</a>
+                <a href="about"><i class="fa-solid fa-circle-info"></i> Sobre</a>
+                <span class="auth-credit">Remotely · mantido por Michael Rodrigues</span>
+            </div>
         </section>
 
         <main class="auth-main">
@@ -49,16 +70,28 @@ else
 
 @code {
     private string _brandName = "Remotely";
+    private string? _organizationId;
 
     [CascadingParameter]
     private HttpContext? HttpContext { get; set; }
 
+    private string GetDownloadUrl(string platform)
+    {
+        return string.IsNullOrWhiteSpace(_organizationId)
+            ? $"/api/ClientDownloads/Desktop/{platform}"
+            : $"/api/ClientDownloads/Desktop/{platform}/{_organizationId}";
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var orgResult = await DataService.GetDefaultOrganization();
-        if (orgResult.IsSuccess && !string.IsNullOrWhiteSpace(orgResult.Value.OrganizationName))
+        if (orgResult.IsSuccess)
         {
-            _brandName = orgResult.Value.OrganizationName;
+            _organizationId = orgResult.Value.ID;
+            if (!string.IsNullOrWhiteSpace(orgResult.Value.OrganizationName))
+            {
+                _brandName = orgResult.Value.OrganizationName;
+            }
         }
         await base.OnInitializedAsync();
     }

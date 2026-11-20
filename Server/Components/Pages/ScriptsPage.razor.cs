@@ -1,67 +1,95 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
-using Remotely.Server.Components.Scripts;
-using Remotely.Server.Components.TreeView;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
-using System.Collections;
 
 namespace Remotely.Server.Components.Pages;
 
 [Authorize]
 public partial class ScriptsPage : AuthComponentBase
 {
-    private readonly List<ScriptTreeNode> _treeNodes = new();
-    private IEnumerable<SavedScript> _allScripts = Enumerable.Empty<SavedScript>();
-    private bool _showOnlyMyScripts = true;
+    private List<SavedScript> _allScripts = new();
+    private bool _showOnlyMyScripts;
+    private int _libraryKey;
 
     [Parameter]
     public string? ActiveTab { get; set; }
 
-    public bool ShowOnlyMyScripts
-    {
-        get => _showOnlyMyScripts;
-        set
-        {
-            _showOnlyMyScripts = value;
-            _treeNodes.Clear();
-        }
-    }
-
-    public IEnumerable<ScriptTreeNode> TreeNodes
-    {
-        get
-        {
-            if (_treeNodes.Any() == true)
-            {
-                return _treeNodes;
-            }
-
-            RefreshTreeNodes();
-
-            return _treeNodes;
-        }
-    }
+    [SupplyParameterFromQuery(Name = "novo")]
+    public string? NewScript { get; set; }
 
     [Inject]
     private IDataService DataService { get; init; } = null!;
 
-    public string GetItemIconCss(ScriptTreeNode viewModel)
+    [Inject]
+    private NavigationManager NavManager { get; init; } = null!;
+
+    public string CurrentTab => ActiveTab ?? "saved-scripts";
+
+    /// <summary>
+    /// Script escolhido em outra aba (ex.: "Executar" na biblioteca) para já vir selecionado.
+    /// </summary>
+    public Guid? PendingScriptId { get; set; }
+
+    /// <summary>
+    /// Pedido de "novo script" vindo do botão do cabeçalho.
+    /// </summary>
+    public bool StartWithNewScript => NewScript == "1";
+
+    public bool ShowOnlyMyScripts
     {
-        if (viewModel.ItemType == TreeItemType.Folder)
+        get => _showOnlyMyScripts;
+        set => _showOnlyMyScripts = value;
+    }
+
+    public IReadOnlyList<SavedScript> AllScripts => _allScripts;
+
+    public IEnumerable<SavedScript> VisibleScripts
+    {
+        get
         {
-            return "fa-solid fa-folder text-warning";
+            if (User is null)
+            {
+                return Enumerable.Empty<SavedScript>();
+            }
+
+            return _allScripts.Where(x =>
+                x.CreatorId == User.Id ||
+                (!ShowOnlyMyScripts && x.IsPublic));
         }
-        return "fa-regular fa-file-code text-success";
+    }
+
+    public IEnumerable<string> KnownFolders => _allScripts
+        .Select(x => x.FolderPath)
+        .Where(x => !string.IsNullOrWhiteSpace(x))
+        .Select(x => x!.Trim('/'))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .OrderBy(x => x);
+
+    public void OpenInRun(Guid scriptId)
+    {
+        PendingScriptId = scriptId;
+        NavManager.NavigateTo("/scripts/run-script");
+    }
+
+    public void OpenInSchedules(Guid scriptId)
+    {
+        PendingScriptId = scriptId;
+        NavManager.NavigateTo("/scripts/script-schedules");
+    }
+
+    public Guid? TakePendingScriptId()
+    {
+        var id = PendingScriptId;
+        PendingScriptId = null;
+        return id;
     }
 
     public async Task RefreshScripts()
     {
         EnsureUserSet();
-
-        _treeNodes.Clear();
-
         _allScripts = await DataService.GetSavedScriptsWithoutContent(User.Id, User.OrganizationID);
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnInitializedAsync()
@@ -70,83 +98,15 @@ public partial class ScriptsPage : AuthComponentBase
         await RefreshScripts();
     }
 
-
-    private void CreateTreeNode(SavedScript script)
+    protected override void OnParametersSet()
     {
-        var root = _treeNodes;
-        ScriptTreeNode? targetParent = null;
-
-        if (!string.IsNullOrWhiteSpace(script.FolderPath))
+        if (StartWithNewScript)
         {
-            var paths = script.FolderPath.Split("/", StringSplitOptions.RemoveEmptyEntries);
-            for (var i = 0; i < paths.Length; i++)
-            {
-                var existingParent = root.Find(x => x.Name == paths[i]);
-
-                if (existingParent is null)
-                {
-                    var newItem = new ScriptTreeNode()
-                    {
-                        Name = paths[i],
-                        ItemType = TreeItemType.Folder,
-                        ParentNode = existingParent
-                    };
-                    root.Add(newItem);
-                    root = newItem.ChildItems;
-                    targetParent = newItem;
-                }
-                else
-                {
-                    root = existingParent.ChildItems;
-                    targetParent = existingParent;
-                }
-            }
+            // Força a biblioteca a abrir limpa, com um script novo.
+            _libraryKey++;
         }
-
-        var scriptNode = new ScriptTreeNode()
-        {
-            Name = script.Name,
-            Script = script,
-            ItemType = TreeItemType.Item,
-            ParentNode = targetParent
-        };
-
-        root.Add(scriptNode);
+        base.OnParametersSet();
     }
 
-    private void RefreshTreeNodes()
-    {
-        if (User is null)
-        {
-            return;
-        }
-
-        EnsureUserSet();
-
-        _treeNodes.Clear();
-
-        foreach (var script in _allScripts)
-        {
-            var showScript = ShowOnlyMyScripts ?
-                script.CreatorId == User.Id :
-                script.CreatorId == User.Id || script.IsPublic;
-
-            if (!showScript)
-            {
-                continue;
-            }
-
-            CreateTreeNode(script);
-        }
-
-        _treeNodes.Sort((a, b) =>
-        {
-            if (a.ItemType != b.ItemType)
-            {
-                return Comparer.Default.Compare(a.ItemType, b.ItemType);
-            }
-
-            return Comparer.Default.Compare(a.Name, b.Name);
-        });
-    }
+    private string TabClass(string tab) => CurrentTab == tab ? "active" : string.Empty;
 }

@@ -1,59 +1,106 @@
-﻿@inherits AuthComponentBase
+@inherits AuthComponentBase
 @attribute [Authorize]
 
-<div class="main-grid mt-3 auto-height">
-    <div style="grid-column: span 3">
-        <button class="btn btn-primary align-middle me-4" @onclick="ExecuteScript">Executar</button>
-        <input type="checkbox" class="me-1 align-middle" @bind="_runOnNextConnect" />
-        <span class="align-middle">Se estiver offline, executar assim que conectar</span>
-    </div>
-    <div class="column-wrapper h-100 pb-3">
-        <div>
-            <h5>Scripts salvos</h5>
-            <div>
-                <input type="checkbox" @bind="ParentPage.ShowOnlyMyScripts" />
-                <span class="align-top">Mostrar só os meus</span>
+<div class="run-layout">
+    <div class="run-steps">
+        <section class="panel">
+            <div class="step-head">
+                <span class="step-num">1</span>
+                <div>
+                    <h2 class="panel-title">Escolha o script</h2>
+                    <p class="panel-description">Scripts da biblioteca. Para criar um, use a aba Biblioteca.</p>
+                </div>
             </div>
-        </div>
-        <TreeView DataSource="ParentPage.TreeNodes"
-                  ItemTypeSelector="x => x.ItemType"
-                  ItemHeaderSelector="x => x.Name"
-                  ItemSelected="ScriptSelected"
-                  ChildItemSelector="x => x.ChildItems"
-                  ItemIconCssSelector="ParentPage.GetItemIconCss"
-                  KeySelector="x => x.Id"
-                  WrapperStyle="border: 1px solid gray; padding: .5em; height: 100%; border-radius: 5px;"
-                  T="ScriptTreeNode" />
-    </div>
-    <div class="column-wrapper h-100 pb-3">
-        <h5>Grupos de dispositivos</h5>
-        <div class="item-list-border h-100">
-            @foreach (var deviceGroup in _deviceGroups)
-            {
-                <div @key="@deviceGroup.ID">
-                    <input class="me-1" type="checkbox" 
-                           checked="@(_selectedDeviceGroups.Contains(deviceGroup.ID))"
-                           @onchange="ev => DeviceGroupSelectedChanged(ev, deviceGroup)" />
-
-                    <span class="align-top">@deviceGroup.Name</span>
+            <div class="run-script-pick">
+                <ScriptList Scripts="ParentPage.VisibleScripts"
+                            SelectedId="_selectedScript?.Id"
+                            OnSelect="ScriptSelected"
+                            ShowOnlyMine="ParentPage.ShowOnlyMyScripts"
+                            ShowOnlyMineChanged="v => ParentPage.ShowOnlyMyScripts = v"
+                            Compact="true" />
+                <div class="script-preview">
+                    @if (_selectedScript is null)
+                    {
+                        <div class="script-preview-empty">
+                            <i class="fa-regular fa-hand-pointer"></i>
+                            <span>Selecione um script para ver o conteúdo.</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="script-preview-bar">
+                            <span class="shell-tag shell-@_selectedScript.Shell.ToString().ToLowerInvariant()">@EnumLabels.Get(_selectedScript.Shell)</span>
+                            <strong class="truncate">@_selectedScript.Name</strong>
+                        </div>
+                        <pre class="script-preview-code">@_selectedScript.Content</pre>
+                    }
                 </div>
-            }
-        </div>
-    </div>
+            </div>
+        </section>
 
-    <div class="column-wrapper h-100 pb-3">
-        <h5>Dispositivos</h5>
-        <div class="item-list-border h-100">
-            @foreach (var device in _devices)
-            {
-                <div @key="@device.ID">
-                    <input class="me-1" type="checkbox"
-                           checked="@(_selectedDeviceGroups.Contains(device.ID))"
-                           @onchange="ev => DeviceSelectedChanged(ev, device)" />
-
-                    <span class="align-top">@device.DeviceName</span>
+        <section class="panel">
+            <div class="step-head">
+                <span class="step-num">2</span>
+                <div>
+                    <h2 class="panel-title">Onde executar</h2>
+                    <p class="panel-description">Marque grupos inteiros e/ou dispositivos avulsos.</p>
                 </div>
-            }
-        </div>
+            </div>
+            <TargetPicker DeviceGroups="_deviceGroups"
+                          Devices="_devices"
+                          SelectedGroupIds="_selectedDeviceGroups"
+                          SelectedDeviceIds="_selectedDevices"
+                          OnChanged="OnTargetsChanged" />
+        </section>
     </div>
+
+    <aside class="panel run-summary">
+        <h2 class="panel-title mb-3"><i class="fa-solid fa-list-check"></i> Resumo</h2>
+        <dl class="detail-list mb-3">
+            <dt>Script</dt>
+            <dd class="truncate">@(_selectedScript?.Name ?? "—")</dd>
+            <dt>Dispositivos</dt>
+            <dd>@TargetDeviceIds.Count</dd>
+            <dt>Online agora</dt>
+            <dd>@OnlineTargetCount</dd>
+            <dt>Offline</dt>
+            <dd>@(TargetDeviceIds.Count - OnlineTargetCount)</dd>
+        </dl>
+
+        <label class="switch-row">
+            <div class="form-check form-switch m-0">
+                <input class="form-check-input" type="checkbox" role="switch" @bind="_runOnNextConnect" />
+            </div>
+            <span>Executar nos offline quando conectarem</span>
+        </label>
+
+        <button class="btn btn-primary btn-lg w-100 mt-3" disabled="@(!CanRun || _isRunning)" @onclick="ExecuteScript">
+            @if (_isRunning)
+            {
+                <span class="spinner-border spinner-border-sm"></span>
+                <span>Enviando...</span>
+            }
+            else
+            {
+                <i class="fa-solid fa-play"></i>
+                <span>Executar agora</span>
+            }
+        </button>
+        @if (!CanRun)
+        {
+            <p class="form-text text-center mt-2 mb-0">@(_selectedScript is null ? "Escolha um script." : "Escolha pelo menos um dispositivo ou grupo.")</p>
+        }
+
+        @if (_lastRun is not null)
+        {
+            <div class="run-result">
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                    <strong>Execução enviada</strong>
+                    <span>@_lastRun</span>
+                    <span class="form-text">Os resultados aparecem no terminal da tela de dispositivos e em Detalhes do dispositivo → Histórico de scripts.</span>
+                </div>
+            </div>
+        }
+    </aside>
 </div>

@@ -1,8 +1,111 @@
-﻿.item-list-border {
-    border: 1px solid var(--rm-border);
-    background: var(--rm-surface);
-    padding: .5em;
-    height: 300px;
-    border-radius: var(--rm-radius);
+.schedules {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+    .schedules > .panel + .panel {
+        margin-top: 0;
+    }
+
+.schedules-side {
+    position: sticky;
+    top: 1rem;
+}
+
+.schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: calc(100vh - 12rem);
     overflow-y: auto;
+}
+
+.schedule-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+    color: var(--rm-text);
+    text-align: left;
+}
+
+    .schedule-item:hover {
+        border-color: var(--rm-border-strong);
+    }
+
+    .schedule-item.active {
+        border-color: rgba(var(--rm-accent-rgb), 0.6);
+        background: rgba(var(--rm-accent-rgb), 0.1);
+    }
+
+.schedule-item-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.schedule-item-meta {
+    font-size: 0.76rem;
+    color: var(--rm-text-muted);
+}
+
+    .schedule-item-meta i {
+        width: 0.9rem;
+    }
+
+.script-list-empty-lite {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 1.5rem 0.5rem;
+    color: var(--rm-text-muted);
+    font-size: 0.88rem;
+}
+
+.editor-head-lite {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+}
+
+.switch-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.55rem 0.8rem;
+    margin: 0;
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+    cursor: pointer;
+}
+
+    .switch-card span {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .switch-card small {
+        color: var(--rm-text-muted);
+        font-weight: 400;
+        font-size: 0.78rem;
+    }
+
+@media (max-width: 991.98px) {
+    .schedules {
+        grid-template-columns: 1fr;
+    }
+
+    .schedules-side {
+        position: static;
+    }
 }

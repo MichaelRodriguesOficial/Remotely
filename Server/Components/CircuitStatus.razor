@@ -1,0 +1,19 @@
+@* Avisa a página que a conexão interativa (circuito do Blazor) está ativa.
+   OnAfterRender só roda no navegador depois que o circuito conecta. *@
+@inject IJSRuntime JS
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("remotelyCircuitReady");
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+    }
+}

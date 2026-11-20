@@ -1,39 +1,55 @@
-﻿.toast-harness {
+.toast-harness {
     position: fixed;
-    bottom: 25px;
-    right: 25px;
-    z-index: 5;
-    user-select: none;
+    top: 5.5rem;
+    right: 1.25rem;
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.6rem;
+    max-width: min(420px, calc(100vw - 2.5rem));
     pointer-events: none;
 }
-
 
 .toast-message {
-    background-color: rgb(25,25,25);
-    color: white;
-    transform: translate(0, 0);
-    padding: 10px;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    opacity: 1;
-    color: white;
-    border-radius: 5px;
-    user-select: none;
-    pointer-events: none;
-    animation-name: toast-message;
-    animation-duration: .5s;
-    animation-fill-mode: forwards;
-    animation-timing-function: ease-in;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    background: var(--rm-surface, #111827);
+    color: var(--rm-text-strong, #f8fafc);
+    border: 1px solid var(--rm-border-strong, rgba(148, 163, 184, 0.22));
+    border-left: 4px solid var(--toast-color);
+    box-shadow: var(--rm-shadow-lg, 0 20px 50px rgba(0, 0, 0, 0.5));
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1.4;
+    animation:
+        toast-in 220ms cubic-bezier(.2, .8, .2, 1) both,
+        toast-out 300ms ease-in var(--toast-delay, 3000ms) forwards;
 }
 
-@keyframes toast-message {
-    from {
-        transform: translate(0, 0);
-        opacity: 1;
-    }
+.toast-icon {
+    color: var(--toast-color);
+    font-size: 1.05rem;
+    margin-top: 0.05rem;
+}
 
-    to {
-        transform: translate(calc(100% + 50px), 0);
-        opacity: 0;
-    }
+.toast-success { --toast-color: #22c55e; }
+.toast-error { --toast-color: #ef4444; }
+.toast-warning { --toast-color: #f59e0b; }
+.toast-info { --toast-color: #6366f1; }
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes toast-out {
+    to { opacity: 0; transform: translateX(24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast-message { animation: toast-out 1ms linear var(--toast-delay, 3000ms) forwards; }
 }

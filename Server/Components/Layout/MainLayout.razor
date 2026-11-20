@@ -2,38 +2,64 @@
 @using Remotely.Server.Auth 
 @inherits LayoutComponentBase
 @inject NavigationManager NavMan
+@inject IDataService DataService
 
-<AuthorizeView Policy="@PolicyNames.TwoFactorRequired">
-    <Authorized>
-        <div class="page">
-            <aside class="sidebar">
-                <NavMenu />
-            </aside>
+<CircuitStatus />
 
-            <main class="main">
-                <div class="content">
-                    @Body
-                </div>
+<AuthorizeView>
+    <NotAuthorized>
+        @* Visitante (sem login): páginas públicas como Downloads, Sobre e Solicitar suporte. *@
+        <div class="public-shell">
+            <header class="public-topbar">
+                <a class="public-brand" href="Account/Login">
+                    <span class="brand-mark"><i class="fa-solid fa-display"></i></span>
+                    <span>@_brandName</span>
+                </a>
+                <nav class="public-links">
+                    <a href="downloads">Downloads</a>
+                    <a href="about">Sobre</a>
+                    <a class="btn btn-primary btn-sm" href="Account/Login"><i class="fa-solid fa-right-to-bracket"></i> Entrar</a>
+                </nav>
+            </header>
+            <main class="public-content">
+                @Body
             </main>
         </div>
-    </Authorized>
-    <NotAuthorized>
-        <div class="gate">
-            <div class="gate-card panel">
-                <span class="page-header-icon mb-3" aria-hidden="true">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </span>
-                <h1 class="page-title">Ative a verificação em duas etapas</h1>
-                <p class="page-subtitle mb-4">
-                    O administrador exige autenticação em dois fatores. Configure seu app autenticador
-                    (Microsoft Authenticator, Google Authenticator, Authy etc.) para continuar.
-                </p>
-                <button class="btn btn-primary btn-lg w-100" @onclick="NavigateToTwoFactor">
-                    <i class="fa-solid fa-qrcode"></i> Configurar agora
-                </button>
-            </div>
-        </div>
     </NotAuthorized>
+    <Authorized>
+        <AuthorizeView Policy="@PolicyNames.TwoFactorRequired" Context="twoFactorContext">
+            <Authorized>
+                <div class="page">
+                    <aside class="sidebar">
+                        <NavMenu />
+                    </aside>
+
+                    <main class="main">
+                        <div class="content">
+                            @Body
+                        </div>
+                    </main>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="gate">
+                    <div class="gate-card panel">
+                        <span class="page-header-icon mb-3" aria-hidden="true">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </span>
+                        <h1 class="page-title">Ative a verificação em duas etapas</h1>
+                        <p class="page-subtitle mb-4">
+                            O administrador exige autenticação em dois fatores. Configure seu app autenticador
+                            (Microsoft Authenticator, Google Authenticator, Authy etc.) para continuar.
+                        </p>
+                        <button class="btn btn-primary btn-lg w-100" @onclick="NavigateToTwoFactor">
+                            <i class="fa-solid fa-qrcode"></i> Configurar agora
+                        </button>
+                    </div>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </Authorized>
 </AuthorizeView>
 
 <div id="blazor-error-ui">
@@ -47,6 +73,18 @@
 <ModalHarness />
 
 @code {
+    private string _brandName = "Remotely";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orgResult = await DataService.GetDefaultOrganization();
+        if (orgResult.IsSuccess && !string.IsNullOrWhiteSpace(orgResult.Value.OrganizationName))
+        {
+            _brandName = orgResult.Value.OrganizationName;
+        }
+        await base.OnInitializedAsync();
+    }
+
     private void NavigateToTwoFactor()
     {
         NavMan.NavigateTo("/Account/Manage/TwoFactorAuthentication", true);

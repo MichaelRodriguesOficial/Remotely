@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.1.1 — 2026-11-20
+
+### Interface
+- **Uma tela só para quem não está logado:** a página inicial pública foi removida e o endereço raiz abre direto o login.
+- O login ganhou a área **"Precisa de suporte agora?"** com os clientes de suporte instantâneo (Windows 64/32 bits e Linux), além de links para entrar em uma sessão, todos os downloads e **Sobre**.
+- Páginas públicas (Downloads, Sobre, Solicitar suporte) usam uma barra superior simples, sem o menu lateral.
+- **"Criar uma conta"** só aparece enquanto o cadastro estiver liberado (pelo padrão, antes da primeira conta). Num servidor novo, o login mostra o aviso de primeiro acesso.
+- **Avisos visíveis:** as mensagens de "salvo", "criado" e de erro agora aparecem como cartão no canto superior direito, com ícone e cor, por mais tempo. Antes ficavam escondidas atrás da barra de salvar e pareciam não acontecer.
+
+### Scripts
+- Aba **Biblioteca** com lista por pasta, busca, filtro "Todos/Meus", editor com contagem de linhas, chaves para "Público" e "Script rápido" e alertas de erro recolhíveis.
+- Aba **Executar** em dois passos (script e onde executar), com seleção de grupos e dispositivos lado a lado, filtro de online, resumo e opção de executar nos offline quando conectarem.
+- Aba **Agendamentos** com lista mostrando a próxima execução, formulário único (nome, script, primeira execução, repetição, recuperar atrasados) e o mesmo seletor de grupos e dispositivos.
+
+### Conexão em tempo real
+- **Correção: botões sem resposta na imagem Docker.** A imagem da v1.1.0 não trazia o script do Blazor (`_framework/blazor.web.js`, resposta 404), então as páginas abriam mas nada era interativo (salvar, criar grupo etc.). A imagem agora é publicada para `linux-x64`, como o pacote do release, o build confere se o script está presente e o servidor usa `MapStaticAssets()`.
+- Quando a conexão em tempo real (`/_blazor`) não sobe, aparece um aviso explicando que os botões não vão responder e o que conferir no proxy. Antes a tela parecia normal, mas nada funcionava.
+- Tela de reconexão em português.
+- README com configuração de Nginx/aaPanel para WebSocket e um roteiro de diagnóstico.
+- Teste de fumaça verifica `/_blazor/negotiate` e o `blazor.web.js`.
+
 ## v1.1.0 — 2026-11-19
 
 ### Interface

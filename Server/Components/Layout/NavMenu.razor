@@ -119,25 +119,6 @@
             }
         }
 
-        <AuthorizeView>
-            <NotAuthorized>
-                <li class="nav-section">Conta</li>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> <span>Entrar</span>
-                    </NavLink>
-                </li>
-                @if (_isRegistrationEnabled)
-                {
-                    <li class="nav-item">
-                        <NavLink class="nav-link" href="Account/Register">
-                            <i class="fa-solid fa-user-plus" aria-hidden="true"></i> <span>Cadastrar</span>
-                        </NavLink>
-                    </li>
-                }
-            </NotAuthorized>
-        </AuthorizeView>
-
         <li class="nav-spacer" aria-hidden="true"></li>
 
         <li class="nav-item">
@@ -176,7 +157,6 @@
 
 @code {
     private bool collapseNavMenu = true;
-    private bool _isRegistrationEnabled;
     private RemotelyUser? _user;
     private Organization? _organization;
     private string? _currentUrl;
@@ -188,9 +168,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var settings = await DataService.GetSettings();
-        _isRegistrationEnabled = settings.MaxOrganizationCount < 0 || DataService.GetOrganizationCount() < settings.MaxOrganizationCount;
-
         await base.OnInitializedAsync();
 
         _currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);

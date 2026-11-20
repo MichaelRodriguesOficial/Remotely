@@ -1,0 +1,160 @@
+@* Escolha de onde executar: grupos de dispositivos e/ou dispositivos avulsos. *@
+
+<div class="target-picker">
+    <section class="target-col">
+        <div class="target-head">
+            <strong><i class="fa-solid fa-layer-group"></i> Grupos</strong>
+            <span>@SelectedGroupIds.Count selecionado(s)</span>
+        </div>
+        <div class="target-list">
+            @if (DeviceGroups.Count == 0)
+            {
+                <div class="target-empty">Nenhum grupo. Crie em <a href="manage-organization">Organização</a>.</div>
+            }
+            @foreach (var group in DeviceGroups.OrderBy(x => x.Name))
+            {
+                var count = Devices.Count(x => x.DeviceGroupID == group.ID);
+                <label class="target-item" @key="group.ID">
+                    <input type="checkbox" class="form-check-input"
+                           checked="@SelectedGroupIds.Contains(group.ID)"
+                           @onchange="ev => ToggleGroup(group.ID, ev)" />
+                    <i class="fa-solid fa-folder text-warning"></i>
+                    <span class="truncate flex-grow-1">@group.Name</span>
+                    <span class="target-meta">@count</span>
+                </label>
+            }
+        </div>
+    </section>
+
+    <section class="target-col">
+        <div class="target-head">
+            <strong><i class="fa-solid fa-display"></i> Dispositivos</strong>
+            <span>@SelectedDeviceIds.Count selecionado(s)</span>
+        </div>
+        <div class="target-tools">
+            <div class="input-icon flex-grow-1">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input class="form-control form-control-sm" type="search" placeholder="Buscar nome, apelido ou usuário"
+                       @bind="_search" @bind:event="oninput" />
+            </div>
+            <label class="check-chip check-chip-sm">
+                <input type="checkbox" class="form-check-input" @bind="_onlyOnline" /> Online
+            </label>
+            <button type="button" class="btn btn-sm btn-ghost" title="Selecionar os visíveis" @onclick="SelectVisible">
+                <i class="fa-solid fa-check-double"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" title="Limpar seleção" @onclick="ClearDevices">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="target-list">
+            @if (!VisibleDevices.Any())
+            {
+                <div class="target-empty">Nenhum dispositivo encontrado.</div>
+            }
+            @foreach (var device in VisibleDevices)
+            {
+                <label class="target-item" @key="device.ID">
+                    <input type="checkbox" class="form-check-input"
+                           checked="@SelectedDeviceIds.Contains(device.ID)"
+                           @onchange="ev => ToggleDevice(device.ID, ev)" />
+                    <span class="status-dot @(device.IsOnline ? "on" : "")" title="@(device.IsOnline ? "Online" : "Offline")"></span>
+                    <span class="flex-grow-1 min-w-0">
+                        <span class="d-block truncate">@device.DeviceName</span>
+                        @if (!string.IsNullOrWhiteSpace(device.Alias) || !string.IsNullOrWhiteSpace(device.CurrentUser))
+                        {
+                            <span class="d-block truncate target-sub">@string.Join(" · ", new[] { device.Alias, device.CurrentUser }.Where(x => !string.IsNullOrWhiteSpace(x)))</span>
+                        }
+                    </span>
+                    <span class="target-meta">@GetPlatform(device)</span>
+                </label>
+            }
+        </div>
+    </section>
+</div>
+
+@code {
+    private string _search = string.Empty;
+    private bool _onlyOnline;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<DeviceGroup> DeviceGroups { get; set; } = Array.Empty<DeviceGroup>();
+
+    [Parameter, EditorRequired]
+    public IReadOnlyList<Device> Devices { get; set; } = Array.Empty<Device>();
+
+    [Parameter, EditorRequired]
+    public List<string> SelectedGroupIds { get; set; } = new();
+
+    [Parameter, EditorRequired]
+    public List<string> SelectedDeviceIds { get; set; } = new();
+
+    [Parameter]
+    public EventCallback OnChanged { get; set; }
+
+    private IEnumerable<Device> VisibleDevices
+    {
+        get
+        {
+            var term = _search.Trim();
+            return Devices
+                .Where(x => !_onlyOnline || x.IsOnline)
+                .Where(x => string.IsNullOrWhiteSpace(term) ||
+                    (x.DeviceName ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (x.Alias ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (x.CurrentUser ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(x => x.IsOnline)
+                .ThenBy(x => x.DeviceName, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string GetPlatform(Device device)
+    {
+        var platform = $"{device.Platform}".ToLowerInvariant();
+        return platform switch
+        {
+            var p when p.Contains("win") => "Windows",
+            var p when p.Contains("linux") => "Linux",
+            var p when p.Contains("osx") || p.Contains("mac") => "macOS",
+            _ => device.Platform ?? string.Empty
+        };
+    }
+
+    private async Task ToggleGroup(string id, ChangeEventArgs args)
+    {
+        SelectedGroupIds.RemoveAll(x => x == id);
+        if (args.Value is true)
+        {
+            SelectedGroupIds.Add(id);
+        }
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ToggleDevice(string id, ChangeEventArgs args)
+    {
+        SelectedDeviceIds.RemoveAll(x => x == id);
+        if (args.Value is true)
+        {
+            SelectedDeviceIds.Add(id);
+        }
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task SelectVisible()
+    {
+        foreach (var device in VisibleDevices)
+        {
+            if (!SelectedDeviceIds.Contains(device.ID))
+            {
+                SelectedDeviceIds.Add(device.ID);
+            }
+        }
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task ClearDevices()
+    {
+        SelectedDeviceIds.Clear();
+        await OnChanged.InvokeAsync();
+    }
+}

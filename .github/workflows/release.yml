@@ -180,13 +180,13 @@ jobs:
           docker volume create remotely-test
           docker run -d --name remotely-test -p 5000:5000 -v remotely-test:/app/AppData remotely:test
           for i in $(seq 1 60); do
-            code=$(curl -s -o /tmp/index.html -w '%{http_code}' http://localhost:5000/ || true)
+            code=$(curl -s -o /tmp/index.html -w '%{http_code}' http://localhost:5000/Account/Login || true)
             [ "$code" = "200" ] && break
             sleep 3
           done
           docker logs remotely-test 2>&1 | tail -n 60
           if [ "$code" != "200" ]; then
-            echo "::error title=Smoke test::Servidor não respondeu 200 em / (último código: $code)"
+            echo "::error title=Smoke test::Servidor não respondeu 200 em /Account/Login (último código: $code)"
             # Últimas linhas do container como anotação (visível no PR)
             LOGS=$(docker logs remotely-test 2>&1 | tail -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Container log::$LOGS"
@@ -202,7 +202,7 @@ jobs:
             [ "$c" = "200" ] || { echo "::error title=Smoke test::$path retornou $c"; exit 1; }
           done
           # Páginas protegidas devem redirecionar para o login quando anônimo.
-          for path in /server-config /manage-organization /Viewer /swagger/index.html; do
+          for path in / /server-config /manage-organization /Viewer /swagger/index.html; do
             c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000$path")
             echo "$path -> $c"
             [ "$c" = "302" ] || { echo "::error title=Smoke test::$path deveria exigir login (retornou $c)"; exit 1; }
@@ -238,6 +238,21 @@ jobs:
           echo "$home" | grep -q "Dispositivos" || { echo "::error title=Smoke test::Página inicial logada não exibiu os dispositivos"; exit 1; }
           c=$(curl -s -b jar -o /dev/null -w '%{http_code}' http://localhost:5000/server-config)
           [ "$c" = "200" ] || { echo "::error title=Smoke test::Admin não acessou /server-config ($c)"; exit 1; }
+          # Conexão em tempo real do Blazor (sem ela nenhum botão do painel funciona).
+          c=$(curl -s -b jar -o negotiate.json -w '%{http_code}' -X POST "http://localhost:5000/_blazor/negotiate?negotiateVersion=1")
+          if [ "$c" != "200" ] || ! grep -q '"WebSockets"' negotiate.json; then
+            echo "::error title=Smoke test::/_blazor/negotiate retornou $c"; head -c 500 negotiate.json; exit 1
+          fi
+          c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/_framework/blazor.web.js)
+          if [ "$c" != "200" ]; then
+            FILES=$(docker exec remotely-test sh -c 'ls -la /app/wwwroot/_framework; ls -la /app/*.endpoints.json /app/*.staticwebassets* 2>&1' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Smoke test::blazor.web.js retornou $c%0A$FILES"
+            exit 1
+          fi
+          # O script referenciado pela página precisa existir (pode ter impressão digital no nome).
+          SCRIPT=$(grep -o '_framework/blazor\.web[^"]*\.js' /tmp/index.html | head -1)
+          c=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:5000/$SCRIPT")
+          [ "$c" = "200" ] || { echo "::error title=Smoke test::Script da página ($SCRIPT) retornou $c"; exit 1; }
           c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)
           [ "$c" = "401" ] || { echo "::error title=Smoke test::swagger.json deveria exigir login (retornou $c)"; exit 1; }
           c=$(curl -s -b jar -o swagger.json -w '%{http_code}' http://localhost:5000/swagger/v1/swagger.json)

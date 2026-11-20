@@ -9,11 +9,23 @@
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject IDataService DataService
 
 <PageTitle>Entrar</PageTitle>
 
 <h1>Bem-vindo de volta</h1>
 <h2>Entre com seu e-mail e senha para acessar o painel.</h2>
+
+@if (_isFirstAccess)
+{
+    <div class="auth-callout">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+            <strong>Primeiro acesso.</strong> Nenhuma conta foi criada neste servidor ainda.
+            <a href="Account/Register">Crie a conta do administrador</a> para começar.
+        </div>
+    </div>
+}
 
 <StatusMessage Message="@errorMessage" />
 
@@ -45,10 +57,13 @@
     </button>
 
     <div class="auth-links">
-        <p>
-            Não tem conta?
-            <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma conta</a>
-        </p>
+        @if (_isRegistrationEnabled)
+        {
+            <p>
+                Não tem conta?
+                <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma conta</a>
+            </p>
+        }
         <p>
             <a href="Account/ResendEmailConfirmation">Reenviar confirmação de e-mail</a>
         </p>
@@ -67,8 +82,18 @@
     [SupplyParameterFromQuery]
     private string? ReturnUrl { get; set; }
 
+    private bool _isRegistrationEnabled;
+    private bool _isFirstAccess;
+
     protected override async Task OnInitializedAsync()
     {
+        // O link de cadastro só aparece enquanto o cadastro estiver liberado. Pelo padrão
+        // (máximo de 1 organização), isso só acontece antes da primeira conta ser criada.
+        var settings = await DataService.GetSettings();
+        var organizationCount = DataService.GetOrganizationCount();
+        _isFirstAccess = organizationCount == 0;
+        _isRegistrationEnabled = settings.MaxOrganizationCount < 0 || organizationCount < settings.MaxOrganizationCount;
+
         if (HttpMethods.IsGet(HttpContext.Request.Method))
         {
             // Clear the existing external cookie to ensure a clean login process
