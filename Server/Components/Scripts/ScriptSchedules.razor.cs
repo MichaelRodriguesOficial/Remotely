@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Remotely.Server.Components.Pages;
@@ -13,24 +13,12 @@ namespace Remotely.Server.Components.Scripts;
 public partial class ScriptSchedules : AuthComponentBase
 {
     private readonly List<string> _selectedDeviceGroups = new();
-
     private readonly List<string> _selectedDevices = new();
-
     private readonly List<ScriptSchedule> _schedules = new();
-
-    private string _alertMessage = string.Empty;
-
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
-
     private Device[] _devices = Array.Empty<Device>();
-
-    private SavedScript? _selectedScript;
-
-    private ScriptSchedule _selectedSchedule = new()
-    {
-        Name = string.Empty,
-        StartAt = Time.Now 
-    };
+    private Guid? _selectedScriptId;
+    private ScriptSchedule _selectedSchedule = NewSchedule();
 
     [CascadingParameter]
     private ScriptsPage ParentPage { get; set; } = null!;
@@ -39,7 +27,6 @@ public partial class ScriptSchedules : AuthComponentBase
     private IDataService DataService { get; set; } = null!;
 
     [Inject]
-
     private IJsInterop JsInterop { get; set; } = null!;
 
     [Inject]
@@ -48,32 +35,45 @@ public partial class ScriptSchedules : AuthComponentBase
     [Inject]
     public required ILogger<ScriptSchedules> Logger { get; set; }
 
+    private bool IsNew => _selectedSchedule.Id == 0;
+
     private bool CanModifySchedule
     {
         get
         {
-            EnsureUserSet();
-            return 
+            if (User is null)
+            {
+                return false;
+            }
+            return
+                IsNew ||
                 _selectedSchedule.CreatorId == User.Id ||
                 User.IsAdministrator;
         }
     }
 
-    private bool CanDeleteSchedule
+    private DateTime StartAtLocal
     {
-        get
-        {
-            EnsureUserSet();
-            return 
-                _selectedSchedule.CreatorId == User.Id ||
-                User.IsAdministrator;
-        }
+        get => _selectedSchedule.StartAt.ToLocalTime().DateTime;
+        set => _selectedSchedule.StartAt = new DateTimeOffset(DateTime.SpecifyKind(value, DateTimeKind.Local));
     }
+
+    private IEnumerable<IGrouping<string, SavedScript>> ScriptsByFolder => ParentPage.VisibleScripts
+        .GroupBy(x => string.IsNullOrWhiteSpace(x.FolderPath) ? "Sem pasta" : x.FolderPath.Trim('/'))
+        .OrderBy(x => x.Key == "Sem pasta" ? 1 : 0)
+        .ThenBy(x => x.Key);
+
+    private static ScriptSchedule NewSchedule() => new()
+    {
+        Name = string.Empty,
+        StartAt = Time.Now,
+        Interval = Remotely.Shared.Enums.RepeatInterval.Daily,
+        RunOnNextConnect = true
+    };
 
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
-
         EnsureUserSet();
 
         _deviceGroups = DataService.GetDeviceGroups(UserName);
@@ -83,19 +83,36 @@ public partial class ScriptSchedules : AuthComponentBase
             .ToArray();
 
         await RefreshSchedules();
+
+        if (ParentPage.TakePendingScriptId() is Guid pendingId)
+        {
+            _selectedScriptId = pendingId;
+            var script = ParentPage.AllScripts.FirstOrDefault(x => x.Id == pendingId);
+            if (script is not null)
+            {
+                _selectedSchedule.Name = script.Name;
+            }
+        }
+    }
+
+    private string GetScriptName(Guid scriptId)
+    {
+        return ParentPage.AllScripts.FirstOrDefault(x => x.Id == scriptId)?.Name ?? "Script indisponível";
+    }
+
+    private void ScriptChanged(ChangeEventArgs args)
+    {
+        _selectedScriptId = Guid.TryParse($"{args.Value}", out var id) ? id : null;
+        if (_selectedScriptId is Guid scriptId && string.IsNullOrWhiteSpace(_selectedSchedule.Name))
+        {
+            _selectedSchedule.Name = GetScriptName(scriptId);
+        }
     }
 
     private void CreateNew()
     {
-        _selectedScript = new()
-        {
-            Name = string.Empty
-        };
-        _selectedSchedule = new()
-        { 
-            Name = string.Empty,
-            StartAt = Time.Now 
-        };
+        _selectedScriptId = null;
+        _selectedSchedule = NewSchedule();
         _selectedDeviceGroups.Clear();
         _selectedDevices.Clear();
     }
@@ -104,59 +121,27 @@ public partial class ScriptSchedules : AuthComponentBase
     {
         try
         {
-            if (User?.Id != _selectedSchedule.CreatorId)
+            if (!CanModifySchedule)
             {
-                ToastService.ShowToast("Você não pode excluir agendamentos de outras pessoas.", classString: "bg-warning");
+                ToastService.ShowToast2("Você não pode excluir agendamentos de outras pessoas.", ToastType.Warning);
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Tem certeza de que quer excluir o agendamento {_selectedSchedule.Name}?");
-            if (result)
+            var result = await JsInterop.Confirm($"Excluir o agendamento \"{_selectedSchedule.Name}\"?");
+            if (!result)
             {
-                await DataService.DeleteScriptSchedule(_selectedSchedule.Id);
-                ToastService.ShowToast("Agendamento excluído.");
-                _alertMessage = "Agendamento excluído.";
-                CreateNew();
-                await ParentPage.RefreshScripts();
-                await RefreshSchedules();
+                return;
             }
+
+            await DataService.DeleteScriptSchedule(_selectedSchedule.Id);
+            ToastService.ShowToast2("Agendamento excluído.", ToastType.Success);
+            CreateNew();
+            await RefreshSchedules();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while deleting script schedule.");
-            ToastService.ShowToast2("Falha ao excluir o agendamento", ToastType.Error);
-        }
-    }
-
-    private void DeviceGroupSelectedChanged(ChangeEventArgs args, DeviceGroup deviceGroup)
-    {
-        if (args.Value is not bool isSelected)
-        {
-            return;
-        }
-        if (isSelected)
-        {
-            _selectedDeviceGroups.Add(deviceGroup.ID);
-        }
-        else
-        {
-            _selectedDeviceGroups.RemoveAll(x => x == deviceGroup.ID);
-        }
-    }
-
-    private void DeviceSelectedChanged(ChangeEventArgs args, Device device)
-    {
-        if (args.Value is not bool isSelected)
-        {
-            return;
-        }
-        if (isSelected)
-        {
-            _selectedDevices.Add(device.ID);
-        }
-        else
-        {
-            _selectedDevices.RemoveAll(x => x == device.ID);
+            ToastService.ShowToast2("Falha ao excluir o agendamento.", ToastType.Error);
         }
     }
 
@@ -164,48 +149,63 @@ public partial class ScriptSchedules : AuthComponentBase
     {
         EnsureUserSet();
 
-        if (_selectedSchedule is null)
-        {
-            return;
-        }
-
-        if (_selectedScript is null)
-        {
-            ToastService.ShowToast("Selecione um script para executar.", classString: "bg-warning");
-            return;
-        }
-
         if (!CanModifySchedule)
         {
-            ToastService.ShowToast("Você não pode alterar agendamentos de outras pessoas.", classString: "bg-warning");
+            ToastService.ShowToast2("Você não pode alterar agendamentos de outras pessoas.", ToastType.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_selectedSchedule.Name))
+        {
+            ToastService.ShowToast2("Dê um nome ao agendamento.", ToastType.Warning);
+            return;
+        }
+
+        if (_selectedScriptId is not Guid scriptId)
+        {
+            ToastService.ShowToast2("Selecione o script.", ToastType.Warning);
             return;
         }
 
         if (!_selectedDevices.Any() && !_selectedDeviceGroups.Any())
         {
-            ToastService.ShowToast("Selecione pelo menos um dispositivo ou grupo.", classString: "bg-warning");
+            ToastService.ShowToast2("Selecione pelo menos um dispositivo ou grupo.", ToastType.Warning);
             return;
         }
 
-        _selectedSchedule.SavedScriptId = _selectedScript.Id;
-
-        if (string.IsNullOrWhiteSpace(_selectedSchedule.CreatorId))
+        try
         {
-            _selectedSchedule.CreatedAt = Time.Now;
-            _selectedSchedule.CreatorId = User.Id;
+            _selectedSchedule.SavedScriptId = scriptId;
+            if (string.IsNullOrWhiteSpace(_selectedSchedule.CreatorId))
+            {
+                _selectedSchedule.CreatedAt = Time.Now;
+                _selectedSchedule.CreatorId = User.Id;
+            }
+            _selectedSchedule.OrganizationID = User.OrganizationID;
+            _selectedSchedule.NextRun = _selectedSchedule.StartAt;
+            _selectedSchedule.Devices = _devices.Where(x => _selectedDevices.Contains(x.ID)).ToList();
+            _selectedSchedule.DeviceGroups = _deviceGroups.Where(x => _selectedDeviceGroups.Contains(x.ID)).ToList();
+
+            await DataService.AddOrUpdateScriptSchedule(_selectedSchedule);
+            ToastService.ShowToast2("Agendamento salvo.", ToastType.Success);
+
+            var savedId = _selectedSchedule.Id;
+            await RefreshSchedules();
+            var saved = _schedules.FirstOrDefault(x => x.Id == savedId);
+            if (saved is not null)
+            {
+                SelectSchedule(saved);
+            }
+            else
+            {
+                CreateNew();
+            }
         }
-
-        _selectedSchedule.OrganizationID = User.OrganizationID;
-        _selectedSchedule.NextRun = _selectedSchedule.StartAt;
-
-        _selectedSchedule.Devices = _devices.Where(x => _selectedDevices.Contains(x.ID)).ToList();
-        _selectedSchedule.DeviceGroups = _deviceGroups.Where(x => _selectedDeviceGroups.Contains(x.ID)).ToList();
-
-        await DataService.AddOrUpdateScriptSchedule(_selectedSchedule);
-        CreateNew();
-        await RefreshSchedules();
-        ToastService.ShowToast("Agendamento salvo.");
-        _alertMessage = "Agendamento salvo.";
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error while saving script schedule.");
+            ToastService.ShowToast2("Falha ao salvar o agendamento.", ToastType.Error);
+        }
     }
 
     private async Task RefreshSchedules()
@@ -217,53 +217,13 @@ public partial class ScriptSchedules : AuthComponentBase
         }
     }
 
-    private string GetTableRowClass(ScriptSchedule schedule)
-    {
-        if (schedule?.Id == _selectedSchedule?.Id)
-        {
-            return "table-primary";
-        }
-        return string.Empty;
-    }
-
-    private async Task SelectTableRow(ScriptSchedule schedule)
+    private void SelectSchedule(ScriptSchedule schedule)
     {
         _selectedSchedule = schedule;
+        _selectedScriptId = schedule.SavedScriptId;
         _selectedDevices.Clear();
         _selectedDeviceGroups.Clear();
-
-        if (schedule?.Devices?.Any() == true)
-        {
-            _selectedDevices.AddRange(schedule.Devices.Select(x => x.ID));
-        }
-        if (schedule?.DeviceGroups?.Any() == true)
-        {
-            _selectedDeviceGroups.AddRange(schedule.DeviceGroups.Select(x => x.ID));
-        }
-
-        var result = await DataService.GetSavedScript(_selectedSchedule.SavedScriptId);
-        if (result.IsSuccess)
-        {
-            _selectedScript = result.Value;
-        }
-    }
-
-    private async Task ScriptSelected(ScriptTreeNode viewModel)
-    {
-        EnsureUserSet();
-
-        if (viewModel.Script is not null)
-        {
-            var result = await DataService.GetSavedScript(User.Id, viewModel.Script.Id);
-            if (result.IsSuccess)
-            {
-                _selectedScript = result.Value;
-            }
-
-        }
-        else
-        {
-            _selectedScript = null;
-        }
+        _selectedDevices.AddRange(schedule.Devices?.Select(x => x.ID) ?? Enumerable.Empty<string>());
+        _selectedDeviceGroups.AddRange(schedule.DeviceGroups?.Select(x => x.ID) ?? Enumerable.Empty<string>());
     }
 }

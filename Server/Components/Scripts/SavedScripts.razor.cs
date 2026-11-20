@@ -1,23 +1,21 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Remotely.Server.Components.Pages;
 using Remotely.Server.Enums;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
+using Remotely.Shared.Enums;
 
 namespace Remotely.Server.Components.Scripts;
 
 [Authorize]
 public partial class SavedScripts : AuthComponentBase
 {
+    private SavedScript _selectedScript = NewScript();
+
     [CascadingParameter]
     private ScriptsPage ParentPage { get; set; } = null!;
-
-    private SavedScript _selectedScript = new() { Name = string.Empty };
-    private string _alertMessage = string.Empty;
-    private string _alertOptionsShowClass = string.Empty;
-    private string _environmentVarsShowClass = string.Empty;
 
     [Inject]
     public IDataService DataService { get; set; } = null!;
@@ -29,10 +27,13 @@ public partial class SavedScripts : AuthComponentBase
     public IJsInterop JsInterop { get; set; } = null!;
 
     [Inject]
-    public IModalService ModalService { get; set; } = null!;
-
-    [Inject]
     public required ILogger<SavedScripts> Logger { get; set; }
+
+    private bool IsNew => _selectedScript.Id == Guid.Empty;
+
+    private int LineCount => string.IsNullOrEmpty(_selectedScript.Content)
+        ? 0
+        : _selectedScript.Content.Split('\n').Length;
 
     private bool CanModifyScript
     {
@@ -43,9 +44,10 @@ public partial class SavedScripts : AuthComponentBase
                 return false;
             }
 
-            return 
-                _selectedScript.Id == Guid.Empty ||
-                _selectedScript.CreatorId == User.Id || User.IsAdministrator;
+            return
+                IsNew ||
+                _selectedScript.CreatorId == User.Id ||
+                User.IsAdministrator;
         }
     }
 
@@ -58,48 +60,88 @@ public partial class SavedScripts : AuthComponentBase
                 return false;
             }
 
-            return 
+            return
                 !string.IsNullOrWhiteSpace(_selectedScript.CreatorId) &&
                 (_selectedScript.CreatorId == User.Id || User.IsAdministrator);
         }
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    private static SavedScript NewScript() => new()
     {
-        if (firstRender)
+        Name = string.Empty,
+        Shell = ScriptingShell.PSCore
+    };
+
+    private string GetPlaceholder()
+    {
+        return _selectedScript.Shell switch
         {
-            JsInterop.AutoHeight();
-        }
-        base.OnAfterRender(firstRender);
+            ScriptingShell.Bash => "#!/bin/bash\ndf -h",
+            ScriptingShell.CMD => "ipconfig /all",
+            _ => "Get-ComputerInfo | Select-Object CsName, OsName, OsVersion"
+        };
     }
 
     private async Task OnValidSubmit(EditContext context)
     {
         EnsureUserSet();
 
-        if (_selectedScript is null)
+        if (!CanModifyScript)
         {
+            ToastService.ShowToast2("Você não pode alterar scripts de outras pessoas.", ToastType.Warning);
             return;
         }
 
-        if (!CanModifyScript)
+        if (string.IsNullOrWhiteSpace(_selectedScript.Content))
         {
-            ToastService.ShowToast("Você não pode alterar scripts de outras pessoas.", classString: "bg-warning");
+            ToastService.ShowToast2("O script está vazio.", ToastType.Warning);
             return;
         }
-        
-        await DataService.AddOrUpdateSavedScript(_selectedScript, User.Id);
-        await ParentPage.RefreshScripts();
-        ToastService.ShowToast("Script salvo.");
-        _alertMessage = "Script salvo.";
+
+        _selectedScript.FolderPath = _selectedScript.FolderPath?.Trim().Trim('/');
+
+        try
+        {
+            var result = await DataService.AddOrUpdateSavedScript(_selectedScript, User.Id);
+            if (!result.IsSuccess)
+            {
+                ToastService.ShowToast2($"Falha ao salvar: {result.Reason}", ToastType.Error);
+                return;
+            }
+
+            await ParentPage.RefreshScripts();
+            ToastService.ShowToast2("Script salvo.", ToastType.Success);
+
+            // O EF preenche o Id de scripts novos ao salvar; recarrega com o criador.
+            await LoadScript(_selectedScript.Id);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error while saving script.");
+            ToastService.ShowToast2("Falha ao salvar o script.", ToastType.Error);
+        }
     }
 
     private void CreateNew()
     {
-        _selectedScript = new()
+        _selectedScript = NewScript();
+    }
+
+    private void Duplicate()
+    {
+        _selectedScript = new SavedScript()
         {
-            Name = string.Empty
+            Name = $"{_selectedScript.Name} (cópia)",
+            Content = _selectedScript.Content,
+            FolderPath = _selectedScript.FolderPath,
+            Shell = _selectedScript.Shell,
+            IsPublic = _selectedScript.IsPublic,
+            IsQuickScript = _selectedScript.IsQuickScript,
+            GenerateAlertOnError = _selectedScript.GenerateAlertOnError,
+            SendEmailOnError = _selectedScript.SendEmailOnError,
+            SendErrorEmailTo = _selectedScript.SendErrorEmailTo
         };
+        ToastService.ShowToast2("Cópia criada. Ajuste e salve.", ToastType.Info);
     }
 
     private async Task DeleteSelectedScript()
@@ -108,88 +150,37 @@ public partial class SavedScripts : AuthComponentBase
         {
             if (!CanDeleteScript)
             {
-                ToastService.ShowToast("Você não pode excluir scripts de outras pessoas.", classString: "bg-warning");
+                ToastService.ShowToast2("Você não pode excluir scripts de outras pessoas.", ToastType.Warning);
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Tem certeza de que quer excluir o script {_selectedScript.Name}?");
-            if (result)
+            var result = await JsInterop.Confirm($"Excluir o script \"{_selectedScript.Name}\"? Agendamentos que usam este script deixarão de funcionar.");
+            if (!result)
             {
-                await DataService.DeleteSavedScript(_selectedScript.Id);
-                ToastService.ShowToast("Script excluído.");
-                _alertMessage = "Script excluído.";
-                await ParentPage.RefreshScripts();
-                _selectedScript = new()
-                {
-                    Name = string.Empty
-                };
+                return;
             }
+
+            await DataService.DeleteSavedScript(_selectedScript.Id);
+            ToastService.ShowToast2("Script excluído.", ToastType.Success);
+            await ParentPage.RefreshScripts();
+            _selectedScript = NewScript();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error while deleting script.");
-            ToastService.ShowToast2("Falha ao excluir o script", ToastType.Error);
+            ToastService.ShowToast2("Falha ao excluir o script.", ToastType.Error);
         }
-
     }
 
-    private async Task ScriptSelected(ScriptTreeNode viewModel)
+    private async Task ScriptSelected(SavedScript script)
+    {
+        await LoadScript(script.Id);
+    }
+
+    private async Task LoadScript(Guid scriptId)
     {
         EnsureUserSet();
-        if (viewModel.Script is not null)
-        {
-            var result = await DataService.GetSavedScript(User.Id, viewModel.Script.Id);
-            if (result.IsSuccess)
-            {
-                _selectedScript = result.Value;
-                return;
-            }
-        }
-
-        _selectedScript = new()
-        {
-            Name = string.Empty
-        };
-    }
-
-    private void ToggleEnvironmentVarsShown()
-    {
-        if (string.IsNullOrWhiteSpace(_environmentVarsShowClass))
-        {
-            _environmentVarsShowClass = "show";
-        }
-        else
-        {
-            _environmentVarsShowClass = string.Empty;
-        }
-    }
-    private void ToggleAlertOptionsShown()
-    {
-        if (string.IsNullOrWhiteSpace(_alertOptionsShowClass))
-        {
-            _alertOptionsShowClass = "show";
-        }
-        else
-        {
-            _alertOptionsShowClass = string.Empty;
-        }
-    }
-
-    private void ShowAlertErrorHelp()
-    {
-        ModalService.ShowModal("Alertas de erro de script", new[]
-        {
-            "Um script é considerado com erro quando escreve algo na saída de erro. " +
-            "Em CMD, WinPS e Bash, um código de saída diferente de 0 também conta como erro. " +
-            "(O PowerShell Core integrado não usa códigos de saída.)",
-
-            "No PowerShell Core, qualquer texto nas saídas Warning ou Error gera um alerta. " +
-            "Para gerar um erro conforme alguma lógica do script, use " +
-            "'Write-Error' ou 'Write-Warning' em qualquer ponto do script.",
-
-            "No Windows PowerShell, use 'Write-Error' para gerar um alerta.",
-
-            "No Bash e no CMD, saia com qualquer código diferente de zero."
-        });
+        var result = await DataService.GetSavedScript(User.Id, scriptId);
+        _selectedScript = result.IsSuccess ? result.Value : NewScript();
     }
 }

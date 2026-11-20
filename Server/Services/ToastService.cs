@@ -10,14 +10,14 @@ public interface IToastService
     IEnumerable<Toast> Toasts { get; }
     void ShowToast(
         string message, 
-        int expirationMillisecond = 3000, 
+        int expirationMillisecond = 4500, 
         string classString = "", 
         string styleOverrides = "");
 
     void ShowToast2(
         string message,
          ToastType toastType = ToastType.Info,
-        int expirationMillisecond = 3000,
+        int expirationMillisecond = 4500,
         string styleOverrides = "");
 }
 
@@ -39,7 +39,7 @@ public class ToastService : IToastService
     }
 
     public void ShowToast(string message,
-        int expirationMillisecond = 3000,
+        int expirationMillisecond = 4500,
         string classString = "",
         string styleOverrides = "")
     {
@@ -81,7 +81,7 @@ public class ToastService : IToastService
     public void ShowToast2(
         string message, 
         ToastType toastType,
-        int expirationMillisecond = 3000, 
+        int expirationMillisecond = 4500, 
         string styleOverrides = "")
     {
         var classString = toastType switch

@@ -1,0 +1,160 @@
+.script-list {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+.script-list-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.segmented {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+    border: 1px solid var(--rm-border);
+}
+
+    .segmented button {
+        flex: 1 1 0;
+        border: none;
+        background: transparent;
+        color: var(--rm-text-muted);
+        font-size: 0.82rem;
+        font-weight: 550;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+    }
+
+        .segmented button.active {
+            background: var(--rm-surface);
+            color: var(--rm-text-strong);
+            box-shadow: var(--rm-shadow-sm);
+        }
+
+.script-list-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0 -0.35rem;
+    padding: 0 0.35rem;
+}
+
+.script-list.compact .script-list-body {
+    max-height: 22rem;
+}
+
+.script-list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 2rem 1rem;
+    color: var(--rm-text-muted);
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+    .script-list-empty i {
+        font-size: 1.5rem;
+        opacity: 0.6;
+    }
+
+.script-folder + .script-folder {
+    margin-top: 0.35rem;
+}
+
+.script-folder-head {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.35rem 0.4rem;
+    border: none;
+    background: transparent;
+    color: var(--rm-text-muted);
+    font-size: 0.78rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 6px;
+    text-align: left;
+}
+
+    .script-folder-head:hover {
+        background: var(--rm-surface-hover);
+    }
+
+    .script-folder-head .chevron {
+        width: 0.7rem;
+        font-size: 0.65rem;
+    }
+
+    .script-folder-head .folder-icon {
+        color: #f59e0b;
+    }
+
+    .script-folder-head .count {
+        margin-left: auto;
+        font-weight: 600;
+        color: var(--rm-text-subtle);
+    }
+
+.script-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 0.45rem 0.55rem 0.45rem 1.4rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--rm-text);
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+    .script-item:hover {
+        background: var(--rm-surface-hover);
+    }
+
+    .script-item.active {
+        background: rgba(var(--rm-accent-rgb), 0.14);
+        border-color: rgba(var(--rm-accent-rgb), 0.35);
+        color: var(--rm-text-strong);
+    }
+
+.script-name {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.script-flags {
+    display: inline-flex;
+    gap: 0.35rem;
+    color: var(--rm-text-subtle);
+    font-size: 0.72rem;
+}
+
+.shell-tag {
+    flex: 0 0 auto;
+    min-width: 2.6rem;
+    text-align: center;
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 0.12rem 0.35rem;
+    border-radius: 5px;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--rm-text-muted);
+    font-family: var(--rm-font-mono);
+}
+
+    .shell-tag.shell-pscore { background: rgba(99, 102, 241, 0.16); color: #818cf8; }
+    .shell-tag.shell-winps { background: rgba(14, 165, 233, 0.16); color: #38bdf8; }
+    .shell-tag.shell-bash { background: rgba(34, 197, 94, 0.16); color: #22c55e; }
+    .shell-tag.shell-cmd { background: rgba(245, 158, 11, 0.16); color: #f59e0b; }

@@ -1,0 +1,120 @@
+@* Lista de scripts agrupada por pasta, com busca e filtro "só os meus". *@
+
+<div class="script-list @(Compact ? "compact" : "")">
+    <div class="script-list-tools">
+        <div class="input-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control form-control-sm" type="search" placeholder="Buscar script ou pasta"
+                   @bind="_search" @bind:event="oninput" aria-label="Buscar script" />
+        </div>
+        <div class="segmented" role="group" aria-label="Quais scripts mostrar">
+            <button type="button" class="@(!ShowOnlyMine ? "active" : "")" @onclick="() => SetOnlyMine(false)">Todos</button>
+            <button type="button" class="@(ShowOnlyMine ? "active" : "")" @onclick="() => SetOnlyMine(true)">Meus</button>
+        </div>
+    </div>
+
+    <div class="script-list-body">
+        @if (!Groups.Any())
+        {
+            <div class="script-list-empty">
+                <i class="fa-regular fa-file-code"></i>
+                @if (string.IsNullOrWhiteSpace(_search))
+                {
+                    <span>Nenhum script ainda.</span>
+                }
+                else
+                {
+                    <span>Nada encontrado para "@_search".</span>
+                }
+            </div>
+        }
+
+        @foreach (var group in Groups)
+        {
+            var collapsed = _collapsed.Contains(group.Key) && string.IsNullOrWhiteSpace(_search);
+            <div class="script-folder" @key="group.Key">
+                <button type="button" class="script-folder-head" @onclick="() => ToggleFolder(group.Key)">
+                    <i class="fa-solid @(collapsed ? "fa-chevron-right" : "fa-chevron-down") chevron"></i>
+                    <i class="fa-solid @(group.Key == NoFolder ? "fa-inbox" : "fa-folder") folder-icon"></i>
+                    <span class="truncate">@(group.Key == NoFolder ? "Sem pasta" : group.Key)</span>
+                    <span class="count">@group.Count()</span>
+                </button>
+                @if (!collapsed)
+                {
+                    @foreach (var script in group.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+                    {
+                        <button type="button" @key="script.Id"
+                                class="script-item @(script.Id == SelectedId ? "active" : "")"
+                                @onclick="() => OnSelect.InvokeAsync(script)">
+                            <span class="shell-tag shell-@script.Shell.ToString().ToLowerInvariant()">@EnumLabels.ShortShell(script.Shell)</span>
+                            <span class="truncate script-name">@script.Name</span>
+                            <span class="script-flags">
+                                @if (script.IsQuickScript)
+                                {
+                                    <i class="fa-solid fa-bolt" title="Script rápido"></i>
+                                }
+                                @if (script.IsPublic)
+                                {
+                                    <i class="fa-solid fa-users" title="Público na organização"></i>
+                                }
+                            </span>
+                        </button>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private const string NoFolder = "\u0000";
+    private readonly HashSet<string> _collapsed = new();
+    private string _search = string.Empty;
+
+    [Parameter, EditorRequired]
+    public IEnumerable<SavedScript> Scripts { get; set; } = Enumerable.Empty<SavedScript>();
+
+    [Parameter]
+    public Guid? SelectedId { get; set; }
+
+    [Parameter]
+    public EventCallback<SavedScript> OnSelect { get; set; }
+
+    [Parameter]
+    public bool ShowOnlyMine { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ShowOnlyMineChanged { get; set; }
+
+    [Parameter]
+    public bool Compact { get; set; }
+
+    private IEnumerable<IGrouping<string, SavedScript>> Groups
+    {
+        get
+        {
+            var term = _search.Trim();
+            return Scripts
+                .Where(x => string.IsNullOrWhiteSpace(term) ||
+                    x.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    (x.FolderPath ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.FolderPath) ? NoFolder : x.FolderPath.Trim('/'))
+                .OrderBy(x => x.Key == NoFolder ? 1 : 0)
+                .ThenBy(x => x.Key, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private async Task SetOnlyMine(bool value)
+    {
+        ShowOnlyMine = value;
+        await ShowOnlyMineChanged.InvokeAsync(value);
+    }
+
+    private void ToggleFolder(string key)
+    {
+        if (!_collapsed.Remove(key))
+        {
+            _collapsed.Add(key);
+        }
+    }
+}

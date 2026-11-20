@@ -1,34 +1,39 @@
-﻿@page "/scripts/{activeTab?}"
+@page "/scripts/{activeTab?}"
 @attribute [Authorize]
 @inherits AuthComponentBase
 
 <PageHeader Title="Scripts"
-            Subtitle="Biblioteca de scripts, execução em lote e agendamentos."
-            Icon="fa-solid fa-terminal" />
+            Subtitle="Crie scripts, execute em vários computadores de uma vez e agende rotinas."
+            Icon="fa-solid fa-terminal">
+    <Actions>
+        <a class="btn btn-primary" href="/scripts/saved-scripts?novo=1"><i class="fa-solid fa-plus"></i> Novo script</a>
+    </Actions>
+</PageHeader>
 
-<CascadingValue Value="this">
-    <TabControl InitialActiveTab="@(ActiveTab ?? "saved-scripts")">
-        <TabHeaders>
-            <TabHeader Name="saved-scripts" NavigationUri="/scripts/saved-scripts">
-                <i class="fa-solid fa-book me-1"></i> Biblioteca
-            </TabHeader>
-            <TabHeader Name="run-script" NavigationUri="/scripts/run-script">
-                <i class="fa-solid fa-play me-1"></i> Executar
-            </TabHeader>
-            <TabHeader Name="script-schedules" NavigationUri="/scripts/script-schedules">
-                <i class="fa-regular fa-calendar me-1"></i> Agendamentos
-            </TabHeader>
-        </TabHeaders>
-        <TabContents>
-            <TabContent Name="saved-scripts">
-                <SavedScripts />
-            </TabContent>
-            <TabContent Name="run-script">
-                <RunScript />
-            </TabContent>
-            <TabContent Name="script-schedules">
-                <ScriptSchedules />
-            </TabContent>
-        </TabContents>
-    </TabControl>
+<nav class="nav nav-tabs" role="tablist">
+    <a class="nav-link @TabClass("saved-scripts")" href="/scripts/saved-scripts" role="tab">
+        <i class="fa-solid fa-book me-1"></i> Biblioteca
+        <span class="tab-count">@VisibleScripts.Count()</span>
+    </a>
+    <a class="nav-link @TabClass("run-script")" href="/scripts/run-script" role="tab">
+        <i class="fa-solid fa-play me-1"></i> Executar
+    </a>
+    <a class="nav-link @TabClass("script-schedules")" href="/scripts/script-schedules" role="tab">
+        <i class="fa-regular fa-calendar me-1"></i> Agendamentos
+    </a>
+</nav>
+
+<CascadingValue Value="this" IsFixed="false">
+    @switch (CurrentTab)
+    {
+        case "run-script":
+            <RunScript />
+            break;
+        case "script-schedules":
+            <ScriptSchedules />
+            break;
+        default:
+            <SavedScripts @key="_libraryKey" />
+            break;
+    }
 </CascadingValue>

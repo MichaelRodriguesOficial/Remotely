@@ -1,162 +1,166 @@
-﻿@inherits AuthComponentBase
+@inherits AuthComponentBase
 @attribute [Authorize]
 
-<div class="outer-grid mt-3 auto-height">
-    <EditForm Model="_selectedScript" OnValidSubmit="OnValidSubmit" class="h-100 pb-3">
-        <div class="h-100 left-outer-grid">
-            <div>
-                <div class="row">
-                    <DataAnnotationsValidator />
+<div class="library">
+    <aside class="panel library-side">
+        <div class="panel-header mb-2">
+            <h2 class="panel-title"><i class="fa-solid fa-book"></i> Biblioteca</h2>
+            <button type="button" class="btn btn-sm btn-primary" @onclick="CreateNew"><i class="fa-solid fa-plus"></i> Novo</button>
+        </div>
+        <ScriptList Scripts="ParentPage.VisibleScripts"
+                    SelectedId="@(_selectedScript.Id == Guid.Empty ? null : _selectedScript.Id)"
+                    OnSelect="ScriptSelected"
+                    ShowOnlyMine="ParentPage.ShowOnlyMyScripts"
+                    ShowOnlyMineChanged="v => ParentPage.ShowOnlyMyScripts = v" />
+    </aside>
 
-                    <div class="col-12">
-                        <ValidationSummary />
-                    </div>
+    <section class="panel library-editor">
+        <EditForm Model="_selectedScript" OnValidSubmit="OnValidSubmit">
+            <DataAnnotationsValidator />
 
-                    <div class="col-12">
-                        <AlertBanner Message="@_alertMessage" OnClose="() => _alertMessage = string.Empty" />
-                    </div>
-
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Shell</label>
-                        <InputSelect class="form-control" DisplayName="Shell" @bind-Value="_selectedScript.Shell">
-                            @foreach (var shell in Enum.GetValues<ScriptingShell>())
+            <div class="editor-head">
+                <div class="min-w-0">
+                    <h2 class="editor-title truncate">@(IsNew ? "Novo script" : _selectedScript.Name)</h2>
+                    <p class="editor-sub">
+                        @if (IsNew)
+                        {
+                            <span>Preencha os dados e salve para usar em execuções e agendamentos.</span>
+                        }
+                        else
+                        {
+                            <span>Criado por @(_selectedScript.Creator?.UserName ?? "—")</span>
+                            @if (!CanModifyScript)
                             {
-                                <option @key="@shell" value="@shell">@shell</option>
+                                <span class="pill warning no-dot ms-2"><i class="fa-solid fa-lock"></i> Somente leitura</span>
                             }
-                        </InputSelect>
-                        <ValidationMessage For="() => _selectedScript.Shell" />
-                    </div>
-
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Nome do script</label>
-                        <InputText class="form-control" DisplayName="Script Name" @bind-Value="_selectedScript.Name" placeholder="Nome do script" />
-                        <ValidationMessage For="() => _selectedScript.Name" />
-                    </div>
-
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Pasta</label>
-                        <InputText class="form-control" DisplayName="Folder Path" @bind-Value="_selectedScript.FolderPath" placeholder="Exemplo: filial/sao-paulo/financeiro" />
-                        <ValidationMessage For="() => _selectedScript.FolderPath" />
-                    </div>
-
-
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Público?</label>
-                        <br />
-                        <InputCheckbox DisplayName="Public?" @bind-Value="_selectedScript.IsPublic" />
-                        <ValidationMessage For="() => _selectedScript.IsPublic" />
-                    </div>
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Script rápido?</label>
-                        <br />
-                        <InputCheckbox DisplayName="Quick Script?" @bind-Value="_selectedScript.IsQuickScript" />
-                        <ValidationMessage For="() => _selectedScript.IsQuickScript" />
-                    </div>
-                    <div class="mt-2 col-md-6 col-lg-4">
-                        <label>Criador</label>
-                        <br />
-                        <input class="form-control" readonly value="@_selectedScript.Creator?.UserName" />
-                    </div>
-                    <div class="mt-2 col-12">
-                        <button class="btn btn-primary"
-                                type="submit"
-                                disabled="@(!CanModifyScript)">
-                            Salvar
+                        }
+                    </p>
+                </div>
+                <div class="editor-actions">
+                    @if (!IsNew)
+                    {
+                        <button type="button" class="btn btn-secondary" @onclick="() => ParentPage.OpenInRun(_selectedScript.Id)">
+                            <i class="fa-solid fa-play"></i> Executar
                         </button>
-
-                        <button class="btn btn-success ms-3" type="button" @onclick="CreateNew">
-                            Novo
-                        </button>
-                        <button class="btn btn-danger ms-3" type="button"
-                                disabled="@(!CanDeleteScript)"
-                                @onclick="DeleteSelectedScript">
-                            Excluir
-                        </button>
-                    </div>
-                    <div class="mt-2 col-12">
-                        <button type="button" class="btn btn-link me-3" @onclick="ToggleAlertOptionsShown">
-                            Opções de alerta
-                        </button>
-                        <button type="button" class="btn btn-link" @onclick="ToggleEnvironmentVarsShown">
-                            Variáveis de ambiente
-                        </button>
-                    </div>
-                    <div class="my-2 col-12 collapse @_alertOptionsShowClass">
-                        <h5>
-                            <span class="me-2">Em caso de erro</span>
-                            <button class="btn btn-sm btn-secondary" type="button" @onclick="ShowAlertErrorHelp">
-                                <i class="fa-regular fa-circle-question"></i>
-                            </button>
-                        </h5>
-                        <div class="row">
-                            <div class="mt-2 col-md-6">
-                                <label>Enviar e-mail</label>
-                                <br />
-                                <InputCheckbox DisplayName="Send Email on Error" @bind-Value="_selectedScript.SendEmailOnError" />
-                                <ValidationMessage For="() => _selectedScript.SendEmailOnError" />
-                                <br />
-                                para
-                                <br />
-                                <InputText type="email"
-                                           class="form-control"
-                                           disabled="@(!_selectedScript.SendEmailOnError)"
-                                           DisplayName="Send Error Email To"
-                                           @bind-Value="_selectedScript.SendErrorEmailTo" />
-                                <ValidationMessage For="() => _selectedScript.SendErrorEmailTo" />
-                            </div>
-                            <div class="mt-2 col-md-6">
-                                <label>Gerar alerta</label>
-                                <br />
-                                <InputCheckbox DisplayName="Alert on Error" @bind-Value="_selectedScript.GenerateAlertOnError" />
-                                <ValidationMessage For="() => _selectedScript.GenerateAlertOnError" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="my-2 col-12 collapse @_environmentVarsShowClass">
-                        <h5>Variáveis de ambiente</h5>
-                        <div class="row">
-                            <div class="mt-2 col-md-6">
-                                <div>ID do dispositivo</div>
-                                <div class="small text-muted mt-1">O ID (GUID) do computador que está executando o script.</div>
-                                <input type="text" readonly class="form-control" value="DeviceId" />
-                            </div>
-                            <div class="mt-2 col-md-6">
-                                <div>URL do servidor</div>
-                                <div class="small text-muted mt-1">A URL do servidor ao qual o dispositivo se conecta (ex.: https://remotely.exemplo.com.br).</div>
-                                <input type="text" readonly class="form-control" value="ServerUrl" />
-                            </div>
-                        </div>
-                    </div>
+                        <DropdownButton ButtonClass="btn-secondary btn-icon" DropDownMenuClass="dropdown-menu-end">
+                            <ButtonContent><i class="fa-solid fa-ellipsis"></i></ButtonContent>
+                            <ChildListItems>
+                                <li><button type="button" class="dropdown-item" @onclick="() => ParentPage.OpenInSchedules(_selectedScript.Id)"><i class="fa-regular fa-calendar-plus"></i> Agendar</button></li>
+                                <li><button type="button" class="dropdown-item" @onclick="Duplicate"><i class="fa-regular fa-copy"></i> Duplicar</button></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><button type="button" class="dropdown-item text-danger" disabled="@(!CanDeleteScript)" @onclick="DeleteSelectedScript"><i class="fa-solid fa-trash-can"></i> Excluir</button></li>
+                            </ChildListItems>
+                        </DropdownButton>
+                    }
+                    <button type="submit" class="btn btn-primary" disabled="@(!CanModifyScript)">
+                        <i class="fa-solid fa-floppy-disk"></i> Salvar
+                    </button>
                 </div>
             </div>
 
-            <div class="h100">
-                <InputTextArea @bind-Value="_selectedScript.Content" 
-                               DisplayName="Script Input" 
-                               class="h-100 w-100"
-                               spellcheck="false"
-                               autocomplete="off"
-                               placeholder="Digite o script aqui" />
+            <ValidationSummary />
+
+            <fieldset disabled="@(!CanModifyScript)">
+                <div class="row g-3">
+                    <div class="col-lg-5">
+                        <label class="form-label" for="script-name">Nome</label>
+                        <InputText id="script-name" class="form-control" @bind-Value="_selectedScript.Name" placeholder="Ex.: Limpar arquivos temporários" />
+                        <ValidationMessage For="() => _selectedScript.Name" />
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <label class="form-label" for="script-shell">Shell</label>
+                        <InputSelect id="script-shell" class="form-select" @bind-Value="_selectedScript.Shell">
+                            @foreach (var shell in Enum.GetValues<ScriptingShell>())
+                            {
+                                <option @key="shell" value="@shell">@EnumLabels.Get(shell)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-sm-6 col-lg-4">
+                        <label class="form-label" for="script-folder">Pasta</label>
+                        <InputText id="script-folder" class="form-control" list="script-folders" @bind-Value="_selectedScript.FolderPath" placeholder="Ex.: manutencao/windows" />
+                        <datalist id="script-folders">
+                            @foreach (var folder in ParentPage.KnownFolders)
+                            {
+                                <option value="@folder"></option>
+                            }
+                        </datalist>
+                        <ValidationMessage For="() => _selectedScript.FolderPath" />
+                    </div>
+                </div>
+
+                <div class="editor-switches">
+                    <label class="switch-card">
+                        <div class="form-check form-switch m-0">
+                            <InputCheckbox class="form-check-input" role="switch" @bind-Value="_selectedScript.IsPublic" />
+                        </div>
+                        <span><strong>Público</strong><small>Outros usuários da organização podem ver e executar.</small></span>
+                    </label>
+                    <label class="switch-card">
+                        <div class="form-check form-switch m-0">
+                            <InputCheckbox class="form-check-input" role="switch" @bind-Value="_selectedScript.IsQuickScript" />
+                        </div>
+                        <span><strong>Script rápido</strong><small>Aparece em "Scripts rápidos" no terminal da tela de dispositivos.</small></span>
+                    </label>
+                </div>
+
+                <div class="code-editor">
+                    <div class="code-editor-bar">
+                        <span class="shell-tag shell-@_selectedScript.Shell.ToString().ToLowerInvariant()">@EnumLabels.Get(_selectedScript.Shell)</span>
+                        <span class="ms-auto">@LineCount linha(s)</span>
+                    </div>
+                    <InputTextArea @bind-Value="_selectedScript.Content"
+                                   class="code-editor-input"
+                                   spellcheck="false"
+                                   autocomplete="off"
+                                   rows="16"
+                                   placeholder="@GetPlaceholder()" />
+                </div>
                 <ValidationMessage For="() => _selectedScript.Content" />
-            </div>
-        </div>
-    </EditForm>
-    <div class="tree-view-wrapper-grid h-100 pb-3">
-        <div>
-            <h5>Scripts salvos</h5>
-            <div>
-                <input type="checkbox" @bind="ParentPage.ShowOnlyMyScripts" />
-                <span class="align-top">Mostrar só os meus</span>
-            </div>
-        </div>
-        <TreeView DataSource="ParentPage.TreeNodes"
-                  ItemTypeSelector="x => x.ItemType"
-                  ItemHeaderSelector="x => x.Name"
-                  ItemSelected="ScriptSelected"
-                  ChildItemSelector="x => x.ChildItems"
-                  ItemIconCssSelector="ParentPage.GetItemIconCss"
-                  KeySelector="x => x.Id"
-                  WrapperStyle="border: 1px solid gray; padding: .5em; height: 100%; border-radius: 5px;"
-                  T="ScriptTreeNode" />
-    </div>
+
+                <details class="editor-section">
+                    <summary><i class="fa-regular fa-bell"></i> Alertas quando o script der erro</summary>
+                    <div class="editor-section-body">
+                        <p class="form-text mt-0">
+                            Conta como erro qualquer saída de erro. No CMD, Windows PowerShell e Bash, código de saída diferente de 0 também.
+                            No PowerShell 7, use <code>Write-Error</code> ou <code>Write-Warning</code>.
+                        </p>
+                        <div class="row g-3 align-items-end">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    <InputCheckbox id="alert-on-error" class="form-check-input" role="switch" @bind-Value="_selectedScript.GenerateAlertOnError" />
+                                    <label class="form-check-label" for="alert-on-error">Gerar alerta no painel</label>
+                                </div>
+                                <div class="form-check form-switch mt-2">
+                                    <InputCheckbox id="email-on-error" class="form-check-input" role="switch" @bind-Value="_selectedScript.SendEmailOnError" />
+                                    <label class="form-check-label" for="email-on-error">Enviar e-mail</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="error-email">E-mail para avisos</label>
+                                <InputText id="error-email" type="email" class="form-control" disabled="@(!_selectedScript.SendEmailOnError)"
+                                           @bind-Value="_selectedScript.SendErrorEmailTo" placeholder="ti@empresa.com.br" />
+                                <ValidationMessage For="() => _selectedScript.SendErrorEmailTo" />
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                <details class="editor-section">
+                    <summary><i class="fa-solid fa-code"></i> Variáveis de ambiente disponíveis</summary>
+                    <div class="editor-section-body">
+                        <dl class="detail-list">
+                            <dt><code>DeviceId</code></dt>
+                            <dd>ID do computador que está executando o script.</dd>
+                            <dt><code>ServerUrl</code></dt>
+                            <dd>Endereço do servidor Remotely ao qual o agente está conectado.</dd>
+                        </dl>
+                        <p class="form-text mb-0">
+                            No PowerShell: <code>$env:DeviceId</code> · no CMD: <code>%DeviceId%</code> · no Bash: <code>$DeviceId</code>
+                        </p>
+                    </div>
+                </details>
+            </fieldset>
+        </EditForm>
+    </section>
 </div>

@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Remotely.Server.Components.Pages;
+using Remotely.Server.Enums;
 using Remotely.Server.Hubs;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
@@ -13,22 +14,16 @@ namespace Remotely.Server.Components.Scripts;
 public partial class RunScript : AuthComponentBase
 {
     private readonly List<string> _selectedDeviceGroups = new();
-
     private readonly List<string> _selectedDevices = new();
-
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
-
     private Device[] _devices = Array.Empty<Device>();
-
     private bool _runOnNextConnect = true;
-
+    private bool _isRunning;
+    private string? _lastRun;
     private SavedScript? _selectedScript;
 
     [Inject]
     private IDataService DataService { get; init; } = null!;
-
-    [Inject]
-    private IJsInterop JsInterop { get; init; } = null!;
 
     [Inject]
     private IToastService ToastService { get; init; } = null!;
@@ -39,60 +34,37 @@ public partial class RunScript : AuthComponentBase
     [Inject]
     private ICircuitConnection CircuitConnection { get; init; } = null!;
 
+    [Inject]
+    private ILogger<RunScript> Logger { get; init; } = null!;
+
     [CascadingParameter]
     private ScriptsPage ParentPage { get; init; } = null!;
 
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            JsInterop.AutoHeight();
-        }
-        base.OnAfterRender(firstRender);
-    }
+    private bool CanRun => _selectedScript is not null && TargetDeviceIds.Count > 0;
+
+    private List<string> TargetDeviceIds => _devices
+        .Where(x =>
+            _selectedDevices.Contains(x.ID) ||
+            (x.DeviceGroupID is not null && _selectedDeviceGroups.Contains(x.DeviceGroupID)))
+        .Select(x => x.ID)
+        .ToList();
+
+    private int OnlineTargetCount => _devices.Count(x => x.IsOnline && TargetDeviceIds.Contains(x.ID));
 
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
         EnsureUserSet();
+
         _deviceGroups = DataService.GetDeviceGroups(UserName);
         _devices = DataService
             .GetDevicesForUser(UserName)
             .OrderBy(x => x.DeviceName)
             .ToArray();
-    }
 
-    private void DeviceGroupSelectedChanged(ChangeEventArgs args, DeviceGroup deviceGroup)
-    {
-        if (args.Value is not bool isSelected)
+        if (ParentPage.TakePendingScriptId() is Guid pendingId)
         {
-            return;
-        }
-        
-        if (isSelected)
-        {
-            _selectedDeviceGroups.Add(deviceGroup.ID);
-        }
-        else
-        {
-            _selectedDeviceGroups.RemoveAll(x => x == deviceGroup.ID);
-        }
-    }
-
-    private void DeviceSelectedChanged(ChangeEventArgs args, Device device)
-    {
-        if (args.Value is not bool isSelected)
-        {
-            return;
-        }
-
-        if (isSelected)
-        {
-            _selectedDevices.Add(device.ID);
-        }
-        else
-        {
-            _selectedDevices.RemoveAll(x => x == device.ID);
+            await LoadScript(pendingId);
         }
     }
 
@@ -100,75 +72,64 @@ public partial class RunScript : AuthComponentBase
     {
         EnsureUserSet();
 
-        if (_selectedScript is null)
+        if (_selectedScript is null || TargetDeviceIds.Count == 0)
         {
-            ToastService.ShowToast("Selecione um script.", classString: "bg-warning");
             return;
         }
 
-        if (!_selectedDeviceGroups.Any() &&
-            !_selectedDevices.Any())
+        _isRunning = true;
+        try
         {
-            ToastService.ShowToast("Selecione pelo menos um dispositivo ou grupo.", classString: "bg-warning");
-            return;
+            var filteredDevices = DataService.FilterDeviceIdsByUserPermission(TargetDeviceIds.ToArray(), User);
+            var onlineDevices = ServiceSessionCache.FilterDevicesByOnlineStatus(filteredDevices, true).ToArray();
+
+            var scriptRun = new ScriptRun()
+            {
+                OrganizationID = User.OrganizationID,
+                RunAt = Time.Now,
+                SavedScriptId = _selectedScript.Id,
+                RunOnNextConnect = _runOnNextConnect,
+                InputType = ScriptInputType.OneTimeScript,
+                Initiator = User.UserName,
+                Devices = DataService.GetDevices(_runOnNextConnect ? filteredDevices : onlineDevices)
+            };
+
+            await DataService.AddScriptRun(scriptRun);
+            await CircuitConnection.RunScript(onlineDevices, _selectedScript.Id, scriptRun.Id, ScriptInputType.OneTimeScript, false);
+
+            var pending = scriptRun.Devices.Count - onlineDevices.Length;
+            _lastRun = pending > 0
+                ? $"Rodando agora em {onlineDevices.Length} dispositivo(s); {pending} vão executar quando conectarem."
+                : $"Rodando agora em {onlineDevices.Length} dispositivo(s).";
+
+            ToastService.ShowToast2(_lastRun, ToastType.Success);
         }
-
-        var deviceIdsFromDeviceGroups = _devices
-            .Where(x => _selectedDeviceGroups.Contains(x.DeviceGroupID!))
-            .Select(x => x.ID);
-
-        var deviceIds = _selectedDevices
-            .Concat(deviceIdsFromDeviceGroups)
-            .Distinct()
-            .ToArray();
-
-        var filteredDevices = DataService.FilterDeviceIdsByUserPermission(deviceIds.ToArray(), User);
-
-        var onlineDevices = ServiceSessionCache.FilterDevicesByOnlineStatus(filteredDevices, true);
-
-        var scriptRun = new ScriptRun()
+        catch (Exception ex)
         {
-            OrganizationID = User.OrganizationID,
-            RunAt = Time.Now,
-            SavedScriptId = _selectedScript.Id,
-            RunOnNextConnect = _runOnNextConnect,
-            InputType = ScriptInputType.OneTimeScript,
-            Initiator = User.UserName
-        };
-
-        if (_runOnNextConnect)
-        {
-            scriptRun.Devices = DataService.GetDevices(filteredDevices);
+            Logger.LogError(ex, "Error while running script.");
+            ToastService.ShowToast2("Falha ao executar o script.", ToastType.Error);
         }
-        else
+        finally
         {
-            scriptRun.Devices = DataService.GetDevices(onlineDevices);
+            _isRunning = false;
         }
-
-        await DataService.AddScriptRun(scriptRun);
-
-        ToastService.ShowToast($"Execução criada para {scriptRun.Devices.Count} dispositivo(s).");
-
-        await CircuitConnection.RunScript(onlineDevices, _selectedScript.Id, scriptRun.Id, ScriptInputType.OneTimeScript, false);
-
-        ToastService.ShowToast($"Executando o script agora em {onlineDevices.Count()} dispositivo(s).");
     }
 
-    private async Task ScriptSelected(ScriptTreeNode viewModel)
+    private void OnTargetsChanged()
+    {
+        _lastRun = null;
+    }
+
+    private async Task ScriptSelected(SavedScript script)
+    {
+        await LoadScript(script.Id);
+    }
+
+    private async Task LoadScript(Guid scriptId)
     {
         EnsureUserSet();
-
-        if (viewModel.Script is not null)
-        {
-            var scriptResult = await DataService.GetSavedScript(User.Id, viewModel.Script.Id);
-            if (scriptResult.IsSuccess)
-            {
-                _selectedScript = scriptResult.Value;
-            }
-        }
-        else
-        {
-            _selectedScript = null;
-        }
+        var result = await DataService.GetSavedScript(User.Id, scriptId);
+        _selectedScript = result.IsSuccess ? result.Value : null;
+        _lastRun = null;
     }
 }

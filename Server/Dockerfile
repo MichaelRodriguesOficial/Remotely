@@ -20,20 +20,36 @@ WORKDIR /src
 COPY Directory.Build.props ./
 COPY Shared/Shared.csproj Shared/
 COPY Server/Server.csproj Server/
-RUN dotnet restore Server/Server.csproj
+RUN dotnet restore Server/Server.csproj -r linux-x64
 
 COPY Shared/ Shared/
 COPY Server/ Server/
 
 # Os .js do viewer já estão versionados, então o build do TypeScript (que
 # exigiria Node.js) é desativado aqui.
+# Publicado para linux-x64 (o mesmo do pacote do release), usando o runtime da imagem.
 RUN dotnet publish Server/Server.csproj \
     -c Release \
+    -r linux-x64 \
+    --self-contained false \
     -o /app/publish \
     --no-restore \
+    -p:DebugType=None \
     -p:TypeScriptCompileBlocked=true \
     -p:Version=${VERSION} \
     -p:InformationalVersion=${VERSION}
+
+# O script do Blazor (_framework/blazor.web.js) é o que liga os botões e formulários.
+# Garante que ele está na imagem; se o publish não o copiou, usa o do pacote do framework.
+RUN set -e; \
+    if [ ! -f /app/publish/wwwroot/_framework/blazor.web.js ]; then \
+        echo "blazor.web.js ausente no publish; copiando do pacote do ASP.NET Core"; \
+        SRC=$(find /root/.nuget/packages /usr/share/dotnet -name blazor.web.js -path "*_framework*" 2>/dev/null | sort -V | tail -1); \
+        test -n "$SRC"; \
+        mkdir -p /app/publish/wwwroot/_framework; \
+        cp "$(dirname "$SRC")"/blazor.* /app/publish/wwwroot/_framework/; \
+    fi; \
+    ls -la /app/publish/wwwroot/_framework
 
 # ---------- Instaladores dos agents ----------
 FROM alpine:3.20 AS content

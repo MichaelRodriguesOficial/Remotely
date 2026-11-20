@@ -1485,3 +1485,24 @@ label, .form-label {
 #components-reconnect-modal.components-reconnect-failed .rm-reconnect-actions button.rm-reconnect-failed-text { display: inline-flex; }
 
 .auth-footer-links .auth-credit { flex-basis: 100%; color: #64748b; font-size: 0.8rem; }
+
+/* Contador nas abas */
+.nav-tabs .tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4rem;
+    height: 1.25rem;
+    padding: 0 0.4rem;
+    margin-left: 0.35rem;
+    border-radius: 999px;
+    background: var(--rm-surface-3);
+    color: var(--rm-text-muted);
+    font-size: 0.72rem;
+    font-weight: 650;
+}
+
+.nav-tabs .nav-link.active .tab-count {
+    background: rgba(var(--rm-accent-rgb), 0.18);
+    color: var(--rm-accent);
+}

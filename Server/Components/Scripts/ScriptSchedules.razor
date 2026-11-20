@@ -1,146 +1,122 @@
-﻿@inherits AuthComponentBase
+@inherits AuthComponentBase
 @attribute [Authorize]
 
-
-<h4 class="mt-3">Adicionar ou editar agendamento</h4>
-
-<EditForm Model="_selectedSchedule" OnValidSubmit="OnValidSubmit">
-    <div class="row">
-        <DataAnnotationsValidator />
-
-        <div class="col-12">
-            <ValidationSummary />
+<div class="schedules">
+    <aside class="panel schedules-side">
+        <div class="panel-header mb-2">
+            <h2 class="panel-title"><i class="fa-regular fa-calendar"></i> Agendamentos</h2>
+            <button type="button" class="btn btn-sm btn-primary" @onclick="CreateNew"><i class="fa-solid fa-plus"></i> Novo</button>
         </div>
 
-        <div class="col-12">
-            <AlertBanner Message="@_alertMessage" OnClose="() => _alertMessage = string.Empty" />
-        </div>
-
-        <div class="mt-2 col-12">
-            <div>
-                <button type="submit" class="btn btn-primary align-middle me-3" disabled="@(!CanModifySchedule)">
-                    Salvar
-                </button>
-
-                <button type="button" class="btn btn-success me-3" @onclick="CreateNew">
-                    Novo
-                </button>
-                <button class="btn btn-danger me-4" type="button"
-                        disabled="@(!CanDeleteSchedule)"
-                        @onclick="DeleteSelectedSchedule">
-                    Excluir
-                </button>
-
-                <InputCheckbox class="me-2 align-middle" @bind-Value="_selectedSchedule.RunOnNextConnect" />
-                <span class="align-middle">Se os dispositivos estiverem offline, executar assim que conectarem</span>
-            </div>
-        </div>
-
-        <div class="mt-2 col-md-6 col-lg-4">
-            <div>
-                <label>Nome do agendamento</label>
-                <InputText class="form-control" @bind-Value="_selectedSchedule.Name" />
-            </div>
-        </div>
-
-        <div class="mt-2 col-md-6 col-lg-4">
-            <div>
-                <label>Início</label>
-                <input type="datetime-local" step="1" class="form-control" @bind="_selectedSchedule.StartAt" />
-            </div>
-        </div>
-
-
-        <div class="mt-2 col-md-6 col-lg-4">
-            <div>
-                <label>Intervalo de repetição</label>
-                <InputSelect @bind-Value="_selectedSchedule.Interval" class="form-control">
-                    @foreach (var interval in Enum.GetValues<RepeatInterval>())
-                    {
-                        <option @key="@interval" value="@interval">@EnumLabels.Get(interval)</option>
-                    }
-                </InputSelect>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="mt-2 col-md-6 col-lg-4">
-            <label>Scripts salvos</label>
-            <div class="small">
-                <input type="checkbox" @bind="ParentPage.ShowOnlyMyScripts" />
-                <span class="align-top">Mostrar só os meus</span>
-            </div>
-            <TreeView DataSource="ParentPage.TreeNodes"
-                      ItemTypeSelector="x => x.ItemType"
-                      ItemHeaderSelector="x => x.Name"
-                      ItemSelected="ScriptSelected"
-                      ChildItemSelector="x => x.ChildItems"
-                      ItemIconCssSelector="ParentPage.GetItemIconCss"
-                      KeySelector="x => x.Id"
-                      WrapperStyle="border: 1px solid gray; padding: .5em; height: 300px; border-radius: 5px;"
-                      T="ScriptTreeNode" />
-        </div>
-
-        <div class="mt-2 col-md-6 col-lg-4">
-            <label>Grupos de dispositivos</label>
-            <div class="item-list-border">
-                @foreach (var deviceGroup in _deviceGroups)
-                {
-                    <div @key="@deviceGroup.ID">
-                        <input class="me-1" type="checkbox"
-                               checked="@(_selectedDeviceGroups.Contains(deviceGroup.ID))"
-                               @onchange="ev => DeviceGroupSelectedChanged(ev, deviceGroup)" />
-
-                        <span class="align-top">@deviceGroup.Name</span>
-                    </div>
-                }
-            </div>
-        </div>
-
-        <div class="mt-2 col-md-6 col-lg-4">
-            <label>Dispositivos</label>
-            <div class="item-list-border">
-                @foreach (var device in _devices)
-                {
-                    <div @key="@device.ID">
-                        <input class="me-1" type="checkbox"
-                               checked="@(_selectedDevices.Contains(device.ID))"
-                               @onchange="ev => DeviceSelectedChanged(ev, device)" />
-
-                        <span class="align-top">@device.DeviceName</span>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-
-</EditForm>
-   
-
-<h4 class="mt-5">Agendamentos salvos</h4>
-<table class="table table-hover">
-    <thead>
-        <tr>
-            <th>Nome do script</th>
-            <th>Intervalo de repetição</th>
-            <th>Próxima execução</th>
-            <th>Última execução</th>
-            <th>Criado em</th>
-            <th>Criado por</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var schedule in _schedules)
+        @if (_schedules.Count == 0)
         {
-            <tr @key="schedule.Id" style="cursor: pointer" @onclick="async () => await SelectTableRow(schedule)" class="@GetTableRowClass(schedule)">
-                <td>@schedule.Name</td>
-                <td>@EnumLabels.Get(schedule.Interval)</td>
-                <td>@schedule.NextRun</td>
-                <td>@schedule.LastRun</td>
-                <td>@schedule.CreatedAt</td>
-                <td>@schedule.Creator?.UserName</td>
-            </tr>
+            <div class="script-list-empty-lite">
+                <i class="fa-regular fa-calendar-xmark"></i>
+                <span>Nenhum agendamento.</span>
+            </div>
         }
-    </tbody>
-</table>
+
+        <div class="schedule-list">
+            @foreach (var schedule in _schedules.OrderBy(x => x.NextRun))
+            {
+                <button type="button" @key="schedule.Id"
+                        class="schedule-item @(schedule.Id == _selectedSchedule.Id && !IsNew ? "active" : "")"
+                        @onclick="() => SelectSchedule(schedule)">
+                    <span class="schedule-item-name truncate">@schedule.Name</span>
+                    <span class="schedule-item-meta">
+                        <i class="fa-solid fa-repeat"></i> @EnumLabels.Get(schedule.Interval)
+                        · próxima @schedule.NextRun.ToLocalTime().ToString("dd/MM HH:mm")
+                    </span>
+                    <span class="schedule-item-meta">
+                        <i class="fa-regular fa-file-code"></i> @GetScriptName(schedule.SavedScriptId)
+                    </span>
+                </button>
+            }
+        </div>
+    </aside>
+
+    <section class="panel">
+        <EditForm Model="_selectedSchedule" OnValidSubmit="OnValidSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="editor-head-lite">
+                <div class="min-w-0">
+                    <h2 class="panel-title">@(IsNew ? "Novo agendamento" : _selectedSchedule.Name)</h2>
+                    @if (!IsNew)
+                    {
+                        <p class="panel-description">
+                            Criado por @(_selectedSchedule.Creator?.UserName ?? "—") em @_selectedSchedule.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")
+                            · última execução: @(_selectedSchedule.LastRun?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "nunca")
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="panel-description">Escolha o script, quando rodar e em quais computadores.</p>
+                    }
+                </div>
+                <div class="d-flex gap-2">
+                    @if (!IsNew)
+                    {
+                        <button type="button" class="btn btn-outline-danger" disabled="@(!CanModifySchedule)" @onclick="DeleteSelectedSchedule">
+                            <i class="fa-solid fa-trash-can"></i> Excluir
+                        </button>
+                    }
+                    <button type="submit" class="btn btn-primary" disabled="@(!CanModifySchedule)">
+                        <i class="fa-solid fa-floppy-disk"></i> Salvar
+                    </button>
+                </div>
+            </div>
+
+            <ValidationSummary />
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <label class="form-label" for="schedule-name">Nome</label>
+                    <input id="schedule-name" class="form-control" @bind="_selectedSchedule.Name" @bind:event="oninput" placeholder="Ex.: Limpeza semanal dos PCs do financeiro" />
+                </div>
+                <div class="col-lg-6">
+                    <label class="form-label" for="schedule-script">Script</label>
+                    <select id="schedule-script" class="form-select" value="@(_selectedScriptId?.ToString() ?? string.Empty)" @onchange="ScriptChanged">
+                        <option value="">Selecione...</option>
+                        @foreach (var folder in ScriptsByFolder)
+                        {
+                            <optgroup label="@folder.Key">
+                                @foreach (var script in folder.OrderBy(x => x.Name))
+                                {
+                                    <option value="@script.Id">@script.Name (@EnumLabels.ShortShell(script.Shell))</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <label class="form-label" for="schedule-start">Primeira execução</label>
+                    <input id="schedule-start" type="datetime-local" class="form-control" @bind="StartAtLocal" />
+                </div>
+                <div class="col-sm-6 col-lg-4">
+                    <label class="form-label" for="schedule-interval">Repetir</label>
+                    <InputSelect id="schedule-interval" @bind-Value="_selectedSchedule.Interval" class="form-select">
+                        @foreach (var interval in Enum.GetValues<RepeatInterval>())
+                        {
+                            <option @key="@interval" value="@interval">@EnumLabels.Get(interval)</option>
+                        }
+                    </InputSelect>
+                </div>
+                <div class="col-lg-4 d-flex align-items-end">
+                    <label class="switch-card w-100">
+                        <div class="form-check form-switch m-0">
+                            <InputCheckbox class="form-check-input" role="switch" @bind-Value="_selectedSchedule.RunOnNextConnect" />
+                        </div>
+                        <span><strong>Recuperar atrasados</strong><small>Offline no horário? Executa quando conectar.</small></span>
+                    </label>
+                </div>
+            </div>
+
+            <h3 class="section-title mt-4">Onde executar</h3>
+            <TargetPicker DeviceGroups="_deviceGroups"
+                          Devices="_devices"
+                          SelectedGroupIds="_selectedDeviceGroups"
+                          SelectedDeviceIds="_selectedDevices" />
+        </EditForm>
+    </section>
+</div>
