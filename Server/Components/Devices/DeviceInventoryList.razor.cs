@@ -120,7 +120,99 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         new("group", "Grupo", r => r.GroupName),
         new("agent", "Agente", r => r.Device.AgentVersion),
         new("inventory", "Último inventário", r => r.Device.InventoryUpdatedAt),
+        new("ip", "IP público", r => r.Device.PublicIP),
+        new("tags", "Tags", r => r.Device.Tags),
+        new("lastseen", "Última conexão", r => r.Device.LastOnline),
     ];
+
+    /// <summary>Colunas que existem mas começam ocultas.</summary>
+    private static readonly HashSet<string> HiddenByDefault = ["ip", "tags", "lastseen"];
+
+    private List<string> _visibleColumns = DefaultColumns();
+    private string? _dragKey;
+
+    private static List<string> DefaultColumns() =>
+        Columns.Skip(1).Where(x => !HiddenByDefault.Contains(x.Key)).Select(x => x.Key).ToList();
+
+    /// <summary>"Nome" sempre primeiro; o resto na ordem escolhida pelo usuário.</summary>
+    private IEnumerable<ColumnInfo> VisibleColumns =>
+        [Columns[0], .. _visibleColumns.Select(key => Columns.First(c => c.Key == key))];
+
+    private IEnumerable<(ColumnInfo Column, bool Visible)> ColumnChoices =>
+        VisibleColumns.Skip(1).Select(x => (x, true))
+            .Concat(Columns.Skip(1).Where(x => !_visibleColumns.Contains(x.Key)).Select(x => (x, false)));
+
+    private void LoadColumns()
+    {
+        var saved = User?.UserOptions?.InventoryColumns;
+        if (saved is null)
+        {
+            _visibleColumns = DefaultColumns();
+            return;
+        }
+
+        var valid = Columns.Skip(1).Select(x => x.Key).ToHashSet();
+        _visibleColumns = saved.Where(valid.Contains).Distinct().ToList();
+    }
+
+    private async Task SaveColumns()
+    {
+        if (User is null)
+        {
+            return;
+        }
+
+        User.UserOptions ??= new Remotely.Shared.Models.RemotelyUserOptions();
+        User.UserOptions.InventoryColumns = _visibleColumns.SequenceEqual(DefaultColumns()) ? null : _visibleColumns.ToList();
+        await DataService.UpdateUserOptions($"{User.UserName}", User.UserOptions);
+    }
+
+    private async Task ToggleColumn(string key, bool visible)
+    {
+        if (visible && !_visibleColumns.Contains(key))
+        {
+            _visibleColumns.Add(key);
+        }
+        else if (!visible)
+        {
+            _visibleColumns.Remove(key);
+        }
+        await SaveColumns();
+    }
+
+    private async Task MoveColumn(string key, int delta)
+    {
+        var index = _visibleColumns.IndexOf(key);
+        var target = index + delta;
+        if (index < 0 || target < 0 || target >= _visibleColumns.Count)
+        {
+            return;
+        }
+        (_visibleColumns[index], _visibleColumns[target]) = (_visibleColumns[target], _visibleColumns[index]);
+        await SaveColumns();
+    }
+
+    private async Task DropColumn(string targetKey)
+    {
+        var key = _dragKey;
+        _dragKey = null;
+        if (key is null || key == targetKey || !_visibleColumns.Contains(key) || !_visibleColumns.Contains(targetKey))
+        {
+            return;
+        }
+
+        var from = _visibleColumns.IndexOf(key);
+        var to = _visibleColumns.IndexOf(targetKey);
+        _visibleColumns.RemoveAt(from);
+        _visibleColumns.Insert(to, key);
+        await SaveColumns();
+    }
+
+    private async Task ResetColumns()
+    {
+        _visibleColumns = DefaultColumns();
+        await SaveColumns();
+    }
 
     private static readonly string[] ExportColumns =
     [
@@ -192,6 +284,7 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         EnsureUserSet();
 
         _nameFormat = (await DataService.GetSettings()).UserNameDisplayFormat;
+        LoadColumns();
         _groups = DataService.GetDeviceGroups(UserName)
             .GroupBy(x => x.ID)
             .ToDictionary(x => x.Key, x => x.First().Name);

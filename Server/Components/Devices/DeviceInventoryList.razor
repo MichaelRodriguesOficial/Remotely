@@ -63,6 +63,51 @@
             }
         </ul>
     </div>
+
+    <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+            <i class="fa-solid fa-table-columns"></i> Colunas
+        </button>
+        <div class="dropdown-menu dropdown-menu-end inv-columns">
+            <div class="inv-columns-head">
+                <strong>Colunas da lista</strong>
+                <button type="button" class="btn btn-ghost btn-sm" @onclick="ResetColumns">Restaurar padrão</button>
+            </div>
+            <p class="inv-columns-hint">Arraste ou use as setas para mudar a ordem. "Nome" fica sempre na primeira posição.</p>
+            <div class="inv-column inv-column-fixed">
+                <i class="fa-solid fa-lock"></i>
+                <span>Nome</span>
+            </div>
+            @foreach (var (column, visible) in ColumnChoices)
+            {
+                var key = column.Key;
+                var index = _visibleColumns.IndexOf(key);
+                <div @key="key"
+                     class="inv-column @(visible ? "" : "hidden-col") @(_dragKey == key ? "dragging" : "")"
+                     draggable="@(visible ? "true" : "false")"
+                     @ondragstart="() => _dragKey = key"
+                     @ondragend="() => _dragKey = null"
+                     @ondragover:preventDefault
+                     @ondrop="() => DropColumn(key)">
+                    <i class="fa-solid fa-grip-vertical inv-column-grip"></i>
+                    <label class="form-check m-0 flex-grow-1">
+                        <input type="checkbox" class="form-check-input" checked="@visible"
+                               @onchange="e => ToggleColumn(key, e.Value is true)" />
+                        <span class="form-check-label">@column.Label</span>
+                    </label>
+                    @if (visible)
+                    {
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Subir" disabled="@(index <= 0)" @onclick="() => MoveColumn(key, -1)">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Descer" disabled="@(index >= _visibleColumns.Count - 1)" @onclick="() => MoveColumn(key, 1)">
+                            <i class="fa-solid fa-arrow-down"></i>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
 </div>
 
 @if (_criteria.Count > 0)
@@ -143,7 +188,7 @@ else
         <table class="table table-hover">
             <thead>
                 <tr>
-                    @foreach (var column in Columns)
+                    @foreach (var column in VisibleColumns)
                     {
                         <th class="@(column.Key == _sortKey ? "sorted" : "")" @onclick="() => SortBy(column.Key)" role="button" title="Ordenar por @column.Label">
                             @column.Label
@@ -166,51 +211,108 @@ else
                                 <div class="small text-muted">@row.Device.Alias</div>
                             }
                         </td>
-                        <td class="text-nowrap">
-                            @if (row.Diagnostic is { } diag)
-                            {
-                                <a href="@($"/device-details/{row.Device.ID}/diagnostics")" title="@DiagnosticTitle(diag)"
-                                   class="pill no-dot @(diag.Status switch { DiagnosticStatus.Error => "danger", DiagnosticStatus.Warning => "warning", _ => "success" })">
-                                    <i class="fa-solid @(diag.Status switch { DiagnosticStatus.Error => "fa-circle-xmark", DiagnosticStatus.Warning => "fa-triangle-exclamation", _ => "fa-circle-check" })"></i>
-                                    @(diag.Status switch { DiagnosticStatus.Error => "Problema", DiagnosticStatus.Warning => "Atenção", _ => "Ok" })
-                                </a>
-                                @if (diag.Issues.Count > 0)
-                                {
-                                    <div class="small text-muted inv-diag-issues">@string.Join(", ", diag.Issues.Select(x => x.Name))</div>
-                                }
-                            }
-                            else
-                            {
-                                <span class="text-muted small">—</span>
-                            }
-                        </td>
-                        <td>@row.UserDisplay</td>
-                        <td>@row.Device.Location</td>
-                        <td>
-                            @if (row.Device.IsOnline)
-                            {
-                                <span class="pill success">Online</span>
-                            }
-                            else
-                            {
-                                <span class="pill" title="Última conexão">@row.LastSeen</span>
-                            }
-                        </td>
-                        <td class="mono small">@row.Device.SerialNumber</td>
-                        <td>@row.Device.DeviceType</td>
-                        <td>@row.Device.Manufacturer</td>
-                        <td>@row.Device.Model</td>
-                        <td>@row.OsName</td>
-                        <td class="small">@row.Device.ProcessorName</td>
-                        <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalMemory)</td>
-                        <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalStorage)</td>
-                        <td>@row.Device.AssetTag</td>
-                        <td>@row.GroupName</td>
-                        <td class="small text-nowrap">@row.Device.AgentVersion</td>
-                        <td class="small text-nowrap">@row.Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                        @foreach (var column in VisibleColumns.Skip(1))
+                        {
+                            @Cell(row, column.Key)
+                        }
                     </tr>
                 }
             </tbody>
         </table>
     </div>
+}
+
+@code {
+    private RenderFragment Cell(Row row, string key) => __builder =>
+    {
+        switch (key)
+        {
+            case "diagnostic":
+                <td class="text-nowrap">
+                    @if (row.Diagnostic is { } diag)
+                    {
+                        <a href="@($"/device-details/{row.Device.ID}/diagnostics")" title="@DiagnosticTitle(diag)"
+                           class="pill no-dot @(diag.Status switch { DiagnosticStatus.Error => "danger", DiagnosticStatus.Warning => "warning", _ => "success" })">
+                            <i class="fa-solid @(diag.Status switch { DiagnosticStatus.Error => "fa-circle-xmark", DiagnosticStatus.Warning => "fa-triangle-exclamation", _ => "fa-circle-check" })"></i>
+                            @(diag.Status switch { DiagnosticStatus.Error => "Problema", DiagnosticStatus.Warning => "Atenção", _ => "Ok" })
+                        </a>
+                        @if (diag.Issues.Count > 0)
+                        {
+                            <div class="small text-muted inv-diag-issues">@string.Join(", ", diag.Issues.Select(x => x.Name))</div>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted small">—</span>
+                    }
+                </td>
+                break;
+            case "user":
+                <td>@row.UserDisplay</td>
+                break;
+            case "location":
+                <td>@row.Device.Location</td>
+                break;
+            case "status":
+                <td>
+                    @if (row.Device.IsOnline)
+                    {
+                        <span class="pill success">Online</span>
+                    }
+                    else
+                    {
+                        <span class="pill" title="Última conexão">@row.LastSeen</span>
+                    }
+                </td>
+                break;
+            case "serial":
+                <td class="mono small">@row.Device.SerialNumber</td>
+                break;
+            case "type":
+                <td>@row.Device.DeviceType</td>
+                break;
+            case "manufacturer":
+                <td>@row.Device.Manufacturer</td>
+                break;
+            case "model":
+                <td>@row.Device.Model</td>
+                break;
+            case "os":
+                <td>@row.OsName</td>
+                break;
+            case "cpu":
+                <td class="small inv-col-cpu">@row.Device.ProcessorName</td>
+                break;
+            case "memory":
+                <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalMemory)</td>
+                break;
+            case "disk":
+                <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalStorage)</td>
+                break;
+            case "asset":
+                <td>@row.Device.AssetTag</td>
+                break;
+            case "group":
+                <td>@row.GroupName</td>
+                break;
+            case "agent":
+                <td class="small text-nowrap">@row.Device.AgentVersion</td>
+                break;
+            case "inventory":
+                <td class="small text-nowrap">@row.Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                break;
+            case "ip":
+                <td class="mono small">@row.Device.PublicIP</td>
+                break;
+            case "tags":
+                <td class="small">@row.Device.Tags</td>
+                break;
+            case "lastseen":
+                <td class="small text-nowrap">@(row.Device.LastOnline == default ? "" : row.Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))</td>
+                break;
+            default:
+                <td></td>
+                break;
+        }
+    };
 }

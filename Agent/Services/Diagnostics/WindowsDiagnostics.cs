@@ -341,11 +341,12 @@ internal static class WindowsDiagnostics
             if (external)
             {
                 var name = ToText(Get(disk, "FriendlyName")) ?? (removedLetter is { } r ? $"unidade {r}: (removida)" : "unidade removida");
+                // Só informativo: não afeta o Windows e não há o que reparar no computador.
                 test.Items.Add(Item(
                     $"Erros de disco: {name} (externa)",
                     value,
-                    recent > 0 ? DiagnosticStatus.Warning : DiagnosticStatus.Info,
-                    $"Pen drive, HD externo ou cartão (eventos {ids}). Normalmente é retirada sem \"Ejetar\" ou mídia com defeito; não afeta o Windows.",
+                    DiagnosticStatus.Info,
+                    $"Pen drive, HD externo ou cartão (eventos {ids}). Normalmente é retirada sem \"Ejetar\" ou mídia com defeito. Não afeta o computador; se a unidade for importante, teste-a em outra máquina.",
                     group));
                 continue;
             }

@@ -24,4 +24,7 @@ public class RemotelyUserOptions
 
     [Display(Name = "Theme")]
     public Theme Theme { get; set; }
+
+    /// <summary>Colunas visíveis da lista do Inventário, na ordem escolhida (null = padrão). "Nome" é fixa.</summary>
+    public List<string>? InventoryColumns { get; set; }
 }

@@ -6,6 +6,11 @@
 - **Histórico de scripts** do dispositivo redesenhado, sem o pop-up "Entrada/saída do script": cada execução abre ali mesmo, em estilo terminal (comando, saída e erros), com status de sucesso/erro, shell, usuário e duração.
 - Busca no comando e na saída, filtro Todos / Sucesso / Com erro, botões **Copiar comando**, **Copiar saída** e **Executar de novo** (abre o terminal do dispositivo com o comando preenchido) e botão **Terminal** no topo.
 
+- **Colunas da lista do Inventário configuráveis**: botão **Colunas** para mostrar/ocultar e mudar a ordem (arrastando ou pelas setas). "Nome" fica sempre primeiro. A escolha fica salva no seu usuário; "Restaurar padrão" volta ao original. Novas colunas opcionais: IP público, Tags e Última conexão.
+
+### Diagnóstico
+- Erros de disco de pen drive, HD externo ou cartão (inclusive unidades já removidas) agora são só **informativos**: não deixam mais o computador com "Atenção" no Inventário, porque não afetam o Windows e não há reparo a fazer no computador.
+
 ### Correções
 - Acentos trocados na saída do CMD e do Windows PowerShell ("versÆo", "J  existe"): o agente agora lê e escreve na página de código do console do Windows (850 em pt-BR). Vale também para os testes de diagnóstico.
 - O CMD não repete mais o cabeçalho "Microsoft Windows [versão...]" e o prompt com o comando na saída.
