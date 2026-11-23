@@ -13,6 +13,9 @@ namespace Remotely.Server.API;
 
 [Route("api/[controller]")]
 [ApiController]
+// O nome do arquivo leva o endereço do servidor; sem isso o navegador pode
+// reaproveitar um download antigo (com outro endereço ou esquema).
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class ClientDownloadsController : ControllerBase
 {
     // Controllers are created per request, so the lock must be static to

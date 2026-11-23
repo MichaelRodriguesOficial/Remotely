@@ -8,6 +8,9 @@ namespace Remotely.Server.API;
 
 [Route("api/custom-binaries")]
 [ApiController]
+// O nome do arquivo leva o endereço do servidor; sem isso o navegador pode
+// reaproveitar um download antigo (com outro endereço ou esquema).
+[ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class CustomBinariesController(
     IDataService _dataService,
     IWebHostEnvironment _hostingEnvironment,

@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1 — 2026-11-23
+
+### Correções
+- Downloads do cliente de suporte e dos instaladores com `Cache-Control: no-store`. Antes o navegador podia reaproveitar um download anterior e manter o nome antigo do arquivo (por exemplo, com `http~`), mesmo depois de o proxy ou o servidor já estarem corretos.
+
 ## v1.3.0 — 2026-11-23
 
 ### Inventário dos dispositivos

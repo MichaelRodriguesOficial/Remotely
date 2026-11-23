@@ -141,7 +141,16 @@ O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
 
 Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**. Mesmo sem os cabeçalhos, os downloads do cliente feitos a partir do painel em `https://` já saem apontando para `https://` (o nome não leva mais `http~`).
 
-Exemplo para Nginx (também vale para o "Proxy reverso" do aaPanel, colando no arquivo de configuração do site):
+No **aaPanel**, o proxy já vem com WebSocket e `X-Forwarded-For`; falta só o esquema. Em **Site → (seu site) → Proxy de URL → Config**, no campo "Catálogo Proxy", coloque:
+
+```nginx
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Host $host;
+```
+
+Não use as "Configurações personalizadas" do bloco `server`: o nginx não repassa `proxy_set_header` para uma `location` que já define os seus.
+
+Exemplo completo para Nginx:
 
 ```nginx
 location / {
