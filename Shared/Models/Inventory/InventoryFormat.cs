@@ -23,4 +23,24 @@ public static class InventoryFormat
         // Vírgula decimal sem depender de cultura instalada (contêineres usam modo invariante).
         return value.ToString(value >= 100 || unit == 0 ? "0" : "0.#", CultureInfo.InvariantCulture).Replace('.', ',') + " " + units[unit];
     }
+
+    /// <summary>
+    /// Esconde a chave do produto, deixando só o último bloco ("•••••-•••••-•••••-•••••-H9M7D").
+    /// Usado para quem não é administrador.
+    /// </summary>
+    public static string? MaskProductKey(string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            return key;
+        }
+
+        var parts = key.Split('-');
+        if (parts.Length < 2)
+        {
+            return new string('•', Math.Max(0, key.Length - 4)) + key[^Math.Min(4, key.Length)..];
+        }
+
+        return string.Join('-', parts.Select((part, index) => index == parts.Length - 1 ? part : new string('•', part.Length)));
+    }
 }

@@ -133,7 +133,7 @@ O `remotely_upgrade.sh` compara o SHA-256 do pacote de agents com o da instalaç
 
 ## HTTPS e proxy reverso
 
-Use um proxy reverso (Nginx, Caddy, Traefik) com HTTPS na frente do Remotely. Ele precisa repassar os cabeçalhos `X-Forwarded-Proto`, `X-Forwarded-Host` e `X-Forwarded-For`, além de suportar WebSockets.
+Use um proxy reverso (Nginx, Caddy, Traefik) com HTTPS na frente do Remotely. Ele precisa repassar o `Host` original e os cabeçalhos `X-Forwarded-Proto` e `X-Forwarded-For`, além de suportar WebSockets. O `X-Forwarded-Host` é ignorado de propósito (evita que alguém troque o endereço dos links de e-mail).
 
 O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
 
@@ -147,7 +147,6 @@ No **aaPanel**, o proxy já vem com WebSocket e `X-Forwarded-For`; falta só o e
 
 ```nginx
 proxy_set_header X-Forwarded-Proto $scheme;
-proxy_set_header X-Forwarded-Host $host;
 ```
 
 Não use as "Configurações personalizadas" do bloco `server`: o nginx não repassa `proxy_set_header` para uma `location` que já define os seus.
@@ -163,7 +162,6 @@ location / {
     proxy_set_header   Host $host;
     proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header   X-Forwarded-Proto $scheme;
-    proxy_set_header   X-Forwarded-Host $host;
     proxy_buffering    off;
     proxy_cache        off;
     proxy_read_timeout 1h;
@@ -182,7 +180,7 @@ Opções exclusivas deste fork (`ApplicationOptions`, ou variáveis `Remotely_Ap
 |---|---|---|
 | `EnableSwagger` | `true` | Publica a documentação da API em `/swagger`. Só abre para usuários logados no painel. |
 | `AllowedFrameAncestors` | vazio | Origens que podem exibir o Remotely em `<iframe>` (ex.: `https://glpi.suaempresa.com.br`). Vazio = só o próprio Remotely. |
-| `TrustPrivateNetworkProxies` | automático | Aceita `X-Forwarded-*` de proxies em redes privadas (10.x, 172.16–31.x, 192.168.x). Ligado por padrão no Docker. |
+| `TrustPrivateNetworkProxies` | automático | De quem aceitar `X-Forwarded-For` e `X-Forwarded-Proto`. Automático: no Docker, só da rede interna do contêiner (o proxy na mesma máquina). `true`: de qualquer rede privada (proxy em outra máquina da rede). `false`: só loopback e **Proxies conhecidos**. |
 | `AuthRateLimitPerMinute` | `20` | Tentativas de login/cadastro/redefinição por IP por minuto. |
 
 Banco de dados: `DbProvider` aceita `SQLite` (padrão), `SQLServer` ou `PostgreSQL`, com as strings de conexão `ConnectionStrings__SQLite`, `ConnectionStrings__SQLServer` e `ConnectionStrings__PostgreSQL`.

@@ -23,6 +23,7 @@ using Remotely.Server.Services.Stores;
 using Remotely.Shared.Entities;
 using Remotely.Shared.Services;
 using Remotely.Shared.Utilities;
+using Remotely.Server.Utilities;
 using Serilog;
 using System.Net;
 using System.Threading.RateLimiting;
@@ -179,7 +180,10 @@ services.AddCors(options =>
 
 services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.All;
+    // Só IP do cliente e esquema (http/https). X-Forwarded-Host fica de fora: um
+    // cliente poderia mandar esse cabeçalho através do proxy e trocar o endereço
+    // usado nos links de e-mail (ex.: redefinição de senha apontando para outro site).
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.ForwardLimit = null;
 
     // Default Docker host. We want to allow forwarded headers from this address.
@@ -190,13 +194,23 @@ services.Configure<ForwardedHeadersOptions>(options =>
 
     var runningInContainer = string.Equals(
         Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
-    if (appOptions?.TrustPrivateNetworkProxies ?? runningInContainer)
+
+    if (appOptions?.TrustPrivateNetworkProxies == true)
     {
-        // Sem isso, atrás do proxy o servidor via o acesso como http e o IP do Docker
-        // (ex.: 172.19.0.1) como IP de clientes e dispositivos.
+        // Ligado explicitamente: qualquer endereço de rede privada pode ser o proxy.
         foreach (var network in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7" })
         {
             options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+        }
+    }
+    else if (appOptions?.TrustPrivateNetworkProxies != false && runningInContainer)
+    {
+        // Padrão no Docker: confia só nas redes internas do próprio contêiner (a ponte
+        // do Docker, por onde chega o proxy reverso). Computadores da rede local que
+        // acessam a porta publicada diretamente não podem forjar IP nem esquema.
+        foreach (var network in ContainerNetworks.GetLocalNetworks())
+        {
+            options.KnownIPNetworks.Add(network);
         }
     }
 

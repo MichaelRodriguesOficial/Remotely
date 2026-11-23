@@ -100,6 +100,16 @@ public class DevicesController : ControllerBase
             return NotFound();
         }
 
+        // Chave do produto inteira só para administradores (chaves de API são da organização).
+        if (User.Identity?.IsAuthenticated == true && inventory.OperatingSystem is { } os)
+        {
+            var userResult = await _dataService.GetUserByName($"{User.Identity.Name}");
+            if (!userResult.IsSuccess || !userResult.Value.IsAdministrator)
+            {
+                os.SerialNumber = InventoryFormat.MaskProductKey(os.SerialNumber);
+            }
+        }
+
         return inventory;
     }
 

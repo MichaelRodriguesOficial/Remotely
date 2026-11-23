@@ -194,7 +194,7 @@
             <div class="dc-columns">
                 <section>
                     <h3 class="dc-section-title">Computador</h3>
-                    <DeviceComputerInfo Device="Device" Inventory="_inventory" NameFormat="NameFormat" Compact="true" />
+                    <DeviceComputerInfo Device="Device" Inventory="_inventory" NameFormat="NameFormat" Compact="true" ShowSensitive="@(User?.IsAdministrator == true)" />
                 </section>
 
                 <section>

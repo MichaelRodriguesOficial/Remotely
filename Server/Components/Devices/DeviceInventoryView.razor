@@ -67,7 +67,7 @@ else
                                 @Row("Build", os.Build, true)
                                 @Row("Kernel", os.KernelVersion, true)
                                 @Row("Arquitetura", os.Architecture)
-                                @Row("Número de série (chave do produto)", os.SerialNumber, true)
+                                @Row("Número de série (chave do produto)", ShowSensitive ? os.SerialNumber : InventoryFormat.MaskProductKey(os.SerialNumber), true)
                                 @Row("ID do produto", os.ProductId, true)
                                 @Row("Licença", os.LicenseStatus)
                                 @Row("Idioma", os.Language)
@@ -510,6 +510,10 @@ else
 
     [Parameter]
     public bool CanRefresh { get; set; }
+
+    /// <summary>Mostra a chave do produto inteira (só administradores).</summary>
+    [Parameter]
+    public bool ShowSensitive { get; set; }
 
     [Parameter]
     public bool IsRefreshing { get; set; }

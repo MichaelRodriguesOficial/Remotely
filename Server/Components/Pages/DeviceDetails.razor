@@ -79,7 +79,7 @@ else
                             <div class="panel-header">
                                 <h2 class="panel-title"><i class="fa-solid fa-computer"></i> Computador</h2>
                             </div>
-                            <DeviceComputerInfo Device="_device" Inventory="_inventory" NameFormat="_nameFormat" />
+                            <DeviceComputerInfo Device="_device" Inventory="_inventory" NameFormat="_nameFormat" ShowSensitive="@(User?.IsAdministrator == true)" />
                         </section>
                     </div>
                     <div class="col-xl-6">
@@ -156,7 +156,8 @@ else
                 <DeviceInventoryView Inventory="_inventory"
                                      CanRefresh="_device.IsOnline"
                                      IsRefreshing="_isRefreshingInventory"
-                                     OnRefresh="RefreshInventory" />
+                                     OnRefresh="RefreshInventory"
+                                     ShowSensitive="@(User?.IsAdministrator == true)" />
             </TabContent>
 
             <TabContent Name="remote-logs">

@@ -7,10 +7,10 @@ public class ApplicationOptions
     public string? DockerGatewayIp { get; set; }
 
     /// <summary>
-    /// Aceita os cabeçalhos X-Forwarded-* de proxies em redes privadas
-    /// (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 e fc00::/7).
-    /// Sem valor, fica ligado quando o servidor roda em container (Docker), onde o proxy
-    /// reverso (Nginx, aaPanel, Traefik) chega por uma rede interna do Docker.
+    /// De quem aceitar X-Forwarded-For/X-Forwarded-Proto.
+    /// Sem valor (padrão): no Docker, só das redes internas do próprio contêiner (por onde
+    /// chega o proxy reverso). true: de qualquer rede privada (10.x, 172.16–31.x, 192.168.x),
+    /// para proxies em outra máquina da rede. false: só loopback e "Proxies conhecidos".
     /// </summary>
     public bool? TrustPrivateNetworkProxies { get; set; }
 

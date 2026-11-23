@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.1 — 2026-11-23
+
+### Segurança
+- **`X-Forwarded-Host` deixou de ser aceito.** Um cliente podia enviar esse cabeçalho através do proxy (o aaPanel repassa cabeçalhos desconhecidos) e trocar o endereço usado nos links de e-mail, por exemplo o de redefinição de senha, apontando para outro site. Agora só `X-Forwarded-For` e `X-Forwarded-Proto` são lidos; o endereço vem do `Host` original.
+- **Confiança em proxies mais restrita no Docker.** Por padrão, o servidor aceita `X-Forwarded-*` só da rede interna do próprio contêiner (por onde chega o proxy da mesma máquina). Antes aceitava de qualquer rede privada, e um computador da rede local que acessasse a porta 5000 diretamente podia forjar o próprio IP (escapando do limite de tentativas de login por IP). Para proxy em outra máquina, use `TrustPrivateNetworkProxies=true` ou cadastre o IP em **Proxies conhecidos**.
+- **Chave do produto do Windows** (número de série do SO) aparece inteira só para administradores; os demais usuários veem só o último bloco. Vale para o card, os detalhes, o inventário e a API.
+- O agente ignora pedidos repetidos de inventário feitos em menos de 1 minuto, para o painel não deixar a máquina coletando sem parar.
+
 ## v1.5.0 — 2026-11-23
 
 ### Inventário mais completo (como o GLPI Inventory)

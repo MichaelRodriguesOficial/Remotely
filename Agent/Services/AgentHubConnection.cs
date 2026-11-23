@@ -236,8 +236,16 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
     /// </summary>
     private async Task SendInventory(bool force)
     {
-        if (!force && DateTimeOffset.Now - _lastInventorySent < TimeSpan.FromHours(11))
+        var sinceLast = DateTimeOffset.Now - _lastInventorySent;
+        if (!force && sinceLast < TimeSpan.FromHours(11))
         {
+            return;
+        }
+
+        // Pedidos repetidos do painel não podem deixar a máquina coletando sem parar.
+        if (force && sinceLast < TimeSpan.FromMinutes(1))
+        {
+            _logger.LogInformation("Inventory requested again too soon. Ignoring.");
             return;
         }
 

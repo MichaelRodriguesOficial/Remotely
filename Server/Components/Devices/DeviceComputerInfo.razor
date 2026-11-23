@@ -17,7 +17,7 @@
     }
     @Row("Sistema operacional", osName)
     @Row("Versão", osVersion, mono: true)
-    @Row("Número de série do SO", Inventory?.OperatingSystem?.SerialNumber, mono: true)
+    @Row("Número de série do SO", ShowSensitive ? Inventory?.OperatingSystem?.SerialNumber : InventoryFormat.MaskProductKey(Inventory?.OperatingSystem?.SerialNumber), mono: true)
     @Row("ID do produto", Inventory?.OperatingSystem?.ProductId, mono: true)
     @Row("Arquitetura", $"{Device.OSArchitecture} · {Device.ProcessorCount} núcleos")
     @Row("Processador", Device.ProcessorName ?? Inventory?.Processors.FirstOrDefault()?.Name)
@@ -57,6 +57,10 @@
 
     [Parameter]
     public UserNameDisplayFormat NameFormat { get; set; }
+
+    /// <summary>Mostra a chave do produto inteira (só administradores).</summary>
+    [Parameter]
+    public bool ShowSensitive { get; set; }
 
     /// <summary>Estilo compacto do card.</summary>
     [Parameter]

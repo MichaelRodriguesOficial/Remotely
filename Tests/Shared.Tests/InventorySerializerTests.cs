@@ -77,4 +77,13 @@ public class InventorySerializerTests
     {
         Assert.AreEqual(expected, InventoryFormat.Bytes(bytes));
     }
+
+    [TestMethod]
+    [DataRow("BX3NQ-6TW8C-JQ4FV-2GPRK-H9M7D", "•••••-•••••-•••••-•••••-H9M7D")]
+    [DataRow(null, null)]
+    [DataRow("", "")]
+    public void MaskProductKey_KeepsOnlyLastBlock(string? key, string? expected)
+    {
+        Assert.AreEqual(expected, InventoryFormat.MaskProductKey(key));
+    }
 }
