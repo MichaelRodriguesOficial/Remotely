@@ -2,6 +2,7 @@
 using Remotely.Server.Auth;
 using Remotely.Server.Extensions;
 using Remotely.Server.Services;
+using Remotely.Server.Utilities;
 using Remotely.Shared.Extensions;
 using Remotely.Shared.Models;
 using Remotely.Shared.Services;
@@ -13,7 +14,7 @@ namespace Remotely.Server.API;
 
 [Route("api/[controller]")]
 [ApiController]
-// O nome do arquivo leva o endereço do servidor; sem isso o navegador pode
+// O arquivo leva o endereço do servidor; sem isso o navegador pode
 // reaproveitar um download antigo (com outro endereço ou esquema).
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class ClientDownloadsController : ControllerBase
@@ -180,8 +181,14 @@ public class ClientDownloadsController : ControllerBase
 
         var embeddedData = new EmbeddedServerData(new Uri(serverUrl), organizationId);
 
-        // Nome curto, com o endereço do servidor que o cliente lê ao abrir:
-        // "Remotely_Desktop_x64 (suporte.empresa.com.br).exe".
+        var fileInfo = _hostEnv.WebRootFileProvider.GetFileInfo(relativeFilePath);
+        if (!fileInfo.Exists || string.IsNullOrWhiteSpace(fileInfo.PhysicalPath))
+        {
+            return NotFound();
+        }
+
+        // Nome simples ("Remotely_Desktop_x64.exe"). O endereço do servidor e a
+        // organização vão anexados ao final do executável, onde o cliente os lê.
         var normalizedPath = relativeFilePath.Replace('\\', '/');
         var displayName = normalizedPath switch
         {
@@ -189,12 +196,11 @@ public class ClientDownloadsController : ControllerBase
             _ when normalizedPath.Contains("/Win-x86/") => "Remotely_Desktop_x86",
             _ => "Remotely_Desktop"
         };
-        var fileName = _embeddedDataSearcher.GetFriendlyFileName(
-            displayName,
-            Path.GetExtension(relativeFilePath),
-            embeddedData);
+        var fileName = displayName + Path.GetExtension(relativeFilePath);
 
-        return File(relativeFilePath, "application/octet-stream", fileName);
+        var trailer = _embeddedDataSearcher.CreateTrailer(embeddedData);
+        var stream = new AppendedDataStream(fileInfo.PhysicalPath, trailer);
+        return File(stream, "application/octet-stream", fileName);
     }
 
     private async Task<IActionResult> GetInstallFile(string organizationId, string platformID)

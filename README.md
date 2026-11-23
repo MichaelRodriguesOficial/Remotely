@@ -139,7 +139,7 @@ O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
 - **gateway da rede Docker** (`172.28.0.1`): liberado automaticamente;
 - **outros proxies**: cadastre o IP em **Configuração do servidor → Proxies conhecidos**.
 
-Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**. Mesmo sem os cabeçalhos, os downloads do cliente feitos a partir do painel em `https://` já saem apontando para `https://` (o nome não leva mais `http~`).
+Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**. Mesmo sem os cabeçalhos, os downloads do cliente feitos a partir do painel em `https://` já saem apontando para `https://`. O cliente baixado tem nome simples (`Remotely_Desktop_x64.exe`) e leva o endereço do servidor gravado no próprio arquivo.
 
 No **aaPanel**, o proxy já vem com WebSocket e `X-Forwarded-For`; falta só o esquema. Em **Site → (seu site) → Proxy de URL → Config**, no campo "Catálogo Proxy", coloque:
 

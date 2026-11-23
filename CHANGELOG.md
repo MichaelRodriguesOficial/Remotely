@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2 — 2026-11-23
+
+### Downloads
+- O cliente de suporte agora baixa com nome simples: **`Remotely_Desktop_x64.exe`**, **`Remotely_Desktop_x86.exe`** e **`Remotely_Desktop`** (Linux), sem o endereço do servidor no nome.
+- O endereço do servidor e a organização passam a ir gravados no final do próprio executável, e o cliente lê de lá ao abrir. Renomear o arquivo não quebra mais a conexão. Clientes baixados antes continuam funcionando (o formato antigo no nome ainda é aceito).
+- Vale também para os binários personalizados (`/api/custom-binaries`).
+
 ## v1.3.1 — 2026-11-23
 
 ### Correções
