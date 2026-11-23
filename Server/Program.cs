@@ -435,7 +435,21 @@ else
     {
         app.UseHsts();
     }
-    if (settings.RedirectToHttps)
+    // Só redireciona quando o próprio servidor tem uma porta HTTPS. Atrás de proxy
+    // (Docker + aaPanel/Nginx) quem faz o HTTPS é o proxy; o servidor só escuta HTTP
+    // e o redirecionamento não teria para onde ir (gerava o aviso
+    // "Failed to determine the https port for redirect").
+    var serverHasHttps =
+        !string.IsNullOrWhiteSpace(app.Configuration["HTTPS_PORTS"]) ||
+        !string.IsNullOrWhiteSpace(app.Configuration["HTTPS_PORT"]) ||
+        !string.IsNullOrWhiteSpace(app.Configuration["ASPNETCORE_HTTPS_PORTS"]) ||
+        !string.IsNullOrWhiteSpace(app.Configuration["ASPNETCORE_HTTPS_PORT"]) ||
+        (app.Configuration["URLS"] ?? app.Configuration["ASPNETCORE_URLS"] ?? string.Empty)
+            .Contains("https://", StringComparison.OrdinalIgnoreCase) ||
+        app.Configuration.GetSection("Kestrel:Endpoints").GetChildren()
+            .Any(x => (x["Url"] ?? string.Empty).StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+    if (settings.RedirectToHttps && serverHasHttps)
     {
         app.UseHttpsRedirection();
     }

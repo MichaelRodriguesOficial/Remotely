@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.6.1 — 2026-11-23
+
+### Correções
+- Sem o aviso `Failed to determine the https port for redirect` no log do Docker. O redirecionamento para HTTPS só fica ativo quando o próprio servidor tem uma porta HTTPS; atrás de proxy (aaPanel, Nginx), quem faz o HTTPS e o redirecionamento é o proxy.
+
 ## v1.6.0 — 2026-11-23
 
 ### Diagnóstico remoto (novo)
