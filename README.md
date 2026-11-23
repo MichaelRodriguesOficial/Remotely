@@ -44,6 +44,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 
 - **Tudo em .NET 10**: servidor, agents (Windows, Linux, macOS) e clientes de desktop, compilados no CI deste repositório (o .NET 8 saiu do suporte em novembro de 2026).
 - **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
+- **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores, memórias, discos, placas de vídeo e som, monitores, controladoras, bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
 - **Segurança:** dezenas de correções. Entre elas:
@@ -123,7 +124,7 @@ O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
 - **gateway da rede Docker** (`172.28.0.1`): liberado automaticamente;
 - **outros proxies**: cadastre o IP em **Configuração do servidor → Proxies conhecidos**.
 
-Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**.
+Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**. Mesmo sem os cabeçalhos, os downloads do cliente feitos a partir do painel em `https://` já saem apontando para `https://` (o nome não leva mais `http~`).
 
 Exemplo para Nginx (também vale para o "Proxy reverso" do aaPanel, colando no arquivo de configuração do site):
 
@@ -179,6 +180,8 @@ Get-Location
 ```
 
 A documentação interativa fica em `/swagger` (menu **Administração → API (Swagger)**). Ela abre para quem está logado; as chamadas feitas por lá usam a sua sessão, ou a chave informada em **Authorize**.
+
+O inventário completo de um dispositivo sai em `GET /api/Devices/{id}/inventory` (JSON), útil para integrar com o GLPI ou planilhas.
 
 A API de alertas (`POST /api/Alerts/Create`) permite criar alertas no painel, enviar e-mails e chamar webhooks, como n8n ou Chatwoot.
 

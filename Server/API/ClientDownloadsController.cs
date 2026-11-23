@@ -150,7 +150,7 @@ public class ClientDownloadsController : ControllerBase
         }
 
         var settings = await _dataService.GetSettings();
-        var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
+        var effectiveScheme = Request.GetEffectiveScheme(settings.ForceClientHttps);
 
         fileContents[hostIndex] = $"HostName=\"{effectiveScheme}://{Request.Host}\"";
         fileContents[orgIndex] = $"Organization=\"{organizationId}\"";
@@ -172,7 +172,7 @@ public class ClientDownloadsController : ControllerBase
         }
 
         var settings = await _dataService.GetSettings();
-        var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
+        var effectiveScheme = Request.GetEffectiveScheme(settings.ForceClientHttps);
         var serverUrl = $"{effectiveScheme}://{Request.Host}";
 
         var embeddedData = new EmbeddedServerData(new Uri(serverUrl), organizationId);
@@ -210,7 +210,7 @@ public class ClientDownloadsController : ControllerBase
             {
                 case "WindowsInstaller":
                     {
-                        var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
+                        var effectiveScheme = Request.GetEffectiveScheme(settings.ForceClientHttps);
 
                         var filePath = Path.Combine(_hostEnv.WebRootPath, "Content", "Install-Remotely.ps1");
                         if (!FileIO.Exists(filePath))
@@ -294,7 +294,7 @@ public class ClientDownloadsController : ControllerBase
                 ip = ip.MapToIPv4();
             }
 
-            var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
+            var effectiveScheme = Request.GetEffectiveScheme(settings.ForceClientHttps);
 
             _logger.LogInformation(
                 "Started client download via {methodName}.  Effective Scheme: {scheme}.  Effective Host: {host}.  Remote IP: {ip}.",

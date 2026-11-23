@@ -64,6 +64,13 @@
     </div>
 
     <script>
+        // Downloads do cliente: informa ao servidor que a página está em https,
+        // mesmo quando o proxy reverso não envia X-Forwarded-Proto.
+        document.addEventListener("click", function (ev) {
+            var link = ev.target && ev.target.closest ? ev.target.closest("a[href*='/api/ClientDownloads/']") : null;
+            if (!link || location.protocol !== "https:" || link.href.indexOf("scheme=") >= 0) { return; }
+            link.href = link.href + (link.href.indexOf("?") >= 0 ? "&" : "?") + "scheme=https";
+        }, true);
         window.remotelyCircuitReady = function () {
             window.__remotelyCircuit = true;
             var banner = document.getElementById("rm-offline-banner");

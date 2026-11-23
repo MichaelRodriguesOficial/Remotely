@@ -1,4 +1,5 @@
 ﻿using Remotely.Shared.Models;
+using Remotely.Shared.Models.Inventory;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,12 @@ public interface IDataService
     Task<Result<InviteLink>> AddInvite(string orgId, InviteViewModel invite);
 
     Task<Result<Device>> AddOrUpdateDevice(DeviceClientDto device);
+
+    Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId);
+
+    Task<Result<Device>> SaveDeviceInventory(string deviceId, DeviceInventory inventory, string json);
+
+    Task<Result> UpdateDeviceAsset(string deviceId, string? assetTag, string? location);
 
     Task<Result> AddOrUpdateSavedScript(SavedScript script, string userId);
 
@@ -370,6 +377,8 @@ public class DataService : IDataService
         }
 
         device.CurrentUser = deviceDto.CurrentUser;
+        device.CurrentUserGivenName = Truncate(deviceDto.CurrentUserGivenName, 100);
+        device.CurrentUserSurname = Truncate(deviceDto.CurrentUserSurname, 100);
         device.DeviceName = deviceDto.DeviceName;
         device.Drives = deviceDto.Drives;
         device.CpuUtilization = deviceDto.CpuUtilization;
@@ -409,6 +418,72 @@ public class DataService : IDataService
 
         await dbContext.SaveChangesAsync();
         return Result.Ok(device);
+    }
+
+    public async Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        return await dbContext.DeviceInventories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.DeviceID == deviceId);
+    }
+
+    public async Task<Result<Device>> SaveDeviceInventory(string deviceId, DeviceInventory inventory, string json)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+
+        var device = await dbContext.Devices.FindAsync(deviceId);
+        if (device is null)
+        {
+            return Result.Fail<Device>("Device not found.");
+        }
+
+        var collectedAt = inventory.CollectedAt == default ? DateTimeOffset.Now : inventory.CollectedAt;
+
+        device.DeviceType = Truncate(inventory.DeviceType, 50);
+        device.Manufacturer = Truncate(inventory.Manufacturer, 200);
+        device.Model = Truncate(inventory.Model, 200);
+        device.SerialNumber = Truncate(inventory.SerialNumber, 200);
+        device.InventoryUpdatedAt = collectedAt;
+
+        var record = await dbContext.DeviceInventories.FindAsync(deviceId);
+        if (record is null)
+        {
+            record = new DeviceInventoryRecord { DeviceID = deviceId };
+            await dbContext.DeviceInventories.AddAsync(record);
+        }
+
+        record.CollectedAt = collectedAt;
+        record.Data = json;
+
+        await dbContext.SaveChangesAsync();
+        return Result.Ok(device);
+    }
+
+    public async Task<Result> UpdateDeviceAsset(string deviceId, string? assetTag, string? location)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+
+        var device = await dbContext.Devices.FindAsync(deviceId);
+        if (device is null)
+        {
+            return Result.Fail("Device not found.");
+        }
+
+        device.AssetTag = Truncate(assetTag?.Trim(), 100);
+        device.Location = Truncate(location?.Trim(), 200);
+        await dbContext.SaveChangesAsync();
+        return Result.Ok();
+    }
+
+    private static string? Truncate(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+        value = value.Trim();
+        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     public async Task<Result> AddOrUpdateSavedScript(SavedScript script, string userId)

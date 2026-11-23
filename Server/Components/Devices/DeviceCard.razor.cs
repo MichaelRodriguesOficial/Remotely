@@ -53,6 +53,9 @@ public partial class DeviceCard : AuthComponentBase
 
     private bool IsExpanded => _state == DeviceCardState.Expanded;
 
+    private Remotely.Server.Models.UserNameDisplayFormat NameFormat =>
+        ParentFrame?.NameFormat ?? Remotely.Server.Models.UserNameDisplayFormat.FirstLast;
+
     private bool IsOutdated =>
         Version.TryParse(Device.AgentVersion, out var result) &&
         result < _currentVersion;
@@ -145,6 +148,14 @@ public partial class DeviceCard : AuthComponentBase
             Device.LastOnline = message.Device.LastOnline;
             Device.PublicIP = message.Device.PublicIP;
             Device.MacAddresses = message.Device.MacAddresses;
+            Device.OSDescription = message.Device.OSDescription;
+            Device.CurrentUserGivenName = message.Device.CurrentUserGivenName;
+            Device.CurrentUserSurname = message.Device.CurrentUserSurname;
+            Device.DeviceType = message.Device.DeviceType;
+            Device.Manufacturer = message.Device.Manufacturer;
+            Device.Model = message.Device.Model;
+            Device.SerialNumber = message.Device.SerialNumber;
+            Device.InventoryUpdatedAt = message.Device.InventoryUpdatedAt;
         }
         else
         {
@@ -305,6 +316,8 @@ public partial class DeviceCard : AuthComponentBase
               Device.Alias,
               Device.DeviceGroupID,
               Device.Notes);
+
+        await DataService.UpdateDeviceAsset(Device.ID, Device.AssetTag, Device.Location);
 
         ToastService.ShowToast("Configurações do dispositivo salvas.");
 

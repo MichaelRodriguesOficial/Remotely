@@ -64,10 +64,22 @@ else
         </Actions>
     </PageHeader>
 
-    <TabControl InitialActiveTab="@(ActiveTab ?? "device")">
+    <div class="asset-summary">
+        @AssetItem("Tipo", _device.DeviceType)
+        @AssetItem("Fabricante", _device.Manufacturer)
+        @AssetItem("Modelo", _device.Model)
+        @AssetItem("Número de série", _device.SerialNumber)
+        @AssetItem("Número de inventário", _device.AssetTag)
+        @AssetItem("Localização", _device.Location)
+    </div>
+
+    <TabControl InitialActiveTab="@(string.IsNullOrWhiteSpace(ActiveTab) ? "device" : ActiveTab)">
         <TabHeaders>
             <TabHeader Name="device" NavigationUri="@($"/device-details/{DeviceId}/device")">
                 <i class="fa-solid fa-circle-info me-1"></i> Detalhes
+            </TabHeader>
+            <TabHeader Name="inventory" NavigationUri="@($"/device-details/{DeviceId}/inventory")">
+                <i class="fa-solid fa-boxes-stacked me-1"></i> Inventário
             </TabHeader>
             <TabHeader Name="remote-logs" OnActivated="GetRemoteLogs" NavigationUri="@($"/device-details/{DeviceId}/remote-logs")">
                 <i class="fa-solid fa-file-lines me-1"></i> Logs do agente
@@ -83,36 +95,57 @@ else
                     <div class="col-xl-6">
                         <section class="panel h-100">
                             <div class="panel-header">
-                                <h2 class="panel-title"><i class="fa-solid fa-microchip"></i> Inventário</h2>
+                                <h2 class="panel-title"><i class="fa-solid fa-computer"></i> Computador</h2>
                                 <button type="button" class="btn btn-ghost btn-sm" @onclick="ShowAllDisks"><i class="fa-solid fa-hard-drive"></i> Ver discos</button>
                             </div>
                             <dl class="detail-list">
                                 <dt>Nome</dt><dd>@_device.DeviceName</dd>
-                                <dt>Plataforma</dt><dd>@_device.Platform</dd>
+                                @if (!string.IsNullOrWhiteSpace(_device.DeviceType))
+                                {
+                                    <dt>Tipo</dt><dd>@_device.DeviceType</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_device.Manufacturer))
+                                {
+                                    <dt>Fabricante</dt><dd>@_device.Manufacturer</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_device.Model))
+                                {
+                                    <dt>Modelo</dt><dd>@_device.Model</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_device.SerialNumber))
+                                {
+                                    <dt>Número de série</dt><dd class="mono">@_device.SerialNumber</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_inventory?.Uuid))
+                                {
+                                    <dt>UUID</dt><dd class="mono small">@_inventory.Uuid</dd>
+                                }
                                 <dt>Sistema</dt><dd>@DeviceDisplay.GetOperatingSystem(_device).Name</dd>
                                 @if (DeviceDisplay.GetOperatingSystem(_device).Version is { } detailsOsVersion)
                                 {
                                     <dt>Versão</dt><dd class="mono">@detailsOsVersion</dd>
                                 }
+                                @if (!string.IsNullOrWhiteSpace(_inventory?.OperatingSystem?.SerialNumber))
+                                {
+                                    <dt>Número de série do SO</dt><dd class="mono">@_inventory.OperatingSystem.SerialNumber</dd>
+                                }
                                 <dt>Arquitetura</dt><dd>@_device.OSArchitecture · @_device.ProcessorCount núcleos</dd>
-                                <dt>Usuário</dt>
-                                <dd>
-                                    @{
-                                        var (detailsUser, detailsFullName) = DeviceDisplay.GetUser(_device);
-                                    }
-                                    @if (detailsFullName is not null)
-                                    {
-                                        @detailsFullName <span class="text-muted">· @detailsUser</span>
-                                    }
-                                    else
-                                    {
-                                        @detailsUser
-                                    }
-                                </dd>
+                                @if (!string.IsNullOrWhiteSpace(_device.CurrentUser))
+                                {
+                                    <dt>Usuário</dt><dd>@GetUserDisplay()</dd>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(_inventory?.Domain))
+                                {
+                                    <dt>Domínio</dt><dd>@_inventory.Domain</dd>
+                                }
                                 <dt>Memória</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedMemoryPercent)) de @_device.TotalMemory.ToString("N1") GB</dd>
                                 <dt>Disco</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedStoragePercent)) de @_device.TotalStorage.ToString("N1") GB</dd>
                                 <dt>Versão do agente</dt><dd>@_device.AgentVersion</dd>
                                 <dt>Última conexão</dt><dd>@_device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
+                                @if (_device.InventoryUpdatedAt is { } inventoryDate)
+                                {
+                                    <dt>Inventário</dt><dd>@inventoryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
+                                }
                                 <dt>IP público</dt><dd class="mono">@_device.PublicIP</dd>
                                 <dt>Endereços MAC</dt><dd class="mono">@(string.Join(", ", _device.MacAddresses ?? Array.Empty<string>()))</dd>
                                 <dt>ID</dt><dd class="mono small">@_device.ID</dd>
@@ -150,6 +183,18 @@ else
                                     </InputSelect>
                                     <ValidationMessage For="() => _device.DeviceGroupID" />
                                 </div>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-sm-6">
+                                        <label class="form-label" for="device-asset">Número de inventário</label>
+                                        <InputText id="device-asset" class="form-control" placeholder="Placa de patrimônio" @bind-Value="_device.AssetTag" />
+                                        <ValidationMessage For="() => _device.AssetTag" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label class="form-label" for="device-location">Localização</label>
+                                        <InputText id="device-location" class="form-control" placeholder="Ex.: Matriz · 2º andar · TI" @bind-Value="_device.Location" />
+                                        <ValidationMessage For="() => _device.Location" />
+                                    </div>
+                                </div>
                                 <div class="mb-3">
                                     <label class="form-label" for="device-tags">Tags</label>
                                     <InputText id="device-tags" @bind-Value="_device.Tags" class="form-control" placeholder="Separe por vírgula" />
@@ -175,6 +220,13 @@ else
                         </section>
                     </div>
                 </div>
+            </TabContent>
+
+            <TabContent Name="inventory">
+                <DeviceInventoryView Inventory="_inventory"
+                                     CanRefresh="_device.IsOnline"
+                                     IsRefreshing="_isRefreshingInventory"
+                                     OnRefresh="RefreshInventory" />
             </TabContent>
 
             <TabContent Name="remote-logs">
@@ -252,4 +304,21 @@ else
             </TabContent>
         </TabContents>
     </TabControl>
+}
+
+@code {
+    private static RenderFragment AssetItem(string label, string? value) => __builder =>
+    {
+        <div class="asset-item">
+            <span class="asset-label">@label</span>
+            @if (string.IsNullOrWhiteSpace(value))
+            {
+                <span class="asset-value empty">Não informado</span>
+            }
+            else
+            {
+                <span class="asset-value" title="@value">@value</span>
+            }
+        </div>
+    };
 }

@@ -1,4 +1,5 @@
-﻿using Remotely.Server.Services;
+﻿using Remotely.Shared.Models.Inventory;
+using Remotely.Server.Services;
 using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
@@ -15,6 +16,7 @@ namespace Remotely.Server.Hubs;
 
 public class AgentHub : Hub<IAgentHubClient>
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastInventoryReport = new();
     private readonly IDataService _dataService;
     private readonly ICircuitManager _circuitManager;
     private readonly IExpiringTokenService _expiringTokenService;
@@ -257,6 +259,61 @@ public class AgentHub : Hub<IAgentHubClient>
 
 
         await CheckForPendingScriptRuns();
+    }
+
+    /// <summary>
+    /// Recebe o inventário de hardware e software (JSON compactado com gzip).
+    /// </summary>
+    public async Task ReportInventory(byte[] compressedInventory)
+    {
+        var device = Device;
+        if (device is null)
+        {
+            return;
+        }
+
+        // Evita que um agente com defeito (ou malicioso) inunde o banco.
+        var now = DateTimeOffset.Now;
+        if (_lastInventoryReport.TryGetValue(device.ID, out var last) &&
+            now - last < TimeSpan.FromSeconds(20))
+        {
+            _logger.LogWarning("Inventory from device {deviceId} ignored (rate limited).", device.ID);
+            return;
+        }
+        _lastInventoryReport[device.ID] = now;
+
+        if (!InventorySerializer.TryDecompress(compressedInventory, out var inventory, out var json) ||
+            inventory is null)
+        {
+            _logger.LogWarning("Invalid inventory received from device {deviceId}.", device.ID);
+            return;
+        }
+
+        var result = await _dataService.SaveDeviceInventory(device.ID, inventory, json);
+        if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Unable to save inventory for device {deviceId}: {reason}", device.ID, result.Reason);
+            return;
+        }
+
+        var updated = result.Value;
+        device.DeviceType = updated.DeviceType;
+        device.Manufacturer = updated.Manufacturer;
+        device.Model = updated.Model;
+        device.SerialNumber = updated.SerialNumber;
+        device.InventoryUpdatedAt = updated.InventoryUpdatedAt;
+
+        var userIDs = _circuitManager.Connections.Select(x => x.User.Id);
+        var filteredUserIDs = _dataService.FilterUsersByDevicePermission(userIDs, device.ID);
+        var connections = _circuitManager.Connections
+            .Where(x => x.User.OrganizationID == device.OrganizationID &&
+                filteredUserIDs.Contains(x.User.Id));
+
+        foreach (var connection in connections)
+        {
+            await _messenger.Send(new DeviceStateChangedMessage(device), connection.ConnectionId);
+            await _messenger.Send(new InventoryUpdatedMessage(device.ID), connection.ConnectionId);
+        }
     }
 
     public Task DisplayMessage(string consoleMessage, string popupMessage, string className, string requesterId)

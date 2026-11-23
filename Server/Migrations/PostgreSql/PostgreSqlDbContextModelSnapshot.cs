@@ -460,7 +460,44 @@ namespace Remotely.Server.Migrations.PostgreSql
                     b.Property<double>("UsedStorage")
                         .HasColumnType("double precision");
 
+                    b.Property<string>("AssetTag")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CurrentUserGivenName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("CurrentUserSurname")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("InventoryUpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("ID");
+
+                    b.HasIndex("AssetTag");
 
                     b.HasIndex("DeviceGroupID");
 
@@ -468,7 +505,26 @@ namespace Remotely.Server.Migrations.PostgreSql
 
                     b.HasIndex("OrganizationID");
 
+                    b.HasIndex("SerialNumber");
+
                     b.ToTable("Devices");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.Property<string>("DeviceID")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CollectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("DeviceID");
+
+                    b.ToTable("DeviceInventories");
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
@@ -1001,6 +1057,15 @@ namespace Remotely.Server.Migrations.PostgreSql
                     b.Navigation("DeviceGroup");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.HasOne("Remotely.Shared.Entities.Device", null)
+                        .WithOne()
+                        .HasForeignKey("Remotely.Shared.Entities.DeviceInventoryRecord", "DeviceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>

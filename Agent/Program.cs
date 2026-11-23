@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Remotely.Agent.Interfaces;
 using Remotely.Agent.Services;
+using Remotely.Agent.Services.Inventory;
 using Remotely.Shared.Utilities;
 using Remotely.Shared.Services;
 using System;
@@ -106,6 +107,7 @@ public class Program
             services.AddSingleton<IAppLauncher, AppLauncherWin>();
             services.AddSingleton<IUpdater, UpdaterWin>();
             services.AddSingleton<IDeviceInformationService, DeviceInfoGeneratorWin>();
+            services.AddSingleton<IInventoryCollector, InventoryCollectorWin>();
             services.AddSingleton<IElevationDetector, ElevationDetectorWin>();
         }
         else if (OperatingSystem.IsLinux())
@@ -113,6 +115,7 @@ public class Program
             services.AddSingleton<IAppLauncher, AppLauncherLinux>();
             services.AddSingleton<IUpdater, UpdaterLinux>();
             services.AddSingleton<IDeviceInformationService, DeviceInfoGeneratorLinux>();
+            services.AddSingleton<IInventoryCollector, InventoryCollectorLinux>();
             services.AddSingleton<IElevationDetector, ElevationDetectorLinux>();
         }
         else if (OperatingSystem.IsMacOS())
@@ -120,6 +123,7 @@ public class Program
             services.AddSingleton<IAppLauncher, AppLauncherMac>();
             services.AddSingleton<IUpdater, UpdaterMac>();
             services.AddSingleton<IDeviceInformationService, DeviceInfoGeneratorMac>();
+            services.AddSingleton<IInventoryCollector, InventoryCollectorMac>();
             services.AddSingleton<IElevationDetector, ElevationDetectorMac>();
         }
         else

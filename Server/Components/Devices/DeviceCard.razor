@@ -56,7 +56,7 @@
         }
         @if (!string.IsNullOrWhiteSpace(Device.CurrentUser))
         {
-            var (userName, fullName) = DeviceDisplay.GetUser(Device);
+            var (userName, fullName) = DeviceDisplay.GetUser(Device, NameFormat);
             <span class="dc-user" title="@(fullName is null ? $"Usuário conectado: {userName}" : $"Usuário conectado: {fullName} ({userName})")">
                 <i class="fa-regular fa-user"></i>
                 @if (fullName is not null)
@@ -202,7 +202,7 @@
                     <dl class="dc-info">
                         @{
                             var (osName, osVersion) = DeviceDisplay.GetOperatingSystem(Device);
-                            var (loggedUser, loggedFullName) = DeviceDisplay.GetUser(Device);
+                            var (loggedUser, loggedFullName) = DeviceDisplay.GetUser(Device, NameFormat);
                         }
                         <dt>Sistema operacional</dt>
                         <dd>@osName</dd>
@@ -226,6 +226,24 @@
                                     @loggedUser
                                 }
                             </dd>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Device.DeviceType))
+                        {
+                            <dt>Tipo</dt>
+                            <dd>@Device.DeviceType</dd>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Device.Manufacturer) || !string.IsNullOrWhiteSpace(Device.Model))
+                        {
+                            <dt>Equipamento</dt>
+                            <dd>@string.Join(" ", new[] { Device.Manufacturer, Device.Model }.Where(x => !string.IsNullOrWhiteSpace(x)))</dd>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Device.SerialNumber))
+                        {
+                            <dt>Número de série</dt>
+                            <dd class="mono">@Device.SerialNumber</dd>
                         }
 
                         <dt>Arquitetura</dt>
@@ -276,6 +294,19 @@
                                 }
                             </InputSelect>
                             <ValidationMessage For="() => Device.DeviceGroupID" />
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-6">
+                                <label class="form-label" for="asset-@Device.ID">Número de inventário</label>
+                                <InputText id="@($"asset-{Device.ID}")" class="form-control" placeholder="Placa de patrimônio" @bind-Value="Device.AssetTag" />
+                                <ValidationMessage For="() => Device.AssetTag" />
+                            </div>
+                            <div class="col-sm-6">
+                                <label class="form-label" for="location-@Device.ID">Localização</label>
+                                <InputText id="@($"location-{Device.ID}")" class="form-control" placeholder="Ex.: Matriz · 2º andar" @bind-Value="Device.Location" />
+                                <ValidationMessage For="() => Device.Location" />
+                            </div>
                         </div>
 
                         <div class="mb-3">

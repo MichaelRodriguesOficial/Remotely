@@ -31,6 +31,7 @@ public class AppDb : IdentityDbContext
     public DbSet<BrandingInfo> BrandingInfos { get; set; }
     public DbSet<DeviceGroup> DeviceGroups { get; set; }
     public DbSet<Device> Devices { get; set; }
+    public DbSet<DeviceInventoryRecord> DeviceInventories { get; set; }
     public DbSet<InviteLink> InviteLinks { get; set; }
     public DbSet<KeyValueRecord> KeyValueRecords { get; set; }
     public DbSet<Organization> Organizations { get; set; }
@@ -161,6 +162,18 @@ public class AppDb : IdentityDbContext
 
         builder.Entity<Device>()
             .HasIndex(x => x.DeviceName);
+
+        builder.Entity<Device>()
+            .HasIndex(x => x.SerialNumber);
+
+        builder.Entity<Device>()
+            .HasIndex(x => x.AssetTag);
+
+        builder.Entity<DeviceInventoryRecord>()
+            .HasOne<Device>()
+            .WithOne()
+            .HasForeignKey<DeviceInventoryRecord>(x => x.DeviceID)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<Device>()
             .HasMany(x => x.Alerts)

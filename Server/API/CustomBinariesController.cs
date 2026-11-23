@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Remotely.Server.Extensions;
 using Remotely.Server.Services;
 using Remotely.Shared.Models;
 using Remotely.Shared.Services;
@@ -45,7 +46,7 @@ public class CustomBinariesController(
         }
 
         var settings = await _dataService.GetSettings();
-        var effectiveScheme = settings.ForceClientHttps ? "https" : Request.Scheme;
+        var effectiveScheme = Request.GetEffectiveScheme(settings.ForceClientHttps);
         var serverUrl = $"{effectiveScheme}://{Request.Host}";
         return new EmbeddedServerData(new Uri(serverUrl), organizationId);
     }

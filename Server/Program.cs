@@ -221,7 +221,10 @@ services.AddSignalR(options =>
     {
         options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
     })
-    .AddMessagePackProtocol();
+    .AddMessagePackProtocol()
+    // O inventário (compactado) dos agentes pode passar dos 100 KB em máquinas
+    // com muitos softwares instalados.
+    .AddHubOptions<AgentHub>(options => options.MaximumReceiveMessageSize = 2_000_000);
 
 // Persist Data Protection keys (used for auth cookies, antiforgery tokens, etc.)
 // in AppData so they survive container restarts and upgrades.  Without this,

@@ -17,6 +17,12 @@ public class DeviceClientDto
     public string CurrentUser { get; set; } = string.Empty;
 
     [DataMember]
+    public string? CurrentUserGivenName { get; set; }
+
+    [DataMember]
+    public string? CurrentUserSurname { get; set; }
+
+    [DataMember]
     public string DeviceName { get; set; } = string.Empty;
 
     [DataMember]

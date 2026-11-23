@@ -7,11 +7,16 @@ using System.Threading.Tasks;
 using Remotely.Desktop.Native.Windows;
 using Microsoft.Win32;
 using System.Runtime.Versioning;
+using System.Collections.Concurrent;
+using System.DirectoryServices.AccountManagement;
 
 namespace Remotely.Agent.Services.Windows;
 
 public class DeviceInfoGeneratorWin : DeviceInfoGeneratorBase, IDeviceInformationService
 {
+    private static readonly ConcurrentDictionary<string, (string? GivenName, string? Surname, DateTimeOffset Expires)> _nameCache =
+        new(StringComparer.OrdinalIgnoreCase);
+
     private readonly ICpuUtilizationSampler _cpuUtilSampler;
 
     public DeviceInfoGeneratorWin(
@@ -35,6 +40,7 @@ public class DeviceInfoGeneratorWin : DeviceInfoGeneratorBase, IDeviceInformatio
             if (OperatingSystem.IsWindows())
             {
                 device.CurrentUser = FormatUserWithDisplayName(userName, GetDisplayName(userName));
+                (device.CurrentUserGivenName, device.CurrentUserSurname) = GetDirectoryNameParts(userName);
                 device.OSDescription = GetFriendlyOsDescription() ?? device.OSDescription;
             }
             else
@@ -160,6 +166,60 @@ public class DeviceInfoGeneratorWin : DeviceInfoGeneratorBase, IDeviceInformatio
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Nome e sobrenome (givenName e sn) do usuário no Active Directory, em campos
+    /// separados. Fica em cache e tem tempo limite para não atrasar o heartbeat; fora
+    /// do domínio retorna vazio e o servidor separa o nome de exibição.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private (string? GivenName, string? Surname) GetDirectoryNameParts(string userName)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            return (null, null);
+        }
+
+        var account = userName.Split('\\').Last().Trim();
+        var now = DateTimeOffset.Now;
+
+        if (_nameCache.TryGetValue(account, out var cached) && cached.Expires > now)
+        {
+            return (cached.GivenName, cached.Surname);
+        }
+
+        string? givenName = null;
+        string? surname = null;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().DomainName))
+            {
+                var lookup = Task.Run(() =>
+                {
+                    using var context = new PrincipalContext(ContextType.Domain);
+                    using var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, account);
+                    return (user?.GivenName, user?.Surname);
+                });
+
+                if (lookup.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    (givenName, surname) = lookup.Result;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Unable to read the user's name from Active Directory.");
+        }
+
+        givenName = string.IsNullOrWhiteSpace(givenName) ? null : givenName.Trim();
+        surname = string.IsNullOrWhiteSpace(surname) ? null : surname.Trim();
+
+        var found = givenName is not null || surname is not null;
+        _nameCache[account] = (givenName, surname, now + (found ? TimeSpan.FromHours(6) : TimeSpan.FromMinutes(30)));
+        return (givenName, surname);
     }
 
     public (double usedGB, double totalGB) GetMemoryInGB()

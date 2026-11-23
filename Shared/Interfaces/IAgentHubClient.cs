@@ -83,5 +83,8 @@ public interface IAgentHubClient
 
     Task TriggerHeartbeat();
 
+    /// <summary>Coleta o inventário de hardware e software e envia ao servidor.</summary>
+    Task RequestInventory();
+
     Task WakeDevice(string macAddress);
 }

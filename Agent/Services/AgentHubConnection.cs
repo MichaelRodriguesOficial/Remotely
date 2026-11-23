@@ -6,6 +6,7 @@ using Remotely.Agent.Extensions;
 using Remotely.Agent.Interfaces;
 using Remotely.Shared;
 using Remotely.Shared.Enums;
+using Remotely.Shared.Models.Inventory;
 using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
 using System;
@@ -37,6 +38,10 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
     private readonly IChatClientService _chatService;
     private readonly IConfigService _configService;
     private readonly IDeviceInformationService _deviceInfoService;
+    private readonly IInventoryCollector _inventoryCollector;
+    private readonly SemaphoreSlim _inventoryLock = new(1, 1);
+    private Timer? _inventoryTimer;
+    private DateTimeOffset _lastInventorySent = DateTimeOffset.MinValue;
     private readonly IFileLogsManager _fileLogsManager;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<AgentHubConnection> _logger;
@@ -63,8 +68,10 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         IFileLogsManager fileLogsManager,
         IHostApplicationLifetime appLifetime,
         IScriptingShellFactory scriptingShellFactory,
+        IInventoryCollector inventoryCollector,
         ILogger<AgentHubConnection> logger)
     {
+        _inventoryCollector = inventoryCollector;
         _configService = configService;
         _uninstaller = uninstaller;
         _scriptExecutor = scriptExecutor;
@@ -179,7 +186,18 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
                 _heartbeatTimer.Elapsed += HeartbeatTimer_Elapsed;
                 _heartbeatTimer.Start();
 
-                await _hubConnection.SendAsync("CheckForPendingSriptRuns");
+                // Inventário: logo depois de conectar e a cada 12 horas.
+                _inventoryTimer?.Dispose();
+                _inventoryTimer = new Timer(TimeSpan.FromHours(12).TotalMilliseconds);
+                _inventoryTimer.Elapsed += InventoryTimer_Elapsed;
+                _inventoryTimer.Start();
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30));
+                    await SendInventory(force: false);
+                });
+
+                await _hubConnection.SendAsync("CheckForPendingScriptRuns");
                 await _hubConnection.SendAsync("CheckForPendingRemoteControlSessions");
 
                 break;
@@ -207,6 +225,64 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
     {
         GC.SuppressFinalize(this);
         _heartbeatTimer?.Dispose();
+        _inventoryTimer?.Dispose();
+    }
+
+    public Task RequestInventory() => SendInventory(force: true);
+
+    /// <summary>
+    /// Coleta o inventário e envia ao servidor (JSON compactado).
+    /// Sem <paramref name="force"/>, só envia se o último envio tiver mais de 11 horas.
+    /// </summary>
+    private async Task SendInventory(bool force)
+    {
+        if (!force && DateTimeOffset.Now - _lastInventorySent < TimeSpan.FromHours(11))
+        {
+            return;
+        }
+
+        // Uma coleta por vez.
+        if (!await _inventoryLock.WaitAsync(0))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_hubConnection is null || _hubConnection.State != HubConnectionState.Connected || !_isServerVerified)
+            {
+                return;
+            }
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
+            cts.CancelAfter(TimeSpan.FromMinutes(5));
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var inventory = await _inventoryCollector.Collect(cts.Token);
+            var data = InventorySerializer.Compress(inventory);
+
+            await _hubConnection.SendAsync("ReportInventory", data, cts.Token);
+            _lastInventorySent = DateTimeOffset.Now;
+
+            _logger.LogInformation(
+                "Inventory sent in {elapsed} ms ({bytes} bytes, {software} programs).",
+                stopwatch.ElapsedMilliseconds,
+                data.Length,
+                inventory.Software.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while collecting or sending the inventory.");
+        }
+        finally
+        {
+            _inventoryLock.Release();
+        }
+    }
+
+    private async void InventoryTimer_Elapsed(object? sender, ElapsedEventArgs e)
+    {
+        await SendInventory(force: true);
     }
 
     public async Task ExecuteCommand(ScriptingShell shell, string command, string authToken, string senderUsername, string senderConnectionId)
@@ -642,6 +718,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             TransferFileFromBrowserToAgent);
 
         _hubConnection.On(nameof(TriggerHeartbeat), TriggerHeartbeat);
+
+        _hubConnection.On(nameof(RequestInventory), RequestInventory);
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
     }

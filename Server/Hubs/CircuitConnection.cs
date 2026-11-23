@@ -43,6 +43,9 @@ public interface ICircuitConnection
 
     Task TriggerHeartbeat(string deviceId);
 
+    /// <summary>Pede ao agente uma nova coleta de inventário.</summary>
+    Task<bool> RequestInventory(string deviceId);
+
     Task UninstallAgents(string[] deviceIDs);
     Task UpdateTags(string deviceID, string tags);
 
@@ -486,6 +489,19 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         }
 
         await _agentHubContext.Clients.Client(connectionId).TriggerHeartbeat();
+    }
+
+    public async Task<bool> RequestInventory(string deviceId)
+    {
+        var (canAccess, connectionId) = CanAccessDevice(deviceId);
+
+        if (!canAccess)
+        {
+            return false;
+        }
+
+        await _agentHubContext.Clients.Client(connectionId).RequestInventory();
+        return true;
     }
 
     public async Task UninstallAgents(string[] deviceIDs)

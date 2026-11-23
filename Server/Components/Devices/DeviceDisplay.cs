@@ -1,3 +1,4 @@
+using Remotely.Server.Models;
 using Remotely.Shared.Entities;
 using System.Text.RegularExpressions;
 
@@ -17,14 +18,80 @@ public static class DeviceDisplay
         @"^Microsoft Windows (?<version>(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)(?:\.\d+)?)\s*$",
         RegexOptions.Compiled);
 
-    public static (string UserName, string? FullName) GetUser(Device device)
+    public static (string UserName, string? FullName) GetUser(
+        Device device,
+        UserNameDisplayFormat format = UserNameDisplayFormat.FirstLast)
     {
         var value = device.CurrentUser?.Trim() ?? string.Empty;
         var match = _userRegex.Match(value);
-        return match.Success
-            ? (match.Groups["user"].Value.Trim(), match.Groups["name"].Value.Trim())
-            : (value, null);
+        var userName = match.Success ? match.Groups["user"].Value.Trim() : value;
+        var displayName = match.Success ? match.Groups["name"].Value.Trim() : null;
+
+        if (format == UserNameDisplayFormat.Original)
+        {
+            return (userName, displayName);
+        }
+
+        var (given, surname) = GetNameParts(device.CurrentUserGivenName, device.CurrentUserSurname, displayName);
+        return (userName, FormatName(given, surname, format) ?? displayName);
     }
+
+    /// <summary>
+    /// Separa nome e sobrenome. Usa os campos enviados pelo agente (vindos do
+    /// AD/Entra ID) e, se não houver, interpreta o nome de exibição:
+    /// "Silva, Michael" (formato do AD) ou "Michael Silva".
+    /// </summary>
+    public static (string? GivenName, string? Surname) GetNameParts(
+        string? givenName,
+        string? surname,
+        string? displayName)
+    {
+        if (!string.IsNullOrWhiteSpace(givenName) || !string.IsNullOrWhiteSpace(surname))
+        {
+            return (Clean(givenName), Clean(surname));
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return (null, null);
+        }
+
+        var commaIndex = displayName.IndexOf(',');
+        if (commaIndex > 0)
+        {
+            return (Clean(displayName[(commaIndex + 1)..]), Clean(displayName[..commaIndex]));
+        }
+
+        var parts = displayName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length switch
+        {
+            0 => (null, null),
+            1 => (parts[0], null),
+            _ => (parts[0], string.Join(' ', parts[1..]))
+        };
+    }
+
+    public static string? FormatName(string? givenName, string? surname, UserNameDisplayFormat format)
+    {
+        givenName = Clean(givenName);
+        surname = Clean(surname);
+
+        if (givenName is null && surname is null)
+        {
+            return null;
+        }
+        if (givenName is null || surname is null)
+        {
+            return givenName ?? surname;
+        }
+
+        return format == UserNameDisplayFormat.LastCommaFirst
+            ? $"{surname}, {givenName}"
+            : $"{givenName} {surname}";
+    }
+
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public static (string Name, string? Version) GetOperatingSystem(Device device)
     {

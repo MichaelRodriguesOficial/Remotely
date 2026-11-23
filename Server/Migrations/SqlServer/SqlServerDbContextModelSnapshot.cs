@@ -463,7 +463,44 @@ namespace Remotely.Server.Migrations.SqlServer
                     b.Property<double>("UsedStorage")
                         .HasColumnType("float");
 
+                    b.Property<string>("AssetTag")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CurrentUserGivenName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CurrentUserSurname")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("InventoryUpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.HasKey("ID");
+
+                    b.HasIndex("AssetTag");
 
                     b.HasIndex("DeviceGroupID");
 
@@ -471,7 +508,26 @@ namespace Remotely.Server.Migrations.SqlServer
 
                     b.HasIndex("OrganizationID");
 
+                    b.HasIndex("SerialNumber");
+
                     b.ToTable("Devices");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.Property<string>("DeviceID")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("CollectedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("DeviceID");
+
+                    b.ToTable("DeviceInventories");
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
@@ -1004,6 +1060,15 @@ namespace Remotely.Server.Migrations.SqlServer
                     b.Navigation("DeviceGroup");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.HasOne("Remotely.Shared.Entities.Device", null)
+                        .WithOne()
+                        .HasForeignKey("Remotely.Shared.Entities.DeviceInventoryRecord", "DeviceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>

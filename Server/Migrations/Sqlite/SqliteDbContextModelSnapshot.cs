@@ -453,7 +453,44 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.Property<double>("UsedStorage")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("AssetTag")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrentUserGivenName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrentUserSurname")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InventoryUpdatedAt")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
+
+                    b.HasIndex("AssetTag");
 
                     b.HasIndex("DeviceGroupID");
 
@@ -461,7 +498,27 @@ namespace Remotely.Server.Migrations.Sqlite
 
                     b.HasIndex("OrganizationID");
 
+                    b.HasIndex("SerialNumber");
+
                     b.ToTable("Devices");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.Property<string>("DeviceID")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CollectedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("DeviceID");
+
+                    b.ToTable("DeviceInventories");
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
@@ -997,6 +1054,15 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.Navigation("DeviceGroup");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceInventoryRecord", b =>
+                {
+                    b.HasOne("Remotely.Shared.Entities.Device", null)
+                        .WithOne()
+                        .HasForeignKey("Remotely.Shared.Entities.DeviceInventoryRecord", "DeviceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>

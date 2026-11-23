@@ -29,10 +29,17 @@ public class ProcessInvoker : IProcessInvoker
                 RedirectStandardOutput = true
             };
 
-            var proc = Process.Start(psi);
-            proc?.WaitForExit();
+            using var proc = Process.Start(psi);
+            if (proc is null)
+            {
+                return string.Empty;
+            }
 
-            return proc?.StandardOutput.ReadToEnd() ?? string.Empty;
+            // Lê a saída antes de esperar o fim: com saídas grandes o processo
+            // trava esperando alguém esvaziar o buffer (deadlock).
+            var output = proc.StandardOutput.ReadToEnd();
+            proc.WaitForExit();
+            return output;
         }
         catch (Exception ex)
         {

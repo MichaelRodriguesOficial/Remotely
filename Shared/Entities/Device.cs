@@ -28,6 +28,51 @@ public class Device
     [Display(Name = "Usuário atual")]
     public string? CurrentUser { get; set; }
 
+    /// <summary>Nome (prenome) do usuário logado, quando o agente consegue separar.</summary>
+    [StringLength(100)]
+    public string? CurrentUserGivenName { get; set; }
+
+    /// <summary>Sobrenome do usuário logado, quando o agente consegue separar.</summary>
+    [StringLength(100)]
+    public string? CurrentUserSurname { get; set; }
+
+    /// <summary>Número de inventário (placa de patrimônio), preenchido manualmente.</summary>
+    [StringLength(100)]
+    [Sortable]
+    [Display(Name = "Número de inventário")]
+    public string? AssetTag { get; set; }
+
+    /// <summary>Localização física, preenchida manualmente.</summary>
+    [StringLength(200)]
+    [Sortable]
+    [Display(Name = "Localização")]
+    public string? Location { get; set; }
+
+    // Resumo do inventário (o inventário completo fica em DeviceInventories).
+
+    [StringLength(50)]
+    [Sortable]
+    [Display(Name = "Tipo")]
+    public string? DeviceType { get; set; }
+
+    [StringLength(200)]
+    [Sortable]
+    [Display(Name = "Fabricante")]
+    public string? Manufacturer { get; set; }
+
+    [StringLength(200)]
+    [Sortable]
+    [Display(Name = "Modelo")]
+    public string? Model { get; set; }
+
+    [StringLength(200)]
+    [Sortable]
+    [Display(Name = "Número de série")]
+    public string? SerialNumber { get; set; }
+
+    [Display(Name = "Inventário atualizado em")]
+    public DateTimeOffset? InventoryUpdatedAt { get; set; }
+
     public DeviceGroup? DeviceGroup { get; set; }
     public string? DeviceGroupID { get; set; }
 

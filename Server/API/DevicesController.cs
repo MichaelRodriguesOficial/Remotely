@@ -6,6 +6,7 @@ using Remotely.Server.Extensions;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
 using Remotely.Shared.Models;
+using Remotely.Shared.Models.Inventory;
 
 namespace Remotely.Server.API;
 
@@ -77,6 +78,29 @@ public class DevicesController : ControllerBase
         }
 
         return deviceResult.Value;
+    }
+
+    /// <summary>
+    /// Inventário completo de hardware e software do dispositivo (o mesmo da aba Inventário).
+    /// </summary>
+    [ServiceFilter(typeof(ApiAuthorizationFilter))]
+    [HttpGet("{id}/inventory")]
+    public async Task<ActionResult<DeviceInventory>> GetInventory(string id)
+    {
+        var device = await Get(id);
+        if (device.Value is null)
+        {
+            return device.Result ?? NotFound();
+        }
+
+        var record = await _dataService.GetDeviceInventory(device.Value.ID);
+        var inventory = InventorySerializer.FromJson(record?.Data);
+        if (inventory is null)
+        {
+            return NotFound();
+        }
+
+        return inventory;
     }
 
     [HttpPut]

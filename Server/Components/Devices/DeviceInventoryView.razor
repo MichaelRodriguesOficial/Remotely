@@ -1,0 +1,617 @@
+@using Remotely.Shared.Models.Inventory
+
+@if (Inventory is null)
+{
+    <div class="empty-state mt-3">
+        <div class="empty-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <h3>Inventário ainda não recebido</h3>
+        <p>
+            O agente envia o inventário ao conectar e a cada 12 horas.
+            Agentes antigos precisam ser atualizados para a versão mais recente.
+        </p>
+        @if (CanRefresh)
+        {
+            <button class="btn btn-primary" @onclick="RequestRefresh" disabled="@IsRefreshing">
+                <i class="fa-solid fa-rotate @(IsRefreshing ? "fa-spin" : "")"></i> Coletar agora
+            </button>
+        }
+    </div>
+}
+else
+{
+    <div class="settings-layout inv-layout">
+        <nav class="settings-nav" aria-label="Seções do inventário">
+            @foreach (var navItem in Sections)
+            {
+                <button type="button"
+                        class="@(navItem.Id == _section ? "active" : "")"
+                        @onclick="() => _section = navItem.Id">
+                    <i class="@navItem.Icon"></i>
+                    <span>@navItem.Title</span>
+                    @if (navItem.Count is { } count)
+                    {
+                        <span class="inv-count">@count</span>
+                    }
+                </button>
+            }
+        </nav>
+
+        <div class="inv-body">
+            <div class="inv-toolbar">
+                <span class="text-muted small">
+                    <i class="fa-regular fa-clock me-1"></i>
+                    Coletado em @Inventory.CollectedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                </span>
+                @if (CanRefresh)
+                {
+                    <button class="btn btn-secondary btn-sm" @onclick="RequestRefresh" disabled="@IsRefreshing">
+                        <i class="fa-solid fa-rotate @(IsRefreshing ? "fa-spin" : "")"></i> Atualizar inventário
+                    </button>
+                }
+            </div>
+
+            @switch (_section)
+            {
+                case "os":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-brands fa-windows"></i> Sistema operacional</h2>
+                        </div>
+                        @if (Inventory.OperatingSystem is { } os)
+                        {
+                            <dl class="detail-list inv-details">
+                                @Row("Nome", os.Name)
+                                @Row("Edição", os.Edition)
+                                @Row("Versão", os.DisplayVersion)
+                                @Row("Versão do núcleo", os.Version, true)
+                                @Row("Build", os.Build, true)
+                                @Row("Kernel", os.KernelVersion, true)
+                                @Row("Arquitetura", os.Architecture)
+                                @Row("Número de série (ID do produto)", os.SerialNumber, true)
+                                @Row("Licença", os.LicenseStatus)
+                                @Row("Idioma", os.Language)
+                                @Row("Fuso horário", os.TimeZone)
+                                @Row("Instalado em", FormatDate(os.InstallDate))
+                                @Row("Última inicialização", FormatDateTime(os.LastBoot))
+                                @Row("Domínio", Inventory.Domain)
+                                @Row("Grupo de trabalho", Inventory.Workgroup)
+                            </dl>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-0">Não informado.</p>
+                        }
+                    </section>
+                    break;
+
+                case "components":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-microchip"></i> Firmware e placa-mãe</h2>
+                        </div>
+                        <dl class="detail-list inv-details">
+                            @Row("BIOS · fabricante", Inventory.Bios?.Manufacturer)
+                            @Row("BIOS · versão", Inventory.Bios?.Version, true)
+                            @Row("BIOS · data", FormatDate(Inventory.Bios?.ReleaseDate))
+                            @Row("BIOS · número de série", Inventory.Bios?.SerialNumber, true)
+                            @Row("SMBIOS", Inventory.Bios?.SmbiosVersion)
+                            @Row("Modo de inicialização", Inventory.Bios?.Mode)
+                            @Row("Secure Boot", FormatBool(Inventory.Bios?.SecureBoot, "Ativado", "Desativado"))
+                            @Row("Placa-mãe", JoinNonEmpty(" ", Inventory.Motherboard?.Manufacturer, Inventory.Motherboard?.Product))
+                            @Row("Placa-mãe · versão", Inventory.Motherboard?.Version)
+                            @Row("Placa-mãe · número de série", Inventory.Motherboard?.SerialNumber, true)
+                        </dl>
+                    </section>
+
+                    <section class="panel mt-3">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-microchip"></i> Processadores</h2>
+                        </div>
+                        @if (Inventory.Processors.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum processador informado.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Modelo</th><th>Fabricante</th><th>Núcleos</th><th>Threads</th><th>Frequência</th><th>Soquete</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var cpu in Inventory.Processors)
+                                        {
+                                            <tr>
+                                                <td>@cpu.Name</td>
+                                                <td>@cpu.Manufacturer</td>
+                                                <td>@cpu.Cores</td>
+                                                <td>@cpu.Threads</td>
+                                                <td>@(cpu.MaxClockMhz is > 0 ? $"{cpu.MaxClockMhz} MHz" : "")</td>
+                                                <td>@cpu.Socket</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="panel mt-3">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-memory"></i> Memória</h2>
+                            @if (Inventory.Memory.Count > 0)
+                            {
+                                <span class="pill no-dot">@FormatBytes(Inventory.Memory.Sum(x => x.CapacityBytes ?? 0)) no total</span>
+                            }
+                        </div>
+                        @if (Inventory.Memory.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum módulo informado.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Slot</th><th>Capacidade</th><th>Tipo</th><th>Frequência</th><th>Fabricante</th><th>Part number</th><th>Número de série</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var module in Inventory.Memory)
+                                        {
+                                            <tr>
+                                                <td>@module.Slot</td>
+                                                <td class="text-nowrap">@FormatBytes(module.CapacityBytes)</td>
+                                                <td>@JoinNonEmpty(" · ", module.Type, module.FormFactor)</td>
+                                                <td>@(module.SpeedMhz is > 0 ? $"{module.SpeedMhz} MHz" : "")</td>
+                                                <td>@module.Manufacturer</td>
+                                                <td class="mono small">@module.PartNumber</td>
+                                                <td class="mono small">@module.SerialNumber</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+
+                    <section class="panel mt-3">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-hard-drive"></i> Discos rígidos</h2>
+                        </div>
+                        @if (Inventory.Disks.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum disco informado.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Modelo</th><th>Capacidade</th><th>Tipo</th><th>Interface</th><th>Firmware</th><th>Número de série</th><th>Saúde</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var disk in Inventory.Disks)
+                                        {
+                                            <tr>
+                                                <td>@JoinNonEmpty(" ", disk.Manufacturer, disk.Model)</td>
+                                                <td class="text-nowrap">@FormatBytes(disk.SizeBytes)</td>
+                                                <td>@disk.MediaType</td>
+                                                <td>@disk.Interface</td>
+                                                <td class="mono small">@disk.Firmware</td>
+                                                <td class="mono small">@disk.SerialNumber</td>
+                                                <td>@disk.Health</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+
+                    @foreach (var group in Inventory.Components
+                        .Where(x => !string.IsNullOrWhiteSpace(x.Category))
+                        .GroupBy(x => x.Category)
+                        .OrderBy(x => CategoryOrder(x.Key)))
+                    {
+                        <section class="panel mt-3">
+                            <div class="panel-header">
+                                <h2 class="panel-title"><i class="@CategoryIcon(group.Key)"></i> @group.Key</h2>
+                            </div>
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Nome</th><th>Fabricante</th><th>Detalhes</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var component in group)
+                                        {
+                                            <tr>
+                                                <td>@component.Name</td>
+                                                <td>@component.Manufacturer</td>
+                                                <td class="small">
+                                                    @foreach (var detail in GetComponentDetails(component))
+                                                    {
+                                                        <span class="inv-kv"><span class="text-muted">@detail.Key:</span> @detail.Value</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    }
+                    break;
+
+                case "volumes":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-database"></i> Volumes</h2>
+                        </div>
+                        @if (Inventory.Volumes.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum volume informado.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Volume</th><th>Rótulo</th><th>Tipo</th><th>Sistema de arquivos</th><th class="inv-usage-col">Uso</th><th>Livre</th><th>Total</th><th>Criptografia</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var volume in Inventory.Volumes)
+                                        {
+                                            var percent = GetUsedPercent(volume);
+                                            <tr>
+                                                <td class="mono">@volume.MountPoint</td>
+                                                <td>@volume.Label</td>
+                                                <td>@volume.Type</td>
+                                                <td>@volume.FileSystem</td>
+                                                <td>
+                                                    @if (percent is { } used)
+                                                    {
+                                                        <div class="d-flex align-items-center gap-2">
+                                                            <div class="meter flex-grow-1 @(used >= 90 ? "crit" : used >= 75 ? "warn" : "")"><span style="width:@(used.ToString("0", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
+                                                            <span class="small text-muted">@used.ToString("0")%</span>
+                                                        </div>
+                                                    }
+                                                </td>
+                                                <td class="text-nowrap">@FormatBytes(volume.FreeBytes)</td>
+                                                <td class="text-nowrap">@FormatBytes(volume.TotalBytes)</td>
+                                                <td>@volume.Encryption</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+                    break;
+
+                case "software":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-cubes"></i> Softwares</h2>
+                            <div class="input-icon inv-search">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                                <input class="form-control form-control-sm" placeholder="Filtrar por nome, versão ou editor"
+                                       @bind="_softwareFilter" @bind:event="oninput" />
+                            </div>
+                        </div>
+                        @{
+                            var software = FilteredSoftware().ToList();
+                        }
+                        @if (software.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum software encontrado.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table table-hover">
+                                    <thead><tr><th>Nome</th><th>Versão</th><th>Editor</th><th>Instalado em</th><th>Arquitetura</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var item in software.Take(_softwareLimit))
+                                        {
+                                            <tr>
+                                                <td>@item.Name</td>
+                                                <td class="mono small text-nowrap">@item.Version</td>
+                                                <td>@item.Publisher</td>
+                                                <td class="text-nowrap">@FormatDate(item.InstallDate)</td>
+                                                <td>@item.Architecture</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <p class="form-text mb-0">
+                                    @if (software.Count > _softwareLimit)
+                                    {
+                                        @($"Mostrando {_softwareLimit} de {software.Count} encontrados ({Inventory.Software.Count} no total).")
+                                    }
+                                    else
+                                    {
+                                        @($"{software.Count} de {Inventory.Software.Count} softwares.")
+                                    }
+                                </p>
+                                @if (software.Count > _softwareLimit)
+                                {
+                                    <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _softwareLimit += 300">Mostrar mais</button>
+                                }
+                            </div>
+                        }
+                    </section>
+                    break;
+
+                case "network":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-network-wired"></i> Portas de rede</h2>
+                            <div class="form-check form-switch mb-0">
+                                <input id="inv-show-virtual" class="form-check-input" type="checkbox" @bind="_showVirtualPorts" />
+                                <label class="form-check-label small" for="inv-show-virtual">Mostrar adaptadores virtuais</label>
+                            </div>
+                        </div>
+                        @{
+                            var ports = Inventory.NetworkPorts.Where(x => _showVirtualPorts || x.Virtual != true).ToList();
+                        }
+                        @if (ports.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhuma porta de rede informada.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Interface</th><th>Endereço MAC</th><th>Endereços</th><th>Conexão</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var port in ports)
+                                        {
+                                            <tr>
+                                                <td class="inv-port-name">
+                                                    <div class="fw-semibold">@port.Name</div>
+                                                    @if (!string.IsNullOrWhiteSpace(port.Description) && port.Description != port.Name)
+                                                    {
+                                                        <div class="small text-muted">@port.Description</div>
+                                                    }
+                                                    @if (!string.IsNullOrWhiteSpace(port.Type))
+                                                    {
+                                                        <div class="small text-muted">@port.Type@(port.Virtual == true ? " · virtual" : "")</div>
+                                                    }
+                                                </td>
+                                                <td class="text-nowrap"><span class="mono small">@port.MacAddress</span></td>
+                                                <td class="small">
+                                                    @for (var i = 0; i < port.IPv4.Count; i++)
+                                                    {
+                                                        <div><span class="text-muted">IPv4:</span> <span class="mono">@port.IPv4[i]@(i < port.SubnetMasks.Count ? $" / {port.SubnetMasks[i]}" : "")</span></div>
+                                                    }
+                                                    @foreach (var ip in port.IPv6)
+                                                    {
+                                                        <div><span class="text-muted">IPv6:</span> <span class="mono">@ip</span></div>
+                                                    }
+                                                    @if (port.Gateways.Count > 0)
+                                                    {
+                                                        <div><span class="text-muted">Gateway:</span> <span class="mono">@string.Join(", ", port.Gateways)</span></div>
+                                                    }
+                                                    @if (port.DnsServers.Count > 0)
+                                                    {
+                                                        <div><span class="text-muted">DNS:</span> <span class="mono">@string.Join(", ", port.DnsServers)</span></div>
+                                                    }
+                                                </td>
+                                                <td class="text-nowrap small">
+                                                    @if (port.Connected == true)
+                                                    {
+                                                        <span class="pill success">Conectada</span>
+                                                    }
+                                                    else if (port.Connected == false)
+                                                    {
+                                                        <span class="pill">Desconectada</span>
+                                                    }
+                                                    @if (FormatSpeed(port.SpeedMbps) is { } speed)
+                                                    {
+                                                        <div class="mt-1">@speed</div>
+                                                    }
+                                                    @if (port.Dhcp is { } dhcp)
+                                                    {
+                                                        <div class="text-muted">@(dhcp ? "DHCP" : "IP fixo")</div>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+                    break;
+
+                case "antivirus":
+                    <section class="panel">
+                        <div class="panel-header">
+                            <h2 class="panel-title"><i class="fa-solid fa-shield-virus"></i> Antivírus</h2>
+                        </div>
+                        @if (Inventory.Antivirus.Count == 0)
+                        {
+                            <p class="text-muted mb-0">Nenhum antivírus informado. No Windows Server e no Linux essa informação nem sempre está disponível.</p>
+                        }
+                        else
+                        {
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead><tr><th>Nome</th><th>Fabricante</th><th>Versão</th><th>Ativo</th><th>Atualizado</th><th>Assinaturas</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var av in Inventory.Antivirus)
+                                        {
+                                            <tr>
+                                                <td>@av.Name</td>
+                                                <td>@av.Manufacturer</td>
+                                                <td class="mono small">@av.Version</td>
+                                                <td>@StatusPill(av.Enabled, "Sim", "Não")</td>
+                                                <td>@StatusPill(av.UpToDate, "Sim", "Não")</td>
+                                                <td class="mono small">@av.SignatureVersion</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </section>
+                    break;
+            }
+
+            @if (Inventory.Warnings.Count > 0)
+            {
+                <details class="inv-warnings mt-3">
+                    <summary class="small text-muted">Itens que o agente não conseguiu coletar (@Inventory.Warnings.Count)</summary>
+                    <ul class="small text-muted mb-0 mt-2">
+                        @foreach (var warning in Inventory.Warnings)
+                        {
+                            <li>@warning</li>
+                        }
+                    </ul>
+                </details>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private string _section = "os";
+    private string? _softwareFilter;
+    private int _softwareLimit = 300;
+    private bool _showVirtualPorts;
+
+    [Parameter]
+    public DeviceInventory? Inventory { get; set; }
+
+    [Parameter]
+    public bool CanRefresh { get; set; }
+
+    [Parameter]
+    public bool IsRefreshing { get; set; }
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    private record SectionInfo(string Id, string Title, string Icon, int? Count);
+
+    private IEnumerable<SectionInfo> Sections
+    {
+        get
+        {
+            var inv = Inventory!;
+            yield return new("os", "Sistema operacional", "fa-solid fa-display", null);
+            yield return new("components", "Componentes", "fa-solid fa-microchip",
+                inv.Processors.Count + inv.Memory.Count + inv.Disks.Count + inv.Components.Count);
+            yield return new("volumes", "Volumes", "fa-solid fa-database", inv.Volumes.Count);
+            yield return new("software", "Softwares", "fa-solid fa-cubes", inv.Software.Count);
+            yield return new("network", "Portas de rede", "fa-solid fa-network-wired", inv.NetworkPorts.Count(x => x.Virtual != true));
+            yield return new("antivirus", "Antivírus", "fa-solid fa-shield-virus", inv.Antivirus.Count);
+        }
+    }
+
+    private Task RequestRefresh() => OnRefresh.InvokeAsync();
+
+    private IEnumerable<InventorySoftware> FilteredSoftware()
+    {
+        var items = Inventory!.Software.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(_softwareFilter))
+        {
+            var filter = _softwareFilter.Trim();
+            items = items.Where(x =>
+                x.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                x.Version?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true ||
+                x.Publisher?.Contains(filter, StringComparison.OrdinalIgnoreCase) == true);
+        }
+        return items.OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    private static RenderFragment Row(string label, string? value, bool mono = false) => __builder =>
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+        <dt>@label</dt>
+        <dd class="@(mono ? "mono" : "")">@value</dd>
+    };
+
+    private static RenderFragment StatusPill(bool? value, string yes, string no) => __builder =>
+    {
+        if (value == true)
+        {
+            <span class="pill success">@yes</span>
+        }
+        else if (value == false)
+        {
+            <span class="pill danger">@no</span>
+        }
+    };
+
+    private static double? GetUsedPercent(InventoryVolume volume)
+    {
+        if (volume.TotalBytes is not > 0 || volume.FreeBytes is null)
+        {
+            return null;
+        }
+        return Math.Clamp(100.0 * (volume.TotalBytes.Value - volume.FreeBytes.Value) / volume.TotalBytes.Value, 0, 100);
+    }
+
+    private static IEnumerable<KeyValuePair<string, string>> GetComponentDetails(InventoryComponent component)
+    {
+        if (!string.IsNullOrWhiteSpace(component.Version))
+        {
+            yield return new("Versão", component.Version);
+        }
+        if (!string.IsNullOrWhiteSpace(component.SerialNumber))
+        {
+            yield return new("Série", component.SerialNumber);
+        }
+        foreach (var detail in component.Details.Where(x => !string.IsNullOrWhiteSpace(x.Value)))
+        {
+            yield return detail;
+        }
+    }
+
+    private static int CategoryOrder(string category) => category switch
+    {
+        "Placa de vídeo" => 0,
+        "Monitor" => 1,
+        "Placa de som" => 2,
+        "Controladora" => 3,
+        "Bateria" => 4,
+        _ => 10
+    };
+
+    private static string CategoryIcon(string category) => category switch
+    {
+        "Placa de vídeo" => "fa-solid fa-display",
+        "Monitor" => "fa-solid fa-tv",
+        "Placa de som" => "fa-solid fa-volume-high",
+        "Controladora" => "fa-solid fa-sitemap",
+        "Bateria" => "fa-solid fa-battery-three-quarters",
+        "Leitor óptico" => "fa-solid fa-compact-disc",
+        "Impressora" => "fa-solid fa-print",
+        "TPM" => "fa-solid fa-key",
+        _ => "fa-solid fa-puzzle-piece"
+    };
+
+    public static string FormatBytes(long? bytes) =>
+        bytes is null or <= 0 ? string.Empty : InventoryFormat.Bytes(bytes.Value);
+
+    private static string? FormatSpeed(long? mbps)
+    {
+        if (mbps is null or <= 0)
+        {
+            return null;
+        }
+        return mbps >= 1000 ? $"{mbps / 1000.0:0.#} Gbps" : $"{mbps} Mbps";
+    }
+
+    private static string? FormatBool(bool? value, string yes, string no) =>
+        value is null ? null : value.Value ? yes : no;
+
+    private static string? FormatDate(DateTimeOffset? date) =>
+        date?.ToLocalTime().ToString("dd/MM/yyyy");
+
+    private static string? FormatDateTime(DateTimeOffset? date) =>
+        date?.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    private static string? JoinNonEmpty(string separator, params string?[] values)
+    {
+        var parts = values.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).ToArray();
+        return parts.Length == 0 ? null : string.Join(separator, parts);
+    }
+}

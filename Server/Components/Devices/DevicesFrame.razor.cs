@@ -25,6 +25,9 @@ public partial class DevicesFrame : AuthComponentBase
     private readonly List<DeviceGroup> _deviceGroups = new();
     private readonly SemaphoreSlim _devicesLock = new(1,1);
     private readonly List<Device> _filteredDevices = new();
+
+    /// <summary>Formato do nome do usuário nos cartões (definido na configuração do servidor).</summary>
+    public Remotely.Server.Models.UserNameDisplayFormat NameFormat { get; private set; }
     private readonly List<Device> _prependedDevices = new();
     private readonly List<PropertyInfo> _sortableProperties = new();
     private int _currentPage = 1;
@@ -101,6 +104,8 @@ public partial class DevicesFrame : AuthComponentBase
             CircuitConnection.ConnectionId,
             HandleScriptResultMessage);
 
+        NameFormat = (await DataService.GetSettings()).UserNameDisplayFormat;
+
         _deviceGroups.Clear();
 
         _deviceGroups.AddRange(DataService.GetDeviceGroups(UserName));
@@ -173,7 +178,16 @@ public partial class DevicesFrame : AuthComponentBase
                     device.DeviceName?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
                     device.Notes?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
                     device.Platform?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
-                    device.Tags?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true)
+                    device.Tags?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.AssetTag?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.SerialNumber?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.Model?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.Manufacturer?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.Location?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.DeviceType?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.CurrentUserGivenName?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.CurrentUserSurname?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true &&
+                    device.OSDescription?.Contains(_filter, StringComparison.OrdinalIgnoreCase) != true)
             {
                 continue;
             }

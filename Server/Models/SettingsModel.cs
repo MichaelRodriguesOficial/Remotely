@@ -35,4 +35,18 @@ public class SettingsModel
     public List<string> TrustedCorsOrigins { get; set; } = [];
     public bool UseHsts { get; set; }
     public bool UseHttpLogging { get; set; }
+    public UserNameDisplayFormat UserNameDisplayFormat { get; set; } = UserNameDisplayFormat.FirstLast;
+}
+
+/// <summary>
+/// Como o nome do usuário conectado aparece nos cartões e detalhes dos dispositivos.
+/// </summary>
+public enum UserNameDisplayFormat
+{
+    /// <summary>"Michael Silva" (padrão no Brasil).</summary>
+    FirstLast = 0,
+    /// <summary>"Silva, Michael" (comum nos EUA).</summary>
+    LastCommaFirst = 1,
+    /// <summary>Exatamente como o Windows/Linux informa.</summary>
+    Original = 2
 }

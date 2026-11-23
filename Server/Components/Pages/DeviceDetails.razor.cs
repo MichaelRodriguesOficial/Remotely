@@ -2,10 +2,12 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Remotely.Server.Components.Devices;
 using Remotely.Server.Hubs;
 using Remotely.Server.Models.Messages;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
+using Remotely.Shared.Models.Inventory;
 using Remotely.Shared.Utilities;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -23,6 +25,9 @@ public partial class DeviceDetails : AuthComponentBase
     private string? _inputDeviceId;
     private bool _isLoading = true;
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
+    private DeviceInventory? _inventory;
+    private bool _isRefreshingInventory;
+    private Remotely.Server.Models.UserNameDisplayFormat _nameFormat;
 
     [Parameter]
     public string ActiveTab { get; set; } = string.Empty;
@@ -71,11 +76,122 @@ public partial class DeviceDetails : AuthComponentBase
         }
 
         _deviceGroups = DataService.GetDeviceGroups(UserName);
+        _nameFormat = (await DataService.GetSettings()).UserNameDisplayFormat;
+
+        if (_device is not null && _userHasAccess)
+        {
+            await LoadInventory();
+        }
+
         await Register<ReceiveLogsMessage, string>(
             CircuitConnection.ConnectionId,
             HandleReceiveLogsMessage);
 
+        await Register<InventoryUpdatedMessage, string>(
+            CircuitConnection.ConnectionId,
+            HandleInventoryUpdated);
+
+        await Register<DeviceStateChangedMessage, string>(
+            CircuitConnection.ConnectionId,
+            HandleDeviceStateChanged);
+
         _isLoading = false;
+    }
+
+    private async Task LoadInventory()
+    {
+        if (_device is null)
+        {
+            return;
+        }
+
+        var record = await DataService.GetDeviceInventory(_device.ID);
+        _inventory = InventorySerializer.FromJson(record?.Data);
+    }
+
+    private async Task HandleInventoryUpdated(object subscriber, InventoryUpdatedMessage message)
+    {
+        if (_device is null || message.DeviceId != _device.ID)
+        {
+            return;
+        }
+
+        await LoadInventory();
+
+        if (_isRefreshingInventory)
+        {
+            _isRefreshingInventory = false;
+            ToastService.ShowToast2("Inventário atualizado.", Enums.ToastType.Success);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleDeviceStateChanged(object subscriber, DeviceStateChangedMessage message)
+    {
+        if (_device is null || message.Device.ID != _device.ID)
+        {
+            return;
+        }
+
+        // Atualiza só o que vem do agente; os campos do formulário ficam como o usuário deixou.
+        _device.IsOnline = message.Device.IsOnline;
+        _device.CurrentUser = message.Device.CurrentUser;
+        _device.CurrentUserGivenName = message.Device.CurrentUserGivenName;
+        _device.CurrentUserSurname = message.Device.CurrentUserSurname;
+        _device.OSDescription = message.Device.OSDescription;
+        _device.LastOnline = message.Device.LastOnline;
+        _device.DeviceType = message.Device.DeviceType;
+        _device.Manufacturer = message.Device.Manufacturer;
+        _device.Model = message.Device.Model;
+        _device.SerialNumber = message.Device.SerialNumber;
+        _device.InventoryUpdatedAt = message.Device.InventoryUpdatedAt;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshInventory()
+    {
+        if (_device is null)
+        {
+            return;
+        }
+
+        if (!_device.IsOnline)
+        {
+            ToastService.ShowToast2("O dispositivo está offline.", Enums.ToastType.Warning);
+            return;
+        }
+
+        if (!await CircuitConnection.RequestInventory(_device.ID))
+        {
+            ToastService.ShowToast2("Não foi possível pedir o inventário ao agente.", Enums.ToastType.Warning);
+            return;
+        }
+
+        _isRefreshingInventory = true;
+        ToastService.ShowToast2("Coleta solicitada. O inventário aparece aqui em alguns segundos.", Enums.ToastType.Info);
+
+        // Se o agente for antigo (sem suporte a inventário), não fica girando para sempre.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromMinutes(2));
+            if (_isRefreshingInventory)
+            {
+                _isRefreshingInventory = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        });
+    }
+
+    private string GetUserDisplay()
+    {
+        if (_device is null)
+        {
+            return string.Empty;
+        }
+
+        var (user, fullName) = DeviceDisplay.GetUser(_device, _nameFormat);
+        return fullName is null ? user : $"{fullName} · {user}";
     }
 
     private async Task HandleReceiveLogsMessage(object subscriber, ReceiveLogsMessage message)
@@ -183,30 +299,37 @@ public partial class DeviceDetails : AuthComponentBase
         return GetTrimmedText(string.Join("", source), stringLength);
     }
 
-    private Task HandleValidSubmit()
+    private async Task HandleValidSubmit()
     {
         if (_device is null)
         {
-            return Task.CompletedTask;
+            return;
+        }
+
+        EnsureUserSet();
+        if (!_userHasAccess || !DataService.DoesUserHaveAccessToDevice(_device.ID, User))
+        {
+            _alertMessage = "Você não tem acesso a este dispositivo.";
+            return;
         }
 
         if (!Permissions.ManageDevices)
         {
             _alertMessage = "Seu perfil não permite editar dispositivos.";
-            return Task.CompletedTask;
+            return;
         }
 
-        DataService.UpdateDevice(
+        await DataService.UpdateDevice(
             _device.ID,
             _device.Tags,
             _device.Alias,
             _device.DeviceGroupID,
             _device.Notes);
 
-        _alertMessage = "Detalhes do dispositivo salvos.";
-        ToastService.ShowToast("Detalhes do dispositivo salvos.");
+        await DataService.UpdateDeviceAsset(_device.ID, _device.AssetTag, _device.Location);
 
-        return Task.CompletedTask;
+        _alertMessage = string.Empty;
+        ToastService.ShowToast2("Detalhes do dispositivo salvos.", Enums.ToastType.Success);
     }
 
     private string GetOsIcon()

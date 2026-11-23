@@ -1,5 +1,35 @@
 # Changelog
 
+## v1.3.0 — 2026-11-23
+
+### Inventário dos dispositivos
+- Nova aba **Inventário** nos detalhes do dispositivo, no estilo do GLPI Inventory, com seções:
+  - **Sistema operacional**: nome, edição, versão (25H2), build, arquitetura, **número de série do SO** (ID do produto), status da licença, idioma, fuso, instalação e última inicialização.
+  - **Componentes**: BIOS/firmware (versão, data, UEFI, Secure Boot), placa-mãe, processadores, memórias (slot, tipo, frequência, fabricante, part number, série), discos (SSD/HD, NVMe/SATA, firmware, série, saúde), placas de vídeo, monitores, placas de som, controladoras, bateria (saúde) e TPM.
+  - **Volumes**: uso, sistema de arquivos e BitLocker.
+  - **Softwares**: lista com busca por nome, versão ou editor.
+  - **Portas de rede**: MAC, IPv4/IPv6, máscara, gateway, DNS, DHCP, velocidade e status (adaptadores virtuais ficam ocultos por padrão).
+  - **Antivírus**: produto, versão, se está ativo e atualizado (Central de Segurança e Microsoft Defender).
+- Resumo no topo dos detalhes e no card: **tipo** (Desktop, Notebook, Servidor, Máquina virtual...), **fabricante**, **modelo**, **número de série**, **UUID**.
+- Campos manuais **Número de inventário** (placa de patrimônio) e **Localização**, editáveis no card e nos detalhes.
+- A busca de dispositivos encontra por número de série, patrimônio, modelo, fabricante, localização e tipo.
+- O agente coleta ao conectar e a cada 12 horas; o botão **Atualizar inventário** pede uma coleta na hora. Windows via WMI e registro; Linux via DMI, `/proc`, `lsblk`, `lspci`, `dmidecode` e `dpkg`/`rpm`; macOS com dados básicos.
+- API: `GET /api/Devices/{id}/inventory`.
+- Migração de banco `Add_DeviceInventory` (SQLite, SQL Server e PostgreSQL), aplicada automaticamente ao iniciar.
+
+### Nome do usuário
+- O agente do Windows envia **nome e sobrenome em campos separados** (vindos do Active Directory). Para agentes antigos ou contas fora do domínio, o servidor separa o nome de exibição ("Silva, Michael" → nome Michael, sobrenome Silva).
+- Nova opção em **Configuração → Geral → Exibição do nome do usuário**: "Nome Sobrenome" (padrão no Brasil), "Sobrenome, Nome" (EUA) ou como o sistema informa.
+
+### Login e downloads
+- Removido o link **"Entrar em uma sessão"** da tela de login.
+- **Download do cliente sem `http~` atrás de proxy HTTPS:** o servidor agora identifica o HTTPS também pelo endereço da página que fez o download (e por `X-Forwarded-Ssl`, `X-Forwarded-Scheme` e `Front-End-Https`). O arquivo sai como `Remotely_Desktop_x86 (suporte.empresa.com.br).exe` mesmo quando o aaPanel não envia `X-Forwarded-Proto`. Vale também para os instaladores dos agentes.
+
+### Correções
+- O agente chamava `CheckForPendingSriptRuns` (com erro de digitação) ao conectar, e os scripts pendentes não eram executados até o próximo heartbeat.
+- Execução de processos externos podia travar quando a saída era grande (a saída era lida só depois de o processo terminar).
+- Os detalhes do dispositivo salvavam sem esperar o banco e sem conferir de novo o acesso ao dispositivo.
+
 ## v1.2.1 — 2026-11-23
 
 ### Login e downloads

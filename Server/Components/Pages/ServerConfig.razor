@@ -86,6 +86,19 @@
         </div>
         <div class="setting-row">
             <div>
+                <label class="setting-label" for="cfg-UserNameDisplayFormat">Exibição do nome do usuário</label>
+                <p class="setting-desc">Como o nome de quem está logado aparece nos cartões e nos detalhes dos dispositivos.</p>
+            </div>
+            <div class="setting-control">
+                <select id="cfg-UserNameDisplayFormat" class="form-select" @bind="Input.UserNameDisplayFormat">
+                    <option value="@UserNameDisplayFormat.FirstLast">Nome Sobrenome (ex.: Michael Silva)</option>
+                    <option value="@UserNameDisplayFormat.LastCommaFirst">Sobrenome, Nome (ex.: Silva, Michael)</option>
+                    <option value="@UserNameDisplayFormat.Original">Como o sistema informa</option>
+                </select>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
                 <label class="setting-label" for="cfg-MaxOrganizationCount">Máximo de organizações</label>
                 <p class="setting-desc">Limita os cadastros públicos. Use -1 para ilimitado e 1 para só a sua organização.</p>
             </div>
