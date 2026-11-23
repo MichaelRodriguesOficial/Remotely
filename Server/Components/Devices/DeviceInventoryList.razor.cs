@@ -99,6 +99,54 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         new("inventory", "Último inventário", r => r.Device.InventoryUpdatedAt),
     ];
 
+    private static readonly string[] ExportColumns =
+    [
+        "Nome", "Apelido", "Usuário", "Localização", "Status", "Última conexão", "Número de série", "Tipo",
+        "Fabricante", "Modelo", "Sistema operacional", "Processador", "Memória", "Disco", "Nº de inventário",
+        "Grupo", "Tags", "IP público", "Versão do agente", "Último inventário"
+    ];
+
+    private IEnumerable<IReadOnlyList<string?>> ExportRows() =>
+        _filtered.Select(r => (IReadOnlyList<string?>)
+        [
+            r.Device.DeviceName,
+            r.Device.Alias,
+            r.UserDisplay,
+            r.Device.Location,
+            r.Device.IsOnline ? "Online" : "Offline",
+            r.Device.LastOnline == default ? null : r.Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm"),
+            r.Device.SerialNumber,
+            r.Device.DeviceType,
+            r.Device.Manufacturer,
+            r.Device.Model,
+            r.OsName,
+            r.Device.ProcessorName,
+            DeviceComputerInfo.FormatGb(r.Device.TotalMemory),
+            DeviceComputerInfo.FormatGb(r.Device.TotalStorage),
+            r.Device.AssetTag,
+            r.GroupName,
+            r.Device.Tags,
+            r.Device.PublicIP,
+            r.Device.AgentVersion,
+            r.Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+        ]);
+
+    private string ExportSubtitle =>
+        string.IsNullOrWhiteSpace(_query) && string.IsNullOrEmpty(_status) && string.IsNullOrEmpty(_groupId)
+            ? $"{_filtered.Count} dispositivo(s)"
+            : $"{_filtered.Count} de {_all.Count} dispositivo(s) · filtro: " +
+              string.Join(" · ", new[]
+              {
+                  _query,
+                  string.IsNullOrEmpty(_status) ? null : $"status {_status}",
+                  !string.IsNullOrEmpty(_groupId) && _groups.TryGetValue(_groupId, out var group) ? $"grupo {group}" : null
+              }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+    private string BuildListHtml() =>
+        ReportBuilder.TableHtml("Inventário de computadores", ExportSubtitle, ExportColumns, ExportRows());
+
+    private byte[] BuildListCsv() => ReportBuilder.Csv(ExportColumns, ExportRows());
+
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();

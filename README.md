@@ -27,7 +27,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td><img src=".github/media/inventario-lista.png" alt="Lista do inventário com busca inteligente" /></td>
   </tr>
   <tr>
-    <td align="center">Diagnóstico: testes de componentes com histórico</td>
+    <td align="center">Diagnóstico: testes de componentes, histórico e exportação</td>
     <td align="center">Inventário com busca inteligente</td>
   </tr>
   <tr>
@@ -35,8 +35,16 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td><img src=".github/media/dispositivo-aberto.png" alt="Card do dispositivo aberto com ações e identificação" /></td>
   </tr>
   <tr>
-    <td align="center">Softwares instalados, com busca</td>
+    <td align="center">Softwares instalados, com busca e exportação</td>
     <td align="center">Card aberto: ações, equipamento e identificação</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/relatorio-diagnostico.png" alt="Relatório do diagnóstico exportado em PDF/HTML" /></td>
+    <td><img src=".github/media/relatorio-email.png" alt="Envio do inventário filtrado por e-mail" /></td>
+  </tr>
+  <tr>
+    <td align="center">Relatório exportado (PDF, HTML, Excel ou JSON)</td>
+    <td align="center">Envio por e-mail com a planilha em anexo</td>
   </tr>
   <tr>
     <td><img src=".github/media/configuracoes.png" alt="Configuração do servidor organizada por seções" /></td>
@@ -71,6 +79,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
 - **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores e memórias (pela tabela SMBIOS, como o dmidecode), discos, placas de rede, vídeo e som, monitores, todas as controladoras PCI (com os nomes da base pci.ids), bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
 - **Diagnóstico remoto** (aba ao lado do Inventário): saúde dos discos (SMART), bateria, dispositivos com erro e telas azuis, rede (ping, DNS, Wi-Fi), sistema (reinício pendente, atualizações, antivírus), velocidade do disco, estresse de CPU com temperatura e teste de memória do Windows, com histórico das execuções.
+- **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
 - **Segurança:** dezenas de correções. Entre elas:

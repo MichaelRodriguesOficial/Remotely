@@ -20,6 +20,12 @@ public interface IJsInterop
 
     void OpenWindow(string url, string target);
 
+    /// <summary>Baixa um arquivo gerado no servidor.</summary>
+    ValueTask DownloadFile(string fileName, string contentType, byte[] content);
+
+    /// <summary>Abre a impressão de um relatório HTML (permite salvar em PDF).</summary>
+    ValueTask PrintHtml(string html);
+
     void PreventTabOut(ElementReference terminalInput);
 
     ValueTask<string> Prompt(string message);
@@ -76,6 +82,12 @@ public class JsInterop : IJsInterop
     {
         _jsRuntime.InvokeVoidAsync("invokeClick", elementId);
     }
+
+    public ValueTask DownloadFile(string fileName, string contentType, byte[] content) =>
+        _jsRuntime.InvokeVoidAsync("remotelyDownloadFile", fileName, contentType, Convert.ToBase64String(content));
+
+    public ValueTask PrintHtml(string html) =>
+        _jsRuntime.InvokeVoidAsync("remotelyPrintHtml", html);
 
     public void OpenWindow(string url, string target)
     {

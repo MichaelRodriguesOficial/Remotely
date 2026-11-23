@@ -42,12 +42,22 @@ else
                     <i class="fa-regular fa-clock me-1"></i>
                     Coletado em @Inventory.CollectedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                 </span>
-                @if (CanRefresh)
-                {
-                    <button class="btn btn-secondary btn-sm" @onclick="RequestRefresh" disabled="@IsRefreshing">
-                        <i class="fa-solid fa-rotate @(IsRefreshing ? "fa-spin" : "")"></i> Atualizar inventário
-                    </button>
-                }
+                <div class="inv-toolbar-actions">
+                    @if (CanRefresh)
+                    {
+                        <button class="btn btn-secondary btn-sm" @onclick="RequestRefresh" disabled="@IsRefreshing">
+                            <i class="fa-solid fa-rotate @(IsRefreshing ? "fa-spin" : "")"></i> Atualizar inventário
+                        </button>
+                    }
+                    @if (Device is not null)
+                    {
+                        <ReportActions FileName="@($"inventario-{Device.DeviceName}-{Inventory.CollectedAt.ToLocalTime():yyyy-MM-dd}")"
+                                       EmailSubject="@($"Inventário de {Device.DeviceName}")"
+                                       Html="BuildHtml"
+                                       Csv="BuildCsv"
+                                       Json="BuildJson" />
+                    }
+                </div>
             </div>
 
             @switch (_section)
@@ -520,6 +530,38 @@ else
 
     [Parameter]
     public EventCallback OnRefresh { get; set; }
+
+    /// <summary>Usado nos relatórios exportados / enviados por e-mail.</summary>
+    [Parameter]
+    public Device? Device { get; set; }
+
+    [Parameter]
+    public Remotely.Server.Models.UserNameDisplayFormat NameFormat { get; set; }
+
+    private string BuildHtml() => ReportBuilder.InventoryHtml(Device!, Inventory, NameFormat, ShowSensitive);
+
+    private byte[] BuildCsv() => ReportBuilder.InventoryCsv(Device!, Inventory, ShowSensitive);
+
+    private string BuildJson()
+    {
+        if (Inventory is null)
+        {
+            return "{}";
+        }
+
+        if (ShowSensitive)
+        {
+            return InventorySerializer.ToJson(Inventory);
+        }
+
+        // Cópia com a chave do produto mascarada para quem não é administrador.
+        var copy = InventorySerializer.FromJson(InventorySerializer.ToJson(Inventory)) ?? Inventory;
+        if (copy.OperatingSystem is { } os)
+        {
+            os.SerialNumber = InventoryFormat.MaskProductKey(os.SerialNumber);
+        }
+        return InventorySerializer.ToJson(copy);
+    }
 
     private record SectionInfo(string Id, string Title, string Icon, int? Count);
 

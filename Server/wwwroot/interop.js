@@ -123,3 +123,44 @@ window.addBeforeUnloadHandler = () => {
         }
     })
 }
+// Baixa um arquivo gerado no servidor (exportações).
+window.remotelyDownloadFile = (fileName, contentType, base64) => {
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+};
+
+// Abre a impressão de um relatório HTML (o navegador oferece "Salvar como PDF").
+// O relatório fica num iframe isolado, sem scripts.
+window.remotelyPrintHtml = (html) => {
+    const frame = document.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-modals allow-same-origin");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    frame.onload = () => {
+        setTimeout(() => {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+            setTimeout(() => frame.remove(), 60000);
+        }, 200);
+    };
+    frame.srcdoc = html;
+    document.body.appendChild(frame);
+};
+
+window.remotelyScrollIntoView = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+};

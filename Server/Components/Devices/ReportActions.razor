@@ -1,0 +1,205 @@
+@using System.Text
+@inherits AuthComponentBase
+
+@* Botões "Exportar" e "Enviar por e-mail" dos relatórios (diagnóstico, inventário, lista). *@
+<div class="report-actions-wrap">
+<div class="report-actions">
+    <div class="dropdown">
+        <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" disabled="@Disabled">
+            <i class="fa-solid fa-file-export"></i> Exportar
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li>
+                <button type="button" class="dropdown-item" @onclick="Print">
+                    <i class="fa-solid fa-file-pdf"></i> PDF / Imprimir
+                </button>
+            </li>
+            @if (Csv is not null)
+            {
+                <li>
+                    <button type="button" class="dropdown-item" @onclick="DownloadCsv">
+                        <i class="fa-solid fa-file-excel"></i> Excel (CSV)
+                    </button>
+                </li>
+            }
+            <li>
+                <button type="button" class="dropdown-item" @onclick="DownloadHtml">
+                    <i class="fa-solid fa-file-code"></i> Página HTML
+                </button>
+            </li>
+            @if (Json is not null)
+            {
+                <li>
+                    <button type="button" class="dropdown-item" @onclick="DownloadJson">
+                        <i class="fa-solid fa-code"></i> JSON
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <button type="button" class="btn btn-secondary btn-sm" disabled="@Disabled" @onclick="ToggleEmail">
+        <i class="fa-solid fa-envelope"></i> Enviar por e-mail
+    </button>
+</div>
+
+@if (_showEmail)
+{
+    <div class="report-email panel">
+        <label class="form-label" for="@($"report-email-{_id}")">Enviar para</label>
+        <div class="input-group">
+            <input id="@($"report-email-{_id}")" class="form-control" type="text"
+                   placeholder="nome@empresa.com.br; outro@empresa.com.br"
+                   @bind="_recipients" @bind:event="oninput" />
+            <button class="btn btn-primary" type="button" disabled="@_isSending" @onclick="SendEmail">
+                <i class="fa-solid @(_isSending ? "fa-circle-notch fa-spin" : "fa-paper-plane")"></i> Enviar
+            </button>
+        </div>
+        <div class="form-text">O relatório vai no corpo do e-mail@(Csv is not null ? ", com a planilha CSV em anexo" : "").</div>
+    </div>
+}
+</div>
+
+@code {
+    private readonly string _id = Guid.NewGuid().ToString("N")[..8];
+    private bool _showEmail;
+    private bool _isSending;
+    private string _recipients = string.Empty;
+    private DateTimeOffset _lastSent = DateTimeOffset.MinValue;
+
+    /// <summary>Nome dos arquivos, sem extensão (ex.: "diagnostico-NOTEBOOK-022-2026-11-23").</summary>
+    [Parameter, EditorRequired]
+    public string FileName { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string EmailSubject { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public Func<string> Html { get; set; } = null!;
+
+    [Parameter]
+    public Func<byte[]>? Csv { get; set; }
+
+    [Parameter]
+    public Func<string>? Json { get; set; }
+
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Inject]
+    private IJsInterop JsInterop { get; init; } = null!;
+
+    [Inject]
+    private IEmailSenderEx EmailSender { get; init; } = null!;
+
+    [Inject]
+    private IDataService DataService { get; init; } = null!;
+
+    [Inject]
+    private IToastService ToastService { get; init; } = null!;
+
+    [Inject]
+    private ILogger<ReportActions> Logger { get; init; } = null!;
+
+    private string SafeFileName =>
+        new string(FileName.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '-').ToArray());
+
+    private async Task Print() => await JsInterop.PrintHtml(Html());
+
+    private async Task DownloadHtml() =>
+        await JsInterop.DownloadFile($"{SafeFileName}.html", "text/html", Encoding.UTF8.GetBytes(Html()));
+
+    private async Task DownloadCsv()
+    {
+        if (Csv is not null)
+        {
+            await JsInterop.DownloadFile($"{SafeFileName}.csv", "text/csv", Csv());
+        }
+    }
+
+    private async Task DownloadJson()
+    {
+        if (Json is not null)
+        {
+            await JsInterop.DownloadFile($"{SafeFileName}.json", "application/json", Encoding.UTF8.GetBytes(Json()));
+        }
+    }
+
+    private void ToggleEmail()
+    {
+        EnsureUserSet();
+        _showEmail = !_showEmail;
+        if (_showEmail && string.IsNullOrWhiteSpace(_recipients))
+        {
+            _recipients = User?.Email ?? User?.UserName ?? string.Empty;
+        }
+    }
+
+    private async Task SendEmail()
+    {
+        var settings = await DataService.GetSettings();
+        if (string.IsNullOrWhiteSpace(settings.SmtpHost))
+        {
+            ToastService.ShowToast2("Configure o e-mail (SMTP) em Configuração do servidor.", Enums.ToastType.Warning);
+            return;
+        }
+
+        if (DateTimeOffset.Now - _lastSent < TimeSpan.FromSeconds(15))
+        {
+            ToastService.ShowToast2("Aguarde alguns segundos antes de enviar de novo.", Enums.ToastType.Warning);
+            return;
+        }
+
+        var addresses = _recipients
+            .Split([';', ',', ' ', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (addresses.Count == 0 || addresses.Count > 10 ||
+            addresses.Any(x => !MimeKit.MailboxAddress.TryParse(x, out var mailbox) || !mailbox.Address.Contains('@')))
+        {
+            ToastService.ShowToast2("Informe de 1 a 10 e-mails válidos.", Enums.ToastType.Warning);
+            return;
+        }
+
+        _isSending = true;
+        try
+        {
+            EnsureUserSet();
+            var html = Html();
+            List<EmailAttachment> attachments = Csv is null
+                ? []
+                : [new EmailAttachment($"{SafeFileName}.csv", "text/csv", Csv())];
+
+            var failures = new List<string>();
+            foreach (var address in addresses)
+            {
+                if (!await EmailSender.SendEmailAsync(address, EmailSubject, html, attachments))
+                {
+                    failures.Add(address);
+                }
+            }
+
+            _lastSent = DateTimeOffset.Now;
+            Logger.LogInformation(
+                "Report \"{subject}\" emailed by {user} to {recipients}.",
+                EmailSubject,
+                User?.UserName,
+                string.Join(", ", addresses));
+
+            if (failures.Count == 0)
+            {
+                ToastService.ShowToast2($"Relatório enviado para {string.Join(", ", addresses)}.", Enums.ToastType.Success);
+                _showEmail = false;
+            }
+            else
+            {
+                ToastService.ShowToast2($"Falha ao enviar para {string.Join(", ", failures)}. Veja o log do servidor.", Enums.ToastType.Error);
+            }
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+}

@@ -12,22 +12,23 @@
     <link rel="icon" href="/favicon.ico" />
     <title>Remotely</title>
     <base href="/" />
-    <link href="css/site.css" rel="stylesheet" />
-    <link href="Remotely_Server.styles.css" rel="stylesheet" />
-    <script src="interop.js"></script>
+    <link href="@Assets["css/site.css"]" rel="stylesheet" />
+    <link href="@Assets["Remotely_Server.styles.css"]" rel="stylesheet" />
+    <script src="@Assets["interop.js"]"></script>
 
     @if (_theme == Theme.Dark)
     {
         <link rel="stylesheet" href="/css/Themes/darkly.min.css" />
-        <link rel="stylesheet" href="/css/Themes/darkly.custom.css" />
+        <link rel="stylesheet" href="@Assets["css/Themes/darkly.custom.css"]" />
     }
     else
     {
         <link rel="stylesheet" href="/css/Themes/yeti.min.css" />
-        <link rel="stylesheet" href="/css/Themes/yeti.custom.css" />
+        <link rel="stylesheet" href="@Assets["css/Themes/yeti.custom.css"]" />
     }
     <link rel="stylesheet" href="/lib/fontawesome/css/all.min.css" />
-    <link rel="stylesheet" href="/css/modern.css" />
+    <!-- Com impressão digital no nome: o navegador pega o CSS novo a cada versão. -->
+    <link rel="stylesheet" href="@Assets["css/modern.css"]" />
 
     <HeadOutlet @rendermode="RenderModeForPage" />
 </head>

@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.7.0 — 2026-11-23
+
+### Exportar e enviar relatórios por e-mail (novo)
+- Botões **Exportar** e **Enviar por e-mail** no resultado do diagnóstico, na aba Inventário do dispositivo e na lista do Inventário.
+- Formatos: **PDF / Imprimir** (o navegador oferece "Salvar como PDF"), **Excel (CSV)**, **Página HTML** e **JSON**.
+- O e-mail leva o relatório formatado no corpo e a planilha CSV em anexo. Até 10 destinatários por envio, separados por `;`. Precisa do SMTP configurado em Configuração do servidor; cada envio fica registrado no log.
+- Lista do Inventário: exporta só o que estiver filtrado (busca, status e grupo), com o filtro usado no cabeçalho do relatório.
+- CSV com `;` e acentos corretos para abrir direto no Excel. O inventário sai em uma tabela por seção (computador, processadores, memórias, discos, componentes, volumes, rede, antivírus e softwares).
+- A chave do produto continua mascarada nos relatórios para quem não é administrador.
+
+### Interface
+- Aba **Diagnóstico** redesenhada: testes em cards com ícone, botões "Só os rápidos" e "Limpar", aviso quando o dispositivo está offline, histórico ao lado do resultado, resumo com atalhos para cada teste e itens em lista legível.
+
+### Correções
+- Telas sem estilo depois de atualizar o servidor: o navegador guardava o CSS antigo. Agora os arquivos de estilo e scripts têm uma versão no endereço, e cada atualização carrega os novos automaticamente, sem precisar de Ctrl+F5.
+
+### Segurança
+- Planilhas exportadas protegidas contra injeção de fórmulas (células que começam com `=`, `+`, `-` ou `@`).
+- Relatórios HTML com todo o conteúdo vindo do agente escapado; a impressão roda num iframe isolado, sem scripts.
+
 ## v1.6.1 — 2026-11-23
 
 ### Correções

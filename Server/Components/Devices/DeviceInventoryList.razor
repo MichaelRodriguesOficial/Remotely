@@ -78,6 +78,11 @@
         }
         <strong>@_filtered.Count</strong> de @_all.Count dispositivo(s)
     </span>
+    <ReportActions FileName="@($"inventario-{DateTime.Now:yyyy-MM-dd-HHmm}")"
+                   EmailSubject="@($"Inventário de computadores ({_filtered.Count} dispositivo(s))")"
+                   Html="BuildListHtml"
+                   Csv="BuildListCsv"
+                   Disabled="@(_isLoading || _filtered.Count == 0)" />
     @if (TotalPages > 1)
     {
         <div class="pager">

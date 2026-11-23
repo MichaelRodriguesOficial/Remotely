@@ -12,7 +12,12 @@ public interface IEmailSenderEx
     Task<bool> SendEmailAsync(string email, string replyTo, string subject, string htmlMessage, string? organizationID = null);
 
     Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, string? organizationID = null);
+
+    /// <summary>E-mail com anexos (relatórios exportados).</summary>
+    Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, IReadOnlyCollection<EmailAttachment> attachments);
 }
+
+public sealed record EmailAttachment(string FileName, string ContentType, byte[] Content);
 
 public class EmailSender : IEmailSender
 {
@@ -52,12 +57,26 @@ public class EmailSenderEx : IEmailSenderEx, IEmailSender<RemotelyUser>
             user.OrganizationID);
     }
 
-    public async Task<bool> SendEmailAsync(
+    public Task<bool> SendEmailAsync(
         string toEmail,
         string replyTo,
         string subject,
         string htmlMessage,
-        string? organizationID = null)
+        string? organizationID = null) =>
+        SendCoreAsync(toEmail, replyTo, subject, htmlMessage, []);
+
+    public async Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, IReadOnlyCollection<EmailAttachment> attachments)
+    {
+        var settings = await _dataService.GetSettings();
+        return await SendCoreAsync(email, settings.SmtpEmail, subject, htmlMessage, attachments);
+    }
+
+    private async Task<bool> SendCoreAsync(
+        string toEmail,
+        string replyTo,
+        string subject,
+        string htmlMessage,
+        IReadOnlyCollection<EmailAttachment> attachments)
     {
         try
         {
@@ -68,10 +87,23 @@ public class EmailSenderEx : IEmailSenderEx, IEmailSender<RemotelyUser>
             message.To.Add(MailboxAddress.Parse(toEmail));
             message.ReplyTo.Add(MailboxAddress.Parse(replyTo));
             message.Subject = subject;
-            message.Body = new TextPart(TextFormat.Html)
+
+            if (attachments.Count == 0)
             {
-                Text = htmlMessage
-            };
+                message.Body = new TextPart(TextFormat.Html)
+                {
+                    Text = htmlMessage
+                };
+            }
+            else
+            {
+                var builder = new BodyBuilder { HtmlBody = htmlMessage };
+                foreach (var attachment in attachments)
+                {
+                    builder.Attachments.Add(attachment.FileName, attachment.Content, ContentType.Parse(attachment.ContentType));
+                }
+                message.Body = builder.ToMessageBody();
+            }
 
             using var client = new SmtpClient();
 
@@ -133,6 +165,16 @@ public class EmailSenderEx : IEmailSenderEx, IEmailSender<RemotelyUser>
 
 public class EmailSenderFake(ILogger<EmailSenderFake> _logger) : IEmailSenderEx
 {
+    public Task<bool> SendEmailAsync(string email, string subject, string htmlMessage, IReadOnlyCollection<EmailAttachment> attachments)
+    {
+        _logger.LogInformation(
+            "Fake email sent.  To: {email}. Subject: {subject}. Attachments: {attachments}.",
+            email,
+            subject,
+            string.Join(", ", attachments.Select(x => x.FileName)));
+        return Task.FromResult(true);
+    }
+
     public Task<bool> SendEmailAsync(string email, string replyTo, string subject, string htmlMessage, string? organizationID = null)
     {
         _logger.LogInformation(

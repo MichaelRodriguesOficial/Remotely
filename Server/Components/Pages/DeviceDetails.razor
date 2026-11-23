@@ -157,6 +157,8 @@ else
 
             <TabContent Name="inventory">
                 <DeviceInventoryView Inventory="_inventory"
+                                     Device="_device"
+                                     NameFormat="_nameFormat"
                                      CanRefresh="_device.IsOnline"
                                      IsRefreshing="_isRefreshingInventory"
                                      OnRefresh="RefreshInventory"
