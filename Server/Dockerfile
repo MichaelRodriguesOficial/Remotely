@@ -16,14 +16,13 @@ FROM mcr.microsoft.com/dotnet/sdk:${DOTNET_VERSION} AS build
 ARG VERSION=1.0.0
 WORKDIR /src
 
-# Restaura dependências primeiro (melhor uso de cache)
+# A restauração precisa do código-fonte completo: o SDK só inclui o pacote com o
+# script do Blazor (_framework/blazor.web.js) quando enxerga os componentes .razor.
+# Restaurar só com o .csproj gerava uma imagem sem esse script e sem botões funcionando.
 COPY Directory.Build.props ./
-COPY Shared/Shared.csproj Shared/
-COPY Server/Server.csproj Server/
-RUN dotnet restore Server/Server.csproj -r linux-x64
-
 COPY Shared/ Shared/
 COPY Server/ Server/
+RUN dotnet restore Server/Server.csproj -r linux-x64
 
 # Os .js do viewer já estão versionados, então o build do TypeScript (que
 # exigiria Node.js) é desativado aqui.
@@ -40,16 +39,8 @@ RUN dotnet publish Server/Server.csproj \
     -p:InformationalVersion=${VERSION}
 
 # O script do Blazor (_framework/blazor.web.js) é o que liga os botões e formulários.
-# Garante que ele está na imagem; se o publish não o copiou, usa o do pacote do framework.
-RUN set -e; \
-    if [ ! -f /app/publish/wwwroot/_framework/blazor.web.js ]; then \
-        echo "blazor.web.js ausente no publish; copiando do pacote do ASP.NET Core"; \
-        SRC=$(find /root/.nuget/packages /usr/share/dotnet -name blazor.web.js -path "*_framework*" 2>/dev/null | sort -V | tail -1); \
-        test -n "$SRC"; \
-        mkdir -p /app/publish/wwwroot/_framework; \
-        cp "$(dirname "$SRC")"/blazor.* /app/publish/wwwroot/_framework/; \
-    fi; \
-    ls -la /app/publish/wwwroot/_framework
+# O teste de fumaça do CI falha (com a lista de arquivos) se ele não estiver na imagem.
+RUN ls -la /app/publish/wwwroot/_framework || echo "AVISO: _framework/blazor.web.js não foi gerado"
 
 # ---------- Instaladores dos agents ----------
 FROM alpine:3.20 AS content

@@ -245,7 +245,7 @@ jobs:
           fi
           c=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/_framework/blazor.web.js)
           if [ "$c" != "200" ]; then
-            FILES=$(docker exec remotely-test sh -c 'ls -la /app/wwwroot/_framework; ls -la /app/*.endpoints.json /app/*.staticwebassets* 2>&1' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            FILES=$(docker exec remotely-test sh -c 'ls -la /app/wwwroot /app/wwwroot/_framework 2>&1; grep -o "\"Route\": *\"_framework/blazor[^\"]*\"" /app/*.endpoints.json 2>&1 | head -5' | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=Smoke test::blazor.web.js retornou $c%0A$FILES"
             exit 1
           fi
