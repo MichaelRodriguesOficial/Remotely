@@ -488,6 +488,10 @@ namespace Remotely.Server.Migrations.PostgreSql
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<string>("ProcessorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");

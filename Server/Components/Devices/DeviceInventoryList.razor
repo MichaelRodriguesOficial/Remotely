@@ -1,0 +1,161 @@
+@using System.Globalization
+@using System.Text
+@inherits AuthComponentBase
+
+<PageHeader Title="Inventário"
+            Subtitle="Todos os computadores que você pode acessar. Clique em um para ver os detalhes."
+            Icon="fa-solid fa-boxes-stacked" />
+
+<div class="panel inv-list-toolbar">
+    <div class="input-icon inv-list-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input class="form-control"
+               placeholder="Busque qualquer coisa: nome, usuário, série, patrimônio, software, IP... ou campo:valor"
+               value="@_query"
+               @oninput="OnQueryInput"
+               aria-label="Busca inteligente" />
+        @if (!string.IsNullOrEmpty(_query))
+        {
+            <button type="button" class="btn btn-ghost btn-icon btn-sm inv-list-clear" title="Limpar" @onclick="ClearQuery">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        }
+    </div>
+
+    <select class="form-select inv-list-select" @bind="_status" @bind:after="ApplyFilters" aria-label="Status">
+        <option value="">Todos os status</option>
+        <option value="online">Online</option>
+        <option value="offline">Offline</option>
+    </select>
+
+    <select class="form-select inv-list-select" @bind="_groupId" @bind:after="ApplyFilters" aria-label="Grupo">
+        <option value="">Todos os grupos</option>
+        @foreach (var group in _groups.OrderBy(x => x.Value))
+        {
+            <option @key="group.Key" value="@group.Key">@group.Value</option>
+        }
+    </select>
+
+    <div class="dropdown">
+        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fa-solid fa-filter"></i> Filtros
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end inv-list-fields">
+            <li><h6 class="dropdown-header">Adicionar à busca</h6></li>
+            @foreach (var field in Fields.Where(x => x.ShowInMenu))
+            {
+                <li>
+                    <button type="button" class="dropdown-item" @onclick="() => AddField(field)">
+                        <span class="mono small">@(field.Keys[0]):</span>
+                        <span class="text-muted ms-2">@field.Label</span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
+
+@if (_criteria.Count > 0)
+{
+    <div class="inv-list-chips">
+        @foreach (var criterion in _criteria)
+        {
+            <span class="pill @(criterion.Negate ? "danger" : "accent") no-dot">
+                @(criterion.Field?.Label ?? "Qualquer campo")
+                @(criterion.Negate ? " não contém " : ": ")
+                <strong class="ms-1">@criterion.Value</strong>
+            </span>
+        }
+        <span class="text-muted small">Use aspas para frases ("Windows 11") e - para excluir (-tipo:servidor).</span>
+    </div>
+}
+
+<div class="inv-list-summary">
+    <span>
+        @if (_isSearching)
+        {
+            <i class="fa-solid fa-circle-notch fa-spin me-1"></i>
+        }
+        <strong>@_filtered.Count</strong> de @_all.Count dispositivo(s)
+    </span>
+    @if (TotalPages > 1)
+    {
+        <div class="pager">
+            <button class="btn btn-ghost btn-icon btn-sm" disabled="@(_page <= 1)" @onclick="() => _page--" title="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="small">Página @_page de @TotalPages</span>
+            <button class="btn btn-ghost btn-icon btn-sm" disabled="@(_page >= TotalPages)" @onclick="() => _page++" title="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    }
+</div>
+
+@if (_isLoading)
+{
+    <LoadingSignal StatusMessage="Carregando" />
+}
+else if (_filtered.Count == 0)
+{
+    <div class="empty-state mt-3">
+        <div class="empty-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <h3>Nenhum dispositivo encontrado</h3>
+        <p>@(_all.Count == 0 ? "Instale o agente em um computador para ele aparecer aqui." : "Ajuste a busca ou os filtros.")</p>
+    </div>
+}
+else
+{
+    <div class="table-wrap inv-list-table">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    @foreach (var column in Columns)
+                    {
+                        <th class="@(column.Key == _sortKey ? "sorted" : "")" @onclick="() => SortBy(column.Key)" role="button" title="Ordenar por @column.Label">
+                            @column.Label
+                            @if (column.Key == _sortKey)
+                            {
+                                <i class="fa-solid @(_sortDescending ? "fa-arrow-down-wide-short" : "fa-arrow-up-short-wide") ms-1"></i>
+                            }
+                        </th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _filtered.Skip((_page - 1) * PageSize).Take(PageSize))
+                {
+                    <tr @key="row.Device.ID">
+                        <td class="text-nowrap">
+                            <a href="@($"/device-details/{row.Device.ID}")" class="fw-semibold">@row.Device.DeviceName</a>
+                            @if (!string.IsNullOrWhiteSpace(row.Device.Alias))
+                            {
+                                <div class="small text-muted">@row.Device.Alias</div>
+                            }
+                        </td>
+                        <td>@row.UserDisplay</td>
+                        <td>@row.Device.Location</td>
+                        <td>
+                            @if (row.Device.IsOnline)
+                            {
+                                <span class="pill success">Online</span>
+                            }
+                            else
+                            {
+                                <span class="pill" title="Última conexão">@row.LastSeen</span>
+                            }
+                        </td>
+                        <td class="mono small">@row.Device.SerialNumber</td>
+                        <td>@row.Device.DeviceType</td>
+                        <td>@row.Device.Manufacturer</td>
+                        <td>@row.Device.Model</td>
+                        <td>@row.OsName</td>
+                        <td class="small">@row.Device.ProcessorName</td>
+                        <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalMemory)</td>
+                        <td class="text-nowrap">@DeviceComputerInfo.FormatGb(row.Device.TotalStorage)</td>
+                        <td>@row.Device.AssetTag</td>
+                        <td>@row.GroupName</td>
+                        <td class="small text-nowrap">@row.Device.AgentVersion</td>
+                        <td class="small text-nowrap">@row.Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

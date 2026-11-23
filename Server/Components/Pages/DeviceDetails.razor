@@ -6,25 +6,7 @@
 
 @if (string.IsNullOrWhiteSpace(DeviceId))
 {
-    <PageHeader Title="Detalhes do dispositivo"
-                Subtitle="Informe o ID de um dispositivo para ver inventário, logs e histórico de scripts."
-                Icon="fa-solid fa-circle-info" />
-
-    <div class="panel" style="max-width: 720px">
-        <label class="form-label" for="deviceIdInput">ID do dispositivo</label>
-        <div class="input-group mb-3">
-            <input id="deviceIdInput" type="text" class="form-control mono" placeholder="00000000-0000-0000-0000-000000000000"
-                   @bind="_inputDeviceId"
-                   @bind:event="oninput"
-                   @onkeydown="EvaluateDeviceIdInputKeyDown">
-            <button class="btn btn-primary" @onclick="NavigateToDeviceId"><i class="fa-solid fa-arrow-right"></i> Abrir</button>
-        </div>
-        <p class="form-text mb-1">Atalhos na tela de dispositivos:</p>
-        <ul class="form-text mb-0">
-            <li>clique com o botão direito em um card fechado;</li>
-            <li>ou abra o card e use o botão <i class="fa-solid fa-up-right-from-square"></i> no cabeçalho.</li>
-        </ul>
-    </div>
+    <DeviceInventoryList />
 }
 else if (_isLoading)
 {
@@ -96,60 +78,8 @@ else
                         <section class="panel h-100">
                             <div class="panel-header">
                                 <h2 class="panel-title"><i class="fa-solid fa-computer"></i> Computador</h2>
-                                <button type="button" class="btn btn-ghost btn-sm" @onclick="ShowAllDisks"><i class="fa-solid fa-hard-drive"></i> Ver discos</button>
                             </div>
-                            <dl class="detail-list">
-                                <dt>Nome</dt><dd>@_device.DeviceName</dd>
-                                @if (!string.IsNullOrWhiteSpace(_device.DeviceType))
-                                {
-                                    <dt>Tipo</dt><dd>@_device.DeviceType</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_device.Manufacturer))
-                                {
-                                    <dt>Fabricante</dt><dd>@_device.Manufacturer</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_device.Model))
-                                {
-                                    <dt>Modelo</dt><dd>@_device.Model</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_device.SerialNumber))
-                                {
-                                    <dt>Número de série</dt><dd class="mono">@_device.SerialNumber</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_inventory?.Uuid))
-                                {
-                                    <dt>UUID</dt><dd class="mono small">@_inventory.Uuid</dd>
-                                }
-                                <dt>Sistema</dt><dd>@DeviceDisplay.GetOperatingSystem(_device).Name</dd>
-                                @if (DeviceDisplay.GetOperatingSystem(_device).Version is { } detailsOsVersion)
-                                {
-                                    <dt>Versão</dt><dd class="mono">@detailsOsVersion</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_inventory?.OperatingSystem?.SerialNumber))
-                                {
-                                    <dt>Número de série do SO</dt><dd class="mono">@_inventory.OperatingSystem.SerialNumber</dd>
-                                }
-                                <dt>Arquitetura</dt><dd>@_device.OSArchitecture · @_device.ProcessorCount núcleos</dd>
-                                @if (!string.IsNullOrWhiteSpace(_device.CurrentUser))
-                                {
-                                    <dt>Usuário</dt><dd>@GetUserDisplay()</dd>
-                                }
-                                @if (!string.IsNullOrWhiteSpace(_inventory?.Domain))
-                                {
-                                    <dt>Domínio</dt><dd>@_inventory.Domain</dd>
-                                }
-                                <dt>Memória</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedMemoryPercent)) de @_device.TotalMemory.ToString("N1") GB</dd>
-                                <dt>Disco</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedStoragePercent)) de @_device.TotalStorage.ToString("N1") GB</dd>
-                                <dt>Versão do agente</dt><dd>@_device.AgentVersion</dd>
-                                <dt>Última conexão</dt><dd>@_device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
-                                @if (_device.InventoryUpdatedAt is { } inventoryDate)
-                                {
-                                    <dt>Inventário</dt><dd>@inventoryDate.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</dd>
-                                }
-                                <dt>IP público</dt><dd class="mono">@_device.PublicIP</dd>
-                                <dt>Endereços MAC</dt><dd class="mono">@(string.Join(", ", _device.MacAddresses ?? Array.Empty<string>()))</dd>
-                                <dt>ID</dt><dd class="mono small">@_device.ID</dd>
-                            </dl>
+                            <DeviceComputerInfo Device="_device" Inventory="_inventory" NameFormat="_nameFormat" />
                         </section>
                     </div>
                     <div class="col-xl-6">

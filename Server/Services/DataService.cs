@@ -28,6 +28,12 @@ public interface IDataService
 
     Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId);
 
+    /// <summary>
+    /// IDs dos dispositivos (entre os informados) cujo inventário contém o texto
+    /// (softwares, IPs, componentes...). Sem diferenciar maiúsculas.
+    /// </summary>
+    Task<HashSet<string>> SearchDeviceInventories(IReadOnlyCollection<string> deviceIds, string text);
+
     Task<Result<Device>> SaveDeviceInventory(string deviceId, DeviceInventory inventory, string json);
 
     Task<Result> UpdateDeviceAsset(string deviceId, string? assetTag, string? location);
@@ -428,6 +434,25 @@ public class DataService : IDataService
             .FirstOrDefaultAsync(x => x.DeviceID == deviceId);
     }
 
+    public async Task<HashSet<string>> SearchDeviceInventories(IReadOnlyCollection<string> deviceIds, string text)
+    {
+        if (deviceIds.Count == 0 || string.IsNullOrWhiteSpace(text))
+        {
+            return [];
+        }
+
+        using var dbContext = _appDbFactory.GetContext();
+        var term = text.Trim().ToLower();
+
+        var ids = await dbContext.DeviceInventories
+            .AsNoTracking()
+            .Where(x => x.Data.ToLower().Contains(term))
+            .Select(x => x.DeviceID)
+            .ToListAsync();
+
+        return ids.Where(deviceIds.Contains).ToHashSet();
+    }
+
     public async Task<Result<Device>> SaveDeviceInventory(string deviceId, DeviceInventory inventory, string json)
     {
         using var dbContext = _appDbFactory.GetContext();
@@ -444,6 +469,7 @@ public class DataService : IDataService
         device.Manufacturer = Truncate(inventory.Manufacturer, 200);
         device.Model = Truncate(inventory.Model, 200);
         device.SerialNumber = Truncate(inventory.SerialNumber, 200);
+        device.ProcessorName = Truncate(inventory.Processors.FirstOrDefault()?.Name, 200);
         device.InventoryUpdatedAt = collectedAt;
 
         var record = await dbContext.DeviceInventories.FindAsync(deviceId);

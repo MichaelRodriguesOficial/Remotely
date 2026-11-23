@@ -67,6 +67,11 @@ public class Device
 
     [StringLength(200)]
     [Sortable]
+    [Display(Name = "Processador")]
+    public string? ProcessorName { get; set; }
+
+    [StringLength(200)]
+    [Sortable]
     [Display(Name = "Número de série")]
     public string? SerialNumber { get; set; }
 

@@ -154,12 +154,17 @@ public class InventoryCollectorWin : InventoryCollectorBase
             Build = ubr is null ? build : $"{build}.{ToLong(ubr)}",
             DisplayVersion = Clean(key?.GetValue("DisplayVersion")) ?? Clean(key?.GetValue("ReleaseId")),
             Architecture = Clean(Get(os, "OSArchitecture")) ?? GetArchitectureName(RuntimeInformation.OSArchitecture),
-            SerialNumber = Clean(Get(os, "SerialNumber")),
+            ProductId = Clean(Get(os, "SerialNumber")) ?? Clean(key?.GetValue("ProductId")),
             InstallDate = ToDate(Get(os, "InstallDate")),
             LastBoot = ToDate(Get(os, "LastBootUpTime")),
             Language = CultureInfo.InstalledUICulture.Name,
             TimeZone = TimeZoneInfo.Local.DisplayName
         };
+
+        Run(inventory, "Chave do produto", () =>
+        {
+            inventory.OperatingSystem!.SerialNumber = GetProductKey(key);
+        });
 
         Run(inventory, "Licença do Windows", () =>
         {
@@ -184,6 +189,70 @@ public class InventoryCollectorWin : InventoryCollectorBase
 
         // ProductType: 1 = estação de trabalho, 2 = controlador de domínio, 3 = servidor.
         return productType is 2 or 3;
+    }
+
+    /// <summary>
+    /// Chave do produto do Windows, como o GLPI mostra em "Número de série":
+    /// decodificada de DigitalProductId e, se for genérica (licença por volume),
+    /// a chave OEM gravada no firmware.
+    /// </summary>
+    private string? GetProductKey(RegistryKey? currentVersionKey)
+    {
+        string? decoded = null;
+        if (currentVersionKey?.GetValue("DigitalProductId") is byte[] digitalProductId &&
+            digitalProductId.Length >= 67)
+        {
+            decoded = DecodeProductKey((byte[])digitalProductId.Clone());
+        }
+
+        var isGeneric = decoded is null || decoded.Replace("-", string.Empty).All(c => c == 'B');
+        if (!isGeneric)
+        {
+            return decoded;
+        }
+
+        var oem = Query("SELECT OA3xOriginalProductKey FROM SoftwareLicensingService").FirstOrDefault();
+        return Clean(Get(oem, "OA3xOriginalProductKey")) ?? decoded;
+    }
+
+    /// <summary>Algoritmo de DigitalProductId do Windows 8 em diante (compatível com o 7).</summary>
+    internal static string? DecodeProductKey(byte[] digitalProductId)
+    {
+        const int keyOffset = 52;
+        const string digits = "BCDFGHJKMPQRTVWXY2346789";
+
+        var isWin8 = (byte)((digitalProductId[66] / 6) & 1);
+        digitalProductId[66] = (byte)((digitalProductId[66] & 0xF7) | ((isWin8 & 2) * 4));
+
+        var last = 0;
+        var key = string.Empty;
+        for (var i = 24; i >= 0; i--)
+        {
+            var current = 0;
+            for (var j = 14; j >= 0; j--)
+            {
+                current *= 256;
+                current += digitalProductId[j + keyOffset];
+                digitalProductId[j + keyOffset] = (byte)(current / 24);
+                current %= 24;
+            }
+            key = digits[current] + key;
+            last = current;
+        }
+
+        if (isWin8 == 1)
+        {
+            var part1 = key.Substring(1, last);
+            var part2 = key.Substring(last + 1);
+            key = part1 + "N" + part2;
+        }
+
+        if (key.Length != 25)
+        {
+            return null;
+        }
+
+        return string.Join('-', Enumerable.Range(0, 5).Select(i => key.Substring(i * 5, 5)));
     }
 
     // ---------------------------------------------------------------------

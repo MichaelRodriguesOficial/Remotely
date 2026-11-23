@@ -19,7 +19,10 @@ public static class InventorySerializer
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        WriteIndented = false
+        WriteIndented = false,
+        // Grava acentos como texto ("Proteção", e não "Prote\u00E7\u00E3o"), para a busca
+        // no banco encontrar. O JSON nunca é inserido em HTML sem codificação.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
     public static string ToJson(DeviceInventory inventory) =>
@@ -34,12 +37,26 @@ public static class InventorySerializer
 
         try
         {
-            return JsonSerializer.Deserialize<DeviceInventory>(json, JsonOptions);
+            return Normalize(JsonSerializer.Deserialize<DeviceInventory>(json, JsonOptions));
         }
         catch (JsonException)
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Ajusta inventários de agentes antigos (versão 1 do formato), em que o número
+    /// de série do sistema era, na verdade, o ID do produto.
+    /// </summary>
+    private static DeviceInventory? Normalize(DeviceInventory? inventory)
+    {
+        if (inventory?.OperatingSystem is { } os && inventory.SchemaVersion < 2 && os.ProductId is null)
+        {
+            os.ProductId = os.SerialNumber;
+            os.SerialNumber = null;
+        }
+        return inventory;
     }
 
     public static byte[] Compress(DeviceInventory inventory)
@@ -84,7 +101,7 @@ public static class InventorySerializer
                 output.Write(buffer, 0, read);
             }
 
-            inventory = JsonSerializer.Deserialize<DeviceInventory>(output.ToArray(), JsonOptions);
+            inventory = Normalize(JsonSerializer.Deserialize<DeviceInventory>(output.ToArray(), JsonOptions));
             if (inventory is null)
             {
                 return false;

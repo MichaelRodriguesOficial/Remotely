@@ -481,6 +481,10 @@ namespace Remotely.Server.Migrations.Sqlite
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ProcessorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");

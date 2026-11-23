@@ -301,6 +301,7 @@ public class AgentHub : Hub<IAgentHubClient>
         device.Manufacturer = updated.Manufacturer;
         device.Model = updated.Model;
         device.SerialNumber = updated.SerialNumber;
+        device.ProcessorName = updated.ProcessorName;
         device.InventoryUpdatedAt = updated.InventoryUpdatedAt;
 
         var userIDs = _circuitManager.Connections.Select(x => x.User.Id);

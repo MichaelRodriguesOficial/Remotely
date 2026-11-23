@@ -129,8 +129,8 @@ public class InventoryCollectorLinux : InventoryCollectorBase
             TimeZone = TimeZoneInfo.Local.Id
         };
 
-        // /etc/machine-id identifica a instalação (equivale ao número de série do sistema).
-        os.SerialNumber = Clean(ReadFile("/etc/machine-id"));
+        // /etc/machine-id identifica a instalação (equivale ao ID do produto).
+        os.ProductId = Clean(ReadFile("/etc/machine-id"));
 
         var uptime = ReadFile("/proc/uptime")?.Split(' ').FirstOrDefault();
         if (double.TryParse(uptime, NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds))

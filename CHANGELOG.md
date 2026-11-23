@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.4.0 — 2026-11-23
+
+### Inventário
+- Nova página **Inventário** (menu lateral, no lugar de "Detalhes do dispositivo"): lista todos os computadores que o usuário pode acessar, no estilo do GLPI, com nome, usuário, localização, status, número de série, tipo, fabricante, modelo, sistema, processador, memória, disco, número de inventário, grupo, versão do agente e data do último inventário. Clique no cabeçalho para ordenar.
+- **Busca inteligente**: o texto livre procura em todos os campos e também no inventário (softwares instalados, IPs, MACs, componentes, antivírus). Aceita `campo:valor` (`tipo:notebook`, `software:chrome`, `local:matriz`, `status:offline`...), frases entre aspas e `-` para excluir. Filtros rápidos de status e grupo.
+- **Número de série do SO** e **ID do produto** separados, como no GLPI: o número de série é a chave do produto (decodificada do registro ou a chave OEM do firmware) e o ID do produto é o `00329-...`. Inventários antigos são ajustados automaticamente.
+- Coluna de processador no resumo do dispositivo (migração `Add_DeviceProcessorName`).
+
+### Dispositivos
+- O card aberto mostra **exatamente os mesmos dados** da página de detalhes (bloco "Computador").
+- Memória e armazenamento mostram só o total (ex.: `15.7 GB`, `237.0 GB`).
+- Removidos os botões **Ver discos** (o inventário mostra discos e volumes).
+
+### Correções
+- Abrir um dispositivo a partir da página de detalhes (ou trocar de um dispositivo para outro) mostrava "Dispositivo não encontrado": a página não recarregava quando só o ID mudava.
+
 ## v1.3.2 — 2026-11-23
 
 ### Downloads

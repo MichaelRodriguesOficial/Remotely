@@ -9,7 +9,13 @@ namespace Remotely.Shared.Models.Inventory;
 public class DeviceInventory
 {
     /// <summary>Versão do formato, para evoluções futuras.</summary>
-    public int SchemaVersion { get; set; } = 1;
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
+    /// <summary>
+    /// 2: <see cref="InventoryOperatingSystem.SerialNumber"/> passou a ser a chave do
+    /// produto e o ID do produto foi para <see cref="InventoryOperatingSystem.ProductId"/>.
+    /// </summary>
+    public const int CurrentSchemaVersion = 2;
 
     public DateTimeOffset CollectedAt { get; set; } = DateTimeOffset.Now;
 
@@ -71,8 +77,14 @@ public class InventoryOperatingSystem
     public string? Architecture { get; set; }
     public string? KernelVersion { get; set; }
 
-    /// <summary>Número de série do sistema (no Windows, o "ID do produto").</summary>
+    /// <summary>
+    /// Número de série do sistema. No Windows, a chave do produto (como no GLPI):
+    /// decodificada do registro ou gravada no firmware (OEM).
+    /// </summary>
     public string? SerialNumber { get; set; }
+
+    /// <summary>ID do produto (Windows) ou machine-id (Linux).</summary>
+    public string? ProductId { get; set; }
 
     public string? Language { get; set; }
     public string? TimeZone { get; set; }

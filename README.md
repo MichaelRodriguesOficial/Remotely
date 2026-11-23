@@ -11,6 +11,8 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 
 ![Tela de dispositivos](.github/media/dispositivos.png)
 
+![Inventário com busca inteligente](.github/media/inventario-lista.png)
+
 <table>
   <tr>
     <td><img src=".github/media/inventario.png" alt="Aba Inventário com firmware, placa-mãe, processadores e memórias" /></td>
@@ -204,6 +206,15 @@ Get-Location
 ```
 
 A documentação interativa fica em `/swagger` (menu **Administração → API (Swagger)**). Ela abre para quem está logado; as chamadas feitas por lá usam a sua sessão, ou a chave informada em **Authorize**.
+
+### Busca no inventário
+
+A página **Inventário** lista todos os computadores (como a lista de computadores do GLPI) e a busca procura em tudo, inclusive nos softwares instalados e nos IPs da rede:
+
+- texto livre: `chrome`, `"Windows 11"`, `PAT-001237`, `10.10.20.57`;
+- campo específico: `tipo:notebook`, `fabricante:dell`, `software:zoom`, `local:matriz`, `status:offline`, `usuario:michael`, `patrimonio:`, `serie:`, `modelo:`, `so:`, `cpu:`, `grupo:`, `ip:`, `mac:`, `antivirus:`;
+- excluir com `-`: `-tipo:servidor`;
+- combinar: `fabricante:dell software:chrome -status:offline`.
 
 O inventário completo de um dispositivo sai em `GET /api/Devices/{id}/inventory` (JSON), útil para integrar com o GLPI ou planilhas.
 

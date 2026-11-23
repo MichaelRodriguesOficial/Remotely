@@ -22,7 +22,6 @@ public partial class DeviceDetails : AuthComponentBase
     private string? _alertMessage;
     private Device? _device;
     private bool _userHasAccess;
-    private string? _inputDeviceId;
     private bool _isLoading = true;
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
     private DeviceInventory? _inventory;
@@ -61,27 +60,8 @@ public partial class DeviceDetails : AuthComponentBase
 
         EnsureUserSet();
 
-        if (!string.IsNullOrWhiteSpace(DeviceId))
-        {
-            var deviceResult = await DataService.GetDevice(DeviceId);
-            if (deviceResult.IsSuccess)
-            {
-                _device = deviceResult.Value;
-                _userHasAccess = DataService.DoesUserHaveAccessToDevice(_device.ID, User);
-            }
-            else
-            {
-                ToastService.ShowToast2(deviceResult.Reason, Enums.ToastType.Warning);
-            }
-        }
-
         _deviceGroups = DataService.GetDeviceGroups(UserName);
         _nameFormat = (await DataService.GetSettings()).UserNameDisplayFormat;
-
-        if (_device is not null && _userHasAccess)
-        {
-            await LoadInventory();
-        }
 
         await Register<ReceiveLogsMessage, string>(
             CircuitConnection.ConnectionId,
@@ -94,6 +74,50 @@ public partial class DeviceDetails : AuthComponentBase
         await Register<DeviceStateChangedMessage, string>(
             CircuitConnection.ConnectionId,
             HandleDeviceStateChanged);
+
+    }
+
+    private string? _loadedDeviceId;
+
+    // A mesma instância da página é reaproveitada quando só o ID da rota muda
+    // (lista → dispositivo, ou um dispositivo para outro). Por isso o carregamento
+    // fica aqui, e não em OnInitializedAsync.
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+
+        if (string.Equals(_loadedDeviceId, DeviceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _loadedDeviceId = DeviceId;
+        _device = null;
+        _inventory = null;
+        _userHasAccess = false;
+        _logLines.Clear();
+        _scriptResults.Clear();
+
+        if (string.IsNullOrWhiteSpace(DeviceId))
+        {
+            _isLoading = false;
+            return;
+        }
+
+        _isLoading = true;
+        EnsureUserSet();
+
+        var deviceId = DeviceId.Trim();
+        var deviceResult = await DataService.GetDevice(deviceId);
+        if (deviceResult.IsSuccess)
+        {
+            _device = deviceResult.Value;
+            _userHasAccess = DataService.DoesUserHaveAccessToDevice(_device.ID, User);
+            if (_userHasAccess)
+            {
+                await LoadInventory();
+            }
+        }
 
         _isLoading = false;
     }
@@ -145,6 +169,7 @@ public partial class DeviceDetails : AuthComponentBase
         _device.Manufacturer = message.Device.Manufacturer;
         _device.Model = message.Device.Model;
         _device.SerialNumber = message.Device.SerialNumber;
+        _device.ProcessorName = message.Device.ProcessorName;
         _device.InventoryUpdatedAt = message.Device.InventoryUpdatedAt;
         await InvokeAsync(StateHasChanged);
     }
@@ -218,14 +243,6 @@ public partial class DeviceDetails : AuthComponentBase
     private void EditFormKeyDown()
     {
         _alertMessage = string.Empty;
-    }
-
-    private void EvaluateDeviceIdInputKeyDown(KeyboardEventArgs args)
-    {
-        if (args.Key.Equals("Enter", StringComparison.OrdinalIgnoreCase))
-        {
-            NavManager.NavigateTo($"/device-details/{_inputDeviceId}");
-        }
     }
 
     private void GetRemoteLogs()
@@ -348,27 +365,6 @@ public partial class DeviceDetails : AuthComponentBase
             return "fa-brands fa-linux";
         }
         return "fa-solid fa-computer";
-    }
-
-    private void NavigateToDeviceId()
-    {
-        NavManager.NavigateTo($"/device-details/{_inputDeviceId}");
-    }
-
-    private void ShowAllDisks()
-    {
-        if (_device is null)
-        {
-            return;
-        }
-
-        var disksString = JsonSerializer.Serialize(_device.Drives, JsonSerializerHelper.IndentedOptions);
-        void modalBody(RenderTreeBuilder builder)
-        {
-            // Drive info comes from the device, so it must be HTML-encoded.
-            builder.AddMarkupContent(0, $"<div style='white-space: pre'>{WebUtility.HtmlEncode(disksString)}</div>");
-        }
-        ModalService.ShowModal($"Todos os discos de {_device.DeviceName}", modalBody);
     }
 
     private void ShowFullScriptOutput(ScriptResult result)

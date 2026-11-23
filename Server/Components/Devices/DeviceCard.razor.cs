@@ -24,6 +24,7 @@ public partial class DeviceCard : AuthComponentBase
     private Theme _theme;
     private DeviceCardState _state;
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
+    private Remotely.Shared.Models.Inventory.DeviceInventory? _inventory;
     private Remotely.Server.Models.UserPermissions _permissions = Remotely.Server.Models.UserPermissions.Full;
 
     [Parameter]
@@ -104,6 +105,12 @@ public partial class DeviceCard : AuthComponentBase
                 return;
             }
             _state = message.State;
+            if (_state == DeviceCardState.Expanded)
+            {
+                // Os mesmos dados da página de detalhes (UUID, série do SO etc.).
+                var record = await DataService.GetDeviceInventory(Device.ID);
+                _inventory = Remotely.Shared.Models.Inventory.InventorySerializer.FromJson(record?.Data);
+            }
             await InvokeAsync(StateHasChanged);
         }
         else
@@ -155,6 +162,7 @@ public partial class DeviceCard : AuthComponentBase
             Device.Manufacturer = message.Device.Manufacturer;
             Device.Model = message.Device.Model;
             Device.SerialNumber = message.Device.SerialNumber;
+            Device.ProcessorName = message.Device.ProcessorName;
             Device.InventoryUpdatedAt = message.Device.InventoryUpdatedAt;
         }
         else
@@ -383,19 +391,6 @@ public partial class DeviceCard : AuthComponentBase
     private void OpenDeviceDetails()
     {
         JsInterop.OpenWindow($"/device-details/{Device.ID}", "_blank");
-    }
-
-    private void ShowAllDisks()
-    {
-        var disksString = JsonSerializer.Serialize(Device.Drives, JsonSerializerHelper.IndentedOptions);
-
-        void modalBody(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder)
-        {
-            // Drive info comes from the device, so it must be HTML-encoded.
-            builder.AddMarkupContent(0, $"<div style='white-space: pre'>{System.Net.WebUtility.HtmlEncode(disksString)}</div>");
-        }
-
-        ModalService.ShowModal($"Todos os discos de {Device.DeviceName}", modalBody);
     }
 
     private void StartChat()

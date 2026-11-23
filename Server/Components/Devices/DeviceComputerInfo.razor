@@ -1,0 +1,80 @@
+@using Remotely.Shared.Models.Inventory
+
+@* Dados do computador: os mesmos no card aberto e na página de detalhes. *@
+<dl class="detail-list @(Compact ? "detail-list-compact" : "")">
+    @Row("Nome", Device.DeviceName)
+    @Row("Tipo", Device.DeviceType)
+    @Row("Fabricante", Device.Manufacturer)
+    @Row("Modelo", Device.Model)
+    @Row("Número de série", Device.SerialNumber, mono: true)
+    @Row("UUID", Inventory?.Uuid, mono: true, small: true)
+    @Row("Número de inventário", Device.AssetTag)
+    @Row("Localização", Device.Location)
+
+    @{
+        var (osName, osVersion) = DeviceDisplay.GetOperatingSystem(Device);
+        var (userName, fullName) = DeviceDisplay.GetUser(Device, NameFormat);
+    }
+    @Row("Sistema operacional", osName)
+    @Row("Versão", osVersion, mono: true)
+    @Row("Número de série do SO", Inventory?.OperatingSystem?.SerialNumber, mono: true)
+    @Row("ID do produto", Inventory?.OperatingSystem?.ProductId, mono: true)
+    @Row("Arquitetura", $"{Device.OSArchitecture} · {Device.ProcessorCount} núcleos")
+    @Row("Processador", Device.ProcessorName ?? Inventory?.Processors.FirstOrDefault()?.Name)
+
+    @if (!string.IsNullOrWhiteSpace(userName))
+    {
+        <dt>Usuário</dt>
+        <dd>
+            @if (fullName is not null)
+            {
+                @fullName <span class="text-muted">· @userName</span>
+            }
+            else
+            {
+                @userName
+            }
+        </dd>
+    }
+    @Row("Domínio", Inventory?.Domain)
+
+    @Row("Memória", FormatGb(Device.TotalMemory))
+    @Row("Armazenamento", FormatGb(Device.TotalStorage))
+    @Row("Versão do agente", Device.AgentVersion)
+    @Row("Última conexão", Device.LastOnline == default ? null : Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+    @Row("Inventário", Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+    @Row("IP público", Device.PublicIP, mono: true)
+    @Row("Endereços MAC", string.Join(", ", Device.MacAddresses ?? Array.Empty<string>()), mono: true)
+    @Row("ID do dispositivo", Device.ID, mono: true, small: true)
+</dl>
+
+@code {
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    [Parameter]
+    public DeviceInventory? Inventory { get; set; }
+
+    [Parameter]
+    public UserNameDisplayFormat NameFormat { get; set; }
+
+    /// <summary>Estilo compacto do card.</summary>
+    [Parameter]
+    public bool Compact { get; set; }
+
+    /// <summary>"15.7 GB": só o total.</summary>
+    public static string? FormatGb(double gigabytes) =>
+        gigabytes <= 0
+            ? null
+            : gigabytes.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " GB";
+
+    private static RenderFragment Row(string label, string? value, bool mono = false, bool small = false) => __builder =>
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+        <dt>@label</dt>
+        <dd class="@(mono ? "mono" : "") @(small ? "small" : "")">@value</dd>
+    };
+}

@@ -35,6 +35,17 @@ public class InventorySerializerTests
     }
 
     [TestMethod]
+    public void FromJson_LegacySchema_MovesProductId()
+    {
+        var json = "{\"schemaVersion\":1,\"operatingSystem\":{\"serialNumber\":\"00329-00000-00003-AA742\"}}";
+
+        var inventory = InventorySerializer.FromJson(json);
+
+        Assert.AreEqual("00329-00000-00003-AA742", inventory?.OperatingSystem?.ProductId);
+        Assert.IsNull(inventory?.OperatingSystem?.SerialNumber);
+    }
+
+    [TestMethod]
     public void TryDecompress_RejectsGarbage()
     {
         Assert.IsFalse(InventorySerializer.TryDecompress(null, out _, out _));

@@ -491,6 +491,10 @@ namespace Remotely.Server.Migrations.SqlServer
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("ProcessorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("SerialNumber")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");

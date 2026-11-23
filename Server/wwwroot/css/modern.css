@@ -1637,3 +1637,44 @@ label, .form-label {
     }
 
     .asset-summary .asset-value.empty { color: var(--rm-text-subtle); font-weight: 500; }
+
+/* Lista de dispositivos (Inventário) */
+.inv-list-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    margin-bottom: 0.9rem;
+}
+
+.inv-list-search { flex: 1 1 380px; position: relative; }
+.inv-list-search .inv-list-clear { position: absolute; right: 0.35rem; }
+.inv-list-select { width: auto; min-width: 160px; }
+.inv-list-fields { max-height: 60vh; overflow-y: auto; }
+
+.inv-list-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+}
+
+.inv-list-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+    color: var(--rm-text-muted);
+    font-size: 0.9rem;
+}
+
+.inv-list-table th { cursor: pointer; white-space: nowrap; user-select: none; }
+.inv-list-table th.sorted { color: var(--rm-text-strong); }
+.inv-list-table td { vertical-align: top; }
+
+.detail-list-compact { font-size: 0.86rem; row-gap: 0.45rem; column-gap: 1.1rem; }
+.inv-list-table td { font-size: 0.88rem; }
+.inv-list-table td:nth-child(10) { min-width: 170px; }
