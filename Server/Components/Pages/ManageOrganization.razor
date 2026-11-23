@@ -102,6 +102,7 @@ else if (User is not null)
                     <tr>
                         <th>Usuário</th>
                         <th>Administrador</th>
+                        <th>Perfil de acesso</th>
                         <th class="text-end">Ações</th>
                     </tr>
                 </thead>
@@ -126,6 +127,24 @@ else if (User is not null)
                                            @onchange="(ev) => SetUserIsAdmin(ev, orgUser)" />
                                 </div>
                             </td>
+                            <td>
+                                @if (orgUser.IsAdministrator)
+                                {
+                                    <span class="text-muted small">Acesso total (administrador)</span>
+                                }
+                                else
+                                {
+                                    <select class="form-select form-select-sm profile-select" aria-label="Perfil de @orgUser.UserName"
+                                            value="@(GetUserProfileId(orgUser) ?? string.Empty)"
+                                            @onchange="(ev) => ChangeUserProfile(orgUser, ev)">
+                                        <option value="">Sem perfil (acesso total)</option>
+                                        @foreach (var profile in _profiles)
+                                        {
+                                            <option @key="profile.Id" value="@profile.Id">@profile.Name</option>
+                                        }
+                                    </select>
+                                }
+                            </td>
                             <td class="text-end text-nowrap">
                                 <button type="button" class="btn btn-sm btn-secondary" @onclick="() => EditDeviceGroups(orgUser)"><i class="fa-solid fa-layer-group"></i> Grupos</button>
                                 @if (!isSelf)
@@ -139,6 +158,194 @@ else if (User is not null)
                 </tbody>
             </table>
         </div>
+    </section>
+
+    <section class="panel mt-3" id="perfis">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-id-badge"></i> Perfis de acesso</h2>
+                <p class="panel-description">
+                    Defina o que cada tipo de usuário pode fazer e quais grupos ele enxerga. Administradores sempre têm acesso total.
+                </p>
+            </div>
+            @if (_editingProfile is null)
+            {
+                <button type="button" class="btn btn-primary btn-sm" @onclick="NewProfile"><i class="fa-solid fa-plus"></i> Novo perfil</button>
+            }
+        </div>
+
+        @if (_editingProfile is not null)
+        {
+            <div class="profile-editor">
+                <div class="row g-3">
+                    <div class="col-lg-5">
+                        <label class="form-label" for="profile-name">Nome</label>
+                        <input id="profile-name" class="form-control" maxlength="60" placeholder="Ex.: Técnico N1"
+                               @bind="_editingProfile.Name" @bind:event="oninput" />
+                    </div>
+                    <div class="col-lg-7">
+                        <label class="form-label" for="profile-description">Descrição <span class="text-muted fw-normal">(opcional)</span></label>
+                        <input id="profile-description" class="form-control" maxlength="200" placeholder="Ex.: Atendimento ao usuário, sem scripts"
+                               @bind="_editingProfile.Description" @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <h3 class="profile-subtitle">O que este perfil pode fazer</h3>
+                <div class="profile-permissions">
+                    <label class="permission-card">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" @bind="_editingProfile.AllowRemoteControl" />
+                        </div>
+                        <span>
+                            <strong><i class="fa-solid fa-desktop"></i> Acesso remoto</strong>
+                            <small>Controle remoto, somente visualizar e chat.</small>
+                        </span>
+                    </label>
+                    <label class="permission-card">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" @bind="_editingProfile.AllowScripts" />
+                        </div>
+                        <span>
+                            <strong><i class="fa-solid fa-terminal"></i> Scripts e terminal</strong>
+                            <small>Terminal, executar, criar e agendar scripts.</small>
+                        </span>
+                    </label>
+                    <label class="permission-card">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" @bind="_editingProfile.AllowDeviceManagement" />
+                        </div>
+                        <span>
+                            <strong><i class="fa-solid fa-screwdriver-wrench"></i> Gerenciar dispositivos</strong>
+                            <small>Editar apelido, grupo e observações, enviar arquivos, ligar (WoL) e desinstalar o agente.</small>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-6">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <h3 class="profile-subtitle m-0">Grupos visíveis</h3>
+                            <div class="form-check form-switch m-0 d-flex align-items-center gap-2">
+                                <input id="profile-restrict" class="form-check-input" type="checkbox" role="switch" @bind="_editingProfile.RestrictToGroups" />
+                                <label class="form-check-label small m-0" for="profile-restrict">Só os grupos escolhidos</label>
+                            </div>
+                        </div>
+                        @if (_editingProfile.RestrictToGroups)
+                        {
+                            <div class="list-editor profile-list">
+                                @if (_deviceGroups.Count == 0)
+                                {
+                                    <div class="list-empty">Crie grupos de dispositivos acima para usar aqui.</div>
+                                }
+                                @foreach (var group in _deviceGroups)
+                                {
+                                    <label class="list-item check-row" @key="group.ID">
+                                        <span><i class="fa-solid fa-folder me-2 text-warning"></i>@group.Name</span>
+                                        <input class="form-check-input" type="checkbox"
+                                               checked="@_editingProfile.DeviceGroupIds.Contains(group.ID)"
+                                               @onchange="(ev) => ToggleProfileGroup(group.ID, ev)" />
+                                    </label>
+                                }
+                            </div>
+                            <p class="form-text">Os usuários do perfil passam a ver só os dispositivos desses grupos.</p>
+                        }
+                        else
+                        {
+                            <p class="form-text mt-0">Desligado: cada usuário continua com os grupos definidos no botão "Grupos" da tabela de usuários.</p>
+                        }
+                    </div>
+                    <div class="col-lg-6">
+                        <h3 class="profile-subtitle mb-2">Usuários neste perfil</h3>
+                        <div class="list-editor profile-list">
+                            @{
+                                var members = _orgUsers.Where(x => !x.IsAdministrator).ToList();
+                            }
+                            @if (members.Count == 0)
+                            {
+                                <div class="list-empty">Nenhum usuário (não administrador) na organização ainda.</div>
+                            }
+                            @foreach (var member in members)
+                            {
+                                var otherProfile = _profiles.FirstOrDefault(x => x.Id != _editingProfile.Id && x.UserIds.Contains(member.Id));
+                                <label class="list-item check-row" @key="member.Id">
+                                    <span class="truncate">
+                                        @member.UserName
+                                        @if (otherProfile is not null && !_editingProfile.UserIds.Contains(member.Id))
+                                        {
+                                            <span class="text-muted small ms-1">(hoje: @otherProfile.Name)</span>
+                                        }
+                                    </span>
+                                    <input class="form-check-input" type="checkbox"
+                                           checked="@_editingProfile.UserIds.Contains(member.Id)"
+                                           @onchange="(ev) => ToggleProfileUser(member.Id, ev)" />
+                                </label>
+                            }
+                        </div>
+                        <p class="form-text">Cada usuário fica em um perfil só; marcar aqui tira ele do perfil anterior.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-ghost" @onclick="CancelProfileEdit">Cancelar</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveProfile">
+                        <i class="fa-solid fa-floppy-disk"></i> @(_isNewProfile ? "Criar perfil" : "Salvar perfil")
+                    </button>
+                </div>
+            </div>
+        }
+        else if (_profiles.Count == 0)
+        {
+            <div class="profile-empty">
+                <i class="fa-solid fa-id-badge"></i>
+                <div>
+                    <strong>Nenhum perfil criado</strong>
+                    <p>Sem perfil, cada usuário pode fazer tudo nos grupos a que tem acesso. Crie perfis como "Técnico N1" ou "Somente consulta" para limitar.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="profile-grid">
+                @foreach (var profile in _profiles)
+                {
+                    <article class="profile-card" @key="profile.Id">
+                        <div class="profile-card-head">
+                            <div class="min-w-0">
+                                <strong class="truncate d-block">@profile.Name</strong>
+                                @if (!string.IsNullOrWhiteSpace(profile.Description))
+                                {
+                                    <span class="text-muted small">@profile.Description</span>
+                                }
+                            </div>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Editar" @onclick="() => EditProfile(profile)"><i class="fa-solid fa-pen"></i></button>
+                                <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Excluir" @onclick="() => DeleteProfile(profile)"><i class="fa-solid fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                        <div class="profile-perms">
+                            <span class="pill @(profile.AllowRemoteControl ? "success" : "")"><i class="fa-solid @(profile.AllowRemoteControl ? "fa-check" : "fa-xmark")"></i> Acesso remoto</span>
+                            <span class="pill @(profile.AllowScripts ? "success" : "")"><i class="fa-solid @(profile.AllowScripts ? "fa-check" : "fa-xmark")"></i> Scripts</span>
+                            <span class="pill @(profile.AllowDeviceManagement ? "success" : "")"><i class="fa-solid @(profile.AllowDeviceManagement ? "fa-check" : "fa-xmark")"></i> Gerenciar</span>
+                        </div>
+                        <dl class="profile-meta">
+                            <dt>Grupos</dt>
+                            <dd>
+                                @if (!profile.RestrictToGroups)
+                                {
+                                    <span class="text-muted">Definidos por usuário</span>
+                                }
+                                else
+                                {
+                                    @string.Join(", ", profile.DeviceGroupIds.Select(GetGroupName))
+                                }
+                            </dd>
+                            <dt>Usuários</dt>
+                            <dd>@(profile.UserIds.Count == 0 ? "Nenhum" : $"{profile.UserIds.Count}")</dd>
+                        </dl>
+                    </article>
+                }
+            </div>
+        }
     </section>
 
     <section class="panel mt-3">

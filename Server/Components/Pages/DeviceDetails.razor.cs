@@ -190,6 +190,12 @@ public partial class DeviceDetails : AuthComponentBase
             return Task.CompletedTask;
         }
 
+        if (!Permissions.ManageDevices)
+        {
+            _alertMessage = "Seu perfil não permite editar dispositivos.";
+            return Task.CompletedTask;
+        }
+
         DataService.UpdateDevice(
             _device.ID,
             _device.Tags,

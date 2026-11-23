@@ -269,6 +269,7 @@ else
     services.AddScoped<IEmailSenderEx, EmailSenderEx>();
 }
 services.AddSingleton<IAppDbFactory, AppDbFactory>();
+services.AddSingleton<IAccessProfileService, AccessProfileService>();
 services.AddTransient<IDataService, DataService>();
 services.AddScoped<ApiAuthorizationFilter>();
 services.AddScoped<LocalOnlyFilter>();

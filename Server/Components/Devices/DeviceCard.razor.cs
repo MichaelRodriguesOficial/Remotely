@@ -24,6 +24,7 @@ public partial class DeviceCard : AuthComponentBase
     private Theme _theme;
     private DeviceCardState _state;
     private DeviceGroup[] _deviceGroups = Array.Empty<DeviceGroup>();
+    private Remotely.Server.Models.UserPermissions _permissions = Remotely.Server.Models.UserPermissions.Full;
 
     [Parameter]
     public Device Device { get; set; } = null!;
@@ -79,6 +80,7 @@ public partial class DeviceCard : AuthComponentBase
         EnsureUserSet();
         _theme = await ThemeProvider.GetEffectiveTheme();
         _currentVersion = UpgradeService.GetCurrentVersion();
+        _permissions = Permissions;
         _deviceGroups = DataService.GetDeviceGroups(UserName);
 
         await Register<DeviceCardStateChangedMessage, string>(
@@ -289,6 +291,12 @@ public partial class DeviceCard : AuthComponentBase
         if (!DataService.DoesUserHaveAccessToDevice(Device.ID, User))
         {
             ToastService.ShowToast("Não autorizado.", classString: "bg-warning");
+            return;
+        }
+
+        if (!Permissions.ManageDevices)
+        {
+            ToastService.ShowToast("Seu perfil não permite editar dispositivos.", classString: "bg-warning");
             return;
         }
        

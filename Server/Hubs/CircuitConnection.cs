@@ -4,6 +4,7 @@ using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.SignalR;
 using Remotely.Server.Models;
+using Remotely.Server.Enums;
 using Remotely.Server.Models.Messages;
 using Remotely.Server.Services.Stores;
 using Remotely.Shared;
@@ -73,6 +74,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
     private readonly IAgentHubSessionCache _agentSessionCache;
     private readonly IMessenger _messenger;
     private readonly IToastService _toastService;
+    private readonly IAccessProfileService _accessProfiles;
     private RemotelyUser? _user;
 
     public CircuitConnection(
@@ -86,8 +88,10 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         IRemoteControlSessionCache remoteControlSessionCache,
         IAgentHubSessionCache agentSessionCache,
         IMessenger messenger,
+        IAccessProfileService accessProfiles,
         ILogger<CircuitConnection> logger)
     {
+        _accessProfiles = accessProfiles;
         _dataService = dataService;
         _agentHubContext = agentHubContext;
         _cardStore = cardStore;
@@ -111,8 +115,40 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
     }
 
 
+    private bool HasPermission(AccessPermission permission)
+    {
+        var permissions = _accessProfiles.GetPermissions(_user);
+        var (allowed, label) = permission switch
+        {
+            AccessPermission.RemoteControl => (permissions.RemoteControl, "acesso remoto e chat"),
+            AccessPermission.Scripts => (permissions.Scripts, "executar scripts e comandos"),
+            AccessPermission.ManageDevices => (permissions.ManageDevices, "gerenciar dispositivos"),
+            _ => (false, "esta ação")
+        };
+
+        if (!allowed)
+        {
+            _logger.LogWarning(
+                "Action blocked by access profile. User: {userName}. Profile: {profile}. Permission: {permission}.",
+                _user?.UserName,
+                permissions.ProfileName,
+                permission);
+
+            _toastService.ShowToast2(
+                $"Seu perfil{(string.IsNullOrWhiteSpace(permissions.ProfileName) ? "" : $" ({permissions.ProfileName})")} não permite {label}.",
+                ToastType.Warning);
+        }
+
+        return allowed;
+    }
+
     public Task DeleteRemoteLogs(string deviceId)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Task.CompletedTask;
+        }
+
         var (canAccess, key) = CanAccessDevice(deviceId);
         if (!canAccess)
         {
@@ -129,6 +165,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task ExecuteCommandOnAgent(ScriptingShell shell, string command, string[] deviceIDs)
     {
+        if (!HasPermission(AccessPermission.Scripts))
+        {
+            return;
+        }
+
         deviceIDs = _dataService.FilterDeviceIdsByUserPermission(deviceIDs, User);
         var connections = GetActiveConnectionsForUserOrg(deviceIDs);
 
@@ -150,6 +191,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public Task GetPowerShellCompletions(string inputText, int currentIndex, CompletionIntent intent, bool? forward)
     {
+        if (!HasPermission(AccessPermission.Scripts))
+        {
+            return Task.CompletedTask;
+        }
+
         var device = _cardStore.SelectedDevices.FirstOrDefault();
         if (device is null)
         {
@@ -209,6 +255,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task ReinstallAgents(string[] deviceIDs)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return;
+        }
+
         deviceIDs = _dataService.FilterDeviceIdsByUserPermission(deviceIDs, User);
         var connections = GetActiveConnectionsForUserOrg(deviceIDs);
         await _agentHubContext.Clients.Clients(connections).ReinstallAgent();
@@ -217,6 +268,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task<Result<RemoteControlSession>> RemoteControl(string deviceId, bool viewOnly)
     {
+        if (!HasPermission(AccessPermission.RemoteControl))
+        {
+            return Result.Fail<RemoteControlSession>("Seu perfil não permite acesso remoto.");
+        }
+
         var settings = await _dataService.GetSettings();
 
         if (!_agentSessionCache.TryGetByDeviceId(deviceId, out var targetDevice))
@@ -292,6 +348,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public Task RemoveDevices(string[] deviceIDs)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Task.CompletedTask;
+        }
+
         if (User is not null)
         {
             var filterDevices = _dataService.FilterDeviceIdsByUserPermission(deviceIDs, User);
@@ -308,6 +369,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         ScriptInputType scriptInputType,
         bool runAsHostedService)
     {
+        if (!HasPermission(AccessPermission.Scripts))
+        {
+            return;
+        }
+
         var username = string.Empty;
         if (runAsHostedService)
         {
@@ -337,6 +403,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task SendChat(string message, string deviceId, bool isDisconnecting = false)
     {
+        if (!HasPermission(AccessPermission.RemoteControl))
+        {
+            return;
+        }
+
         if (!_dataService.DoesUserHaveAccessToDevice(deviceId, User))
         {
             return;
@@ -373,6 +444,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task<bool> TransferFileFromBrowserToAgent(string deviceId, string transferId, string[] fileIds)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return false;
+        }
+
         if (!_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId))
         {
             return false;
@@ -414,6 +490,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task UninstallAgents(string[] deviceIDs)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return;
+        }
+
         deviceIDs = _dataService.FilterDeviceIdsByUserPermission(deviceIDs, User);
         var connections = GetActiveConnectionsForUserOrg(deviceIDs);
         await _agentHubContext.Clients.Clients(connections).UninstallAgent();
@@ -422,6 +503,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task UpdateTags(string deviceID, string tags)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return;
+        }
+
         if (_dataService.DoesUserHaveAccessToDevice(deviceID, User))
         {
             if (tags.Length > 200)
@@ -448,6 +534,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task<Result> WakeDevice(Device device)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Result.Fail("Seu perfil não permite gerenciar dispositivos.");
+        }
+
         try
         {
             if (!_dataService.DoesUserHaveAccessToDevice(device.ID, User.Id))
@@ -475,6 +566,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
     public async Task<Result> WakeDevices(Device[] devices)
     {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Result.Fail("Seu perfil não permite gerenciar dispositivos.");
+        }
+
         try
         {
             var deviceIds = devices.Select(x => x.ID).ToArray();

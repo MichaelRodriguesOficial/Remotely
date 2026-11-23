@@ -116,6 +116,7 @@ else
                                     <AlertBanner Message="@_alertMessage" />
                                 }
 
+                                <fieldset disabled="@(!Permissions.ManageDevices)" class="border-0 p-0 m-0">
                                 <div class="mb-3">
                                     <label class="form-label" for="device-alias">Apelido</label>
                                     <InputText id="device-alias" class="form-control" placeholder="Ex.: Recepção 01" @bind-Value="@_device.Alias" />
@@ -142,9 +143,17 @@ else
                                     <InputTextArea id="device-notes" @bind-Value="_device.Notes" class="form-control" rows="6"></InputTextArea>
                                     <ValidationMessage For="() => _device.Notes" />
                                 </div>
-                                <div class="text-end">
-                                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
-                                </div>
+                                @if (Permissions.ManageDevices)
+                                {
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="form-text mb-0"><i class="fa-solid fa-lock me-1"></i> Seu perfil não permite editar dispositivos.</p>
+                                }
+                                </fieldset>
                             </EditForm>
                         </section>
                     </div>

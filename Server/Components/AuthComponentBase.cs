@@ -12,6 +12,14 @@ public class AuthComponentBase : MessengerSubscriber
     [Inject]
     protected IAuthService AuthService { get; set; } = null!;
 
+    [Inject]
+    protected IAccessProfileService AccessProfiles { get; set; } = null!;
+
+    /// <summary>
+    /// Permissões do usuário logado conforme o perfil de acesso (administradores têm todas).
+    /// </summary>
+    protected Remotely.Server.Models.UserPermissions Permissions => AccessProfiles.GetPermissions(User);
+
     protected RemotelyUser? User { get; private set; }
 
     protected string? UserName => User?.UserName;

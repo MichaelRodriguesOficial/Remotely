@@ -218,3 +218,19 @@
         transform: none;
     }
 }
+
+.dc-locked {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--rm-text-subtle);
+}
+
+fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}

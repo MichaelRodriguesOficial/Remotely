@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Remotely.Server.Components.ModalContents;
+using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
 using Remotely.Shared.ViewModels;
@@ -23,6 +24,9 @@ public partial class ManageOrganization : AuthComponentBase
     private string _newDeviceGroupName = string.Empty;
     private Organization? _organization;
     private string _selectedDeviceGroupId = string.Empty;
+    private readonly List<AccessProfile> _profiles = new();
+    private AccessProfile? _editingProfile;
+    private bool _isNewProfile;
 
     [Inject]
     private IDataService DataService { get; set; } = null!;
@@ -270,6 +274,160 @@ public partial class ManageOrganization : AuthComponentBase
         _deviceGroups.AddRange(DataService.GetDeviceGroups(UserName).OrderBy(x => x.Name));
         var orgUsers = await DataService.GetAllUsersInOrganization(User.OrganizationID);
         _orgUsers.AddRange(orgUsers.OrderBy(x => x.UserName));
+        LoadProfiles();
+    }
+
+    private void LoadProfiles()
+    {
+        EnsureUserSet();
+        _profiles.Clear();
+        _profiles.AddRange(AccessProfiles.GetProfiles(User.OrganizationID));
+    }
+
+    private string? GetUserProfileId(RemotelyUser user)
+    {
+        return _profiles.FirstOrDefault(x => x.UserIds.Contains(user.Id))?.Id;
+    }
+
+    private string GetGroupName(string groupId)
+    {
+        return _deviceGroups.FirstOrDefault(x => x.ID == groupId)?.Name ?? "(grupo removido)";
+    }
+
+    private void NewProfile()
+    {
+        _isNewProfile = true;
+        _editingProfile = new AccessProfile
+        {
+            Name = string.Empty,
+            AllowRemoteControl = true,
+            AllowScripts = false,
+            AllowDeviceManagement = false,
+            RestrictToGroups = true
+        };
+    }
+
+    private void EditProfile(AccessProfile profile)
+    {
+        _isNewProfile = false;
+        _editingProfile = profile.Clone();
+    }
+
+    private void CancelProfileEdit()
+    {
+        _editingProfile = null;
+    }
+
+    private void ToggleProfileGroup(string groupId, ChangeEventArgs args)
+    {
+        if (_editingProfile is null)
+        {
+            return;
+        }
+        _editingProfile.DeviceGroupIds.Remove(groupId);
+        if (args.Value is true)
+        {
+            _editingProfile.DeviceGroupIds.Add(groupId);
+        }
+    }
+
+    private void ToggleProfileUser(string userId, ChangeEventArgs args)
+    {
+        if (_editingProfile is null)
+        {
+            return;
+        }
+        _editingProfile.UserIds.Remove(userId);
+        if (args.Value is true)
+        {
+            _editingProfile.UserIds.Add(userId);
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        EnsureUserSet();
+        if (_editingProfile is null || !User.IsAdministrator)
+        {
+            return;
+        }
+
+        if (_editingProfile.RestrictToGroups && _editingProfile.DeviceGroupIds.Count == 0)
+        {
+            ToastService.ShowToast2("Escolha pelo menos um grupo ou desligue \"Só os grupos escolhidos\".", Enums.ToastType.Warning);
+            return;
+        }
+
+        var result = await AccessProfiles.SaveProfile(User.OrganizationID, _editingProfile);
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, Enums.ToastType.Error);
+            return;
+        }
+
+        ToastService.ShowToast2(_isNewProfile ? "Perfil criado." : "Perfil salvo.", Enums.ToastType.Success);
+        _editingProfile = null;
+        await RefreshData();
+    }
+
+    private async Task DeleteProfile(AccessProfile profile)
+    {
+        EnsureUserSet();
+        if (!User.IsAdministrator)
+        {
+            return;
+        }
+
+        var confirmed = await JsInterop.Confirm(
+            $"Excluir o perfil \"{profile.Name}\"? Os usuários dele voltam a ter acesso total aos grupos em que já estão.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await AccessProfiles.DeleteProfile(User.OrganizationID, profile.Id);
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, Enums.ToastType.Error);
+            return;
+        }
+
+        if (_editingProfile?.Id == profile.Id)
+        {
+            _editingProfile = null;
+        }
+        ToastService.ShowToast2("Perfil excluído.", Enums.ToastType.Success);
+        LoadProfiles();
+    }
+
+    private async Task ChangeUserProfile(RemotelyUser orgUser, ChangeEventArgs args)
+    {
+        EnsureUserSet();
+        if (!User.IsAdministrator)
+        {
+            return;
+        }
+
+        var profileId = $"{args.Value}";
+        var result = await AccessProfiles.AssignUser(
+            User.OrganizationID,
+            orgUser.Id,
+            string.IsNullOrWhiteSpace(profileId) ? null : profileId);
+
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, Enums.ToastType.Error);
+            return;
+        }
+
+        var profileName = _profiles.FirstOrDefault(x => x.Id == profileId)?.Name;
+        ToastService.ShowToast2(
+            profileName is null
+                ? $"{orgUser.UserName} agora não tem perfil (acesso total aos seus grupos)."
+                : $"{orgUser.UserName} agora usa o perfil {profileName}.",
+            Enums.ToastType.Success);
+
+        await RefreshData();
     }
     private async Task ResetPassword(RemotelyUser user)
     {

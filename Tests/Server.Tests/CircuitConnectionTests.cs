@@ -1,4 +1,5 @@
-﻿#nullable enable
+﻿using Remotely.Server.Models;
+#nullable enable
 using Remotely.Server.Services;
 using Bitbound.SimpleMessenger;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,6 +9,7 @@ using Moq;
 using Remotely.Server.Hubs;
 using Remotely.Server.Services.Stores;
 using Remotely.Server.Tests.Mocks;
+using Remotely.Shared.Entities;
 using Remotely.Shared.Extensions;
 using Remotely.Shared.Interfaces;
 using System.Threading.Tasks;
@@ -30,6 +32,7 @@ public class CircuitConnectionTests
     private Mock<IMessenger> _messenger;
     private Mock<IAgentHubSessionCache> _agentSessionCache;
     private Mock<ILogger<CircuitConnection>> _logger;
+    private Mock<IAccessProfileService> _accessProfiles;
     private CircuitConnection _circuitConnection;
 #nullable enable
 
@@ -50,6 +53,10 @@ public class CircuitConnectionTests
         _messenger = new Mock<IMessenger>();
         _agentSessionCache = new Mock<IAgentHubSessionCache>();
         _logger = new Mock<ILogger<CircuitConnection>>();
+        _accessProfiles = new Mock<IAccessProfileService>();
+        _accessProfiles
+            .Setup(x => x.GetPermissions(It.IsAny<RemotelyUser?>()))
+            .Returns(UserPermissions.Full);
 
         _circuitConnection = new CircuitConnection(
             _authService.Object,
@@ -62,6 +69,7 @@ public class CircuitConnectionTests
             _remoteControlSessionCache.Object,
             _agentSessionCache.Object,
             _messenger.Object,
+            _accessProfiles.Object,
             _logger.Object);
     }
 

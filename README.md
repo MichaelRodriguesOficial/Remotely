@@ -44,6 +44,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 
 - **Tudo em .NET 10**: servidor, agents (Windows, Linux, macOS) e clientes de desktop, compilados no CI deste repositório (o .NET 8 saiu do suporte em novembro de 2026).
 - **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
+- **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
 - **Segurança:** dezenas de correções. Entre elas:
   - páginas administrativas protegidas também na navegação interativa;
@@ -78,7 +79,7 @@ Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta 
 
 - **Dados:** os dados ficam no volume `remotely-data`, montado em `/app/AppData`. Lá estão o banco SQLite, os logs, as gravações e as chaves de criptografia.
 - **Pasta do host em vez do volume:** monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta`, porque o container roda com o usuário `app`.
-- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.1.1` ou `latest`).
+- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.2.0` ou `latest`).
 - **Atualizar:** `docker compose pull && docker compose up -d`.
 
 A imagem também é publicada em `ghcr.io/michaelrodriguesoficial/remotely`.
@@ -92,7 +93,7 @@ curl -fsSLO https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/m
 chmod +x remotely_install.sh
 sudo ./remotely_install.sh
 # versão específica:
-sudo REMOTELY_VERSION=v1.1.1 ./remotely_install.sh
+sudo REMOTELY_VERSION=v1.2.0 ./remotely_install.sh
 ```
 
 | Script | Para que serve |
@@ -202,8 +203,8 @@ Os arquivos `.ts` do viewer (`Server/wwwroot/src`) são compilados para `.js` no
 - **Tests:** compila a solução e roda os testes a cada push e PR.
 - **Release:** em PRs e pushes, compila os agents no Windows, monta a imagem Docker com eles e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões, Swagger, cabeçalhos e os arquivos dos agents.
 - **Publicar uma nova versão:**
-  1. Altere o arquivo `VERSION` (ex.: `1.1.1`).
-  2. Adicione a seção `## v1.1.1` no `CHANGELOG.md`.
+  1. Altere o arquivo `VERSION` (ex.: `1.2.1`).
+  2. Adicione a seção `## v1.2.1` no `CHANGELOG.md`.
   3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` e `Remotely_Agents.zip` (com SHA-256) e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
   - O Docker Hub exige os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
 

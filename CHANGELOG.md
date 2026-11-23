@@ -1,6 +1,18 @@
 # Changelog
 
-## v1.1.1 — 2026-11-20
+## v1.2.0 — 2026-11-23
+
+### Perfis de acesso
+- Nova seção **Perfis de acesso** na página Organização: crie perfis como "Técnico N1" ou "Somente consulta" e escolha o perfil de cada usuário direto na tabela de usuários.
+- Cada perfil define:
+  - **Acesso remoto** (controle remoto, somente visualizar e chat);
+  - **Scripts e terminal** (terminal, executar, criar e agendar scripts);
+  - **Gerenciar dispositivos** (editar apelido/grupo/observações, enviar arquivos, ligar via WoL, desinstalar o agente);
+  - **Grupos visíveis**: com "Só os grupos escolhidos", os usuários do perfil passam a ver só os dispositivos desses grupos.
+- As permissões valem no servidor (não só escondem botões): ações bloqueadas mostram um aviso e ficam registradas no log.
+- Administradores sempre têm acesso total; usuários sem perfil continuam como antes.
+- Os perfis ficam na tabela de configurações do banco, sem migração.
+
 
 ### Interface
 - **Uma tela só para quem não está logado:** a página inicial pública foi removida e o endereço raiz abre direto o login.

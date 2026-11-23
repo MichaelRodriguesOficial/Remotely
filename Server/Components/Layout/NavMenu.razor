@@ -2,6 +2,7 @@
 @inject NavigationManager NavigationManager
 @inject IAuthService AuthService 
 @inject IDataService DataService
+@inject IAccessProfileService AccessProfiles
 
 <div class="sidebar-brand">
     <a class="sidebar-logo" href="">
@@ -38,11 +39,14 @@
 
         <AuthorizeView>
             <Authorized>
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="scripts">
-                        <i class="fa-solid fa-terminal" aria-hidden="true"></i> <span>Scripts</span>
-                    </NavLink>
-                </li>
+                @if (AccessProfiles.GetPermissions(_user).Scripts)
+                {
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="scripts">
+                            <i class="fa-solid fa-terminal" aria-hidden="true"></i> <span>Scripts</span>
+                        </NavLink>
+                    </li>
+                }
                 <li class="nav-item">
                     <NavLink class="nav-link" href="device-details">
                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <span>Detalhes do dispositivo</span>
@@ -215,13 +219,17 @@
     }
 
 
-    private static string GetRole(RemotelyUser user)
+    private string GetRole(RemotelyUser user)
     {
         if (user.IsServerAdmin)
         {
             return "Administrador do servidor";
         }
-        return user.IsAdministrator ? "Administrador" : "Usuário";
+        if (user.IsAdministrator)
+        {
+            return "Administrador";
+        }
+        return AccessProfiles.GetPermissions(user).ProfileName ?? "Usuário";
     }
 
     private void ToggleNavMenu()

@@ -6,9 +6,12 @@
             Icon="fa-solid fa-display">
     <Actions>
         <AlertsFrame />
-        <a class="btn btn-secondary" href="deploy">
-            <i class="fa-solid fa-plus"></i> Adicionar dispositivo
-        </a>
+        @if (Permissions.ManageDevices)
+        {
+            <a class="btn btn-secondary" href="deploy">
+                <i class="fa-solid fa-plus"></i> Adicionar dispositivo
+            </a>
+        }
         <button class="btn btn-primary" @onclick="HandleRefreshClicked">
             <i class="fa-solid fa-rotate"></i> Atualizar
         </button>
@@ -67,9 +70,12 @@
                     <option @key="group.ID" value="@group.ID">@group.Name</option>
                 }
             </select>
-            <button class="btn btn-secondary btn-icon" title="Ligar os dispositivos offline do grupo (Wake-on-LAN)" @onclick="WakeDevices">
-                <i class="fa-solid fa-power-off"></i>
-            </button>
+            @if (Permissions.ManageDevices)
+            {
+                <button class="btn btn-secondary btn-icon" title="Ligar os dispositivos offline do grupo (Wake-on-LAN)" @onclick="WakeDevices">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            }
         </div>
 
         <div class="toolbar-group" title="Ordenar">
@@ -156,5 +162,8 @@
         </div>
     </div>
 
-    <Terminal />
+    @if (Permissions.Scripts)
+    {
+        <Terminal />
+    }
 </div>

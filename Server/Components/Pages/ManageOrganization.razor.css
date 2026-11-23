@@ -1,1 +1,136 @@
+.profile-select {
+    min-width: 12rem;
+}
 
+.profile-editor {
+    border: 1px solid rgba(var(--rm-accent-rgb), 0.35);
+    background: var(--rm-surface-2);
+    border-radius: var(--rm-radius);
+    padding: 1.1rem 1.2rem;
+}
+
+.profile-subtitle {
+    font-size: 0.74rem;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rm-text-muted);
+    margin: 1.25rem 0 0.6rem 0;
+}
+
+.profile-permissions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.6rem;
+}
+
+.permission-card {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface);
+    cursor: pointer;
+    margin: 0;
+    font-weight: 400;
+}
+
+    .permission-card strong {
+        display: block;
+        font-size: 0.9rem;
+        color: var(--rm-text-strong);
+    }
+
+        .permission-card strong i {
+            color: var(--rm-text-muted);
+            margin-right: 0.3rem;
+        }
+
+    .permission-card small {
+        color: var(--rm-text-muted);
+        font-size: 0.8rem;
+    }
+
+.profile-list {
+    max-height: 14rem;
+    background: var(--rm-surface);
+}
+
+.check-row {
+    cursor: pointer;
+    margin: 0;
+    font-family: var(--rm-font) !important;
+    font-weight: 400;
+}
+
+.profile-empty {
+    display: flex;
+    gap: 0.9rem;
+    align-items: flex-start;
+    padding: 1rem;
+    border: 1px dashed var(--rm-border-strong);
+    border-radius: var(--rm-radius);
+    color: var(--rm-text-muted);
+}
+
+    .profile-empty > i {
+        font-size: 1.4rem;
+        color: var(--rm-accent);
+        margin-top: 0.15rem;
+    }
+
+    .profile-empty p {
+        margin: 0.2rem 0 0 0;
+        font-size: 0.88rem;
+    }
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.profile-card {
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius);
+    background: var(--rm-surface-2);
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.profile-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.profile-perms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+    .profile-perms .pill::before {
+        display: none;
+    }
+
+.profile-meta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 0.9rem;
+    margin: 0;
+    font-size: 0.84rem;
+}
+
+    .profile-meta dt {
+        color: var(--rm-text-muted);
+        font-weight: 500;
+    }
+
+    .profile-meta dd {
+        margin: 0;
+    }

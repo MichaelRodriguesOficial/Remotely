@@ -1,4 +1,4 @@
-@page "/scripts/{activeTab?}"
+﻿@page "/scripts/{activeTab?}"
 @attribute [Authorize]
 @inherits AuthComponentBase
 
@@ -6,10 +6,23 @@
             Subtitle="Crie scripts, execute em vários computadores de uma vez e agende rotinas."
             Icon="fa-solid fa-terminal">
     <Actions>
+        @if (Permissions.Scripts)
+        {
         <a class="btn btn-primary" href="/scripts/saved-scripts?novo=1"><i class="fa-solid fa-plus"></i> Novo script</a>
+        }
     </Actions>
 </PageHeader>
 
+@if (!Permissions.Scripts)
+{
+    <div class="empty-state mt-4">
+        <div class="empty-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Scripts indisponíveis</h3>
+        <p>O seu perfil de acesso não permite criar, executar ou agendar scripts. Fale com o administrador.</p>
+    </div>
+}
+else
+{
 <nav class="nav nav-tabs" role="tablist">
     <a class="nav-link @TabClass("saved-scripts")" href="/scripts/saved-scripts" role="tab">
         <i class="fa-solid fa-book me-1"></i> Biblioteca
@@ -37,3 +50,4 @@
             break;
     }
 </CascadingValue>
+}

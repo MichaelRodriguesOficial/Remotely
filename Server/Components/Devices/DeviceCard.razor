@@ -90,6 +90,8 @@
     @if (!IsExpanded)
     {
         <div class="dc-actions">
+            @if (_permissions.RemoteControl)
+            {
             <button class="btn btn-sm btn-primary" title="Controle remoto"
                     disabled="@(!Device.IsOnline)"
                     @onclick="() => StartRemoteControl(false)"
@@ -108,6 +110,13 @@
                     @onclick:stopPropagation>
                 <i class="fa-regular fa-eye"></i>
             </button>
+            }
+            else
+            {
+                <span class="dc-locked" title="Seu perfil não permite acesso remoto">
+                    <i class="fa-solid fa-lock"></i> Sem acesso remoto
+                </span>
+            }
             <span class="dc-more" title="Clique no card para ver detalhes">
                 <i class="fa-solid fa-ellipsis"></i>
             </span>
@@ -117,6 +126,8 @@
     {
         <div class="dc-expanded">
             <div class="dc-toolbar">
+                @if (_permissions.RemoteControl)
+                {
                 <button class="btn btn-primary" disabled="@(!Device.IsOnline)" @onclick="() => StartRemoteControl(false)">
                     <i class="fa-solid fa-desktop"></i> Controle remoto
                 </button>
@@ -126,6 +137,9 @@
                 <button class="btn btn-secondary" disabled="@(!Device.IsOnline)" @onclick="StartChat">
                     <i class="fa-regular fa-comment"></i> Chat
                 </button>
+                }
+                @if (_permissions.ManageDevices)
+                {
                 <DropdownButton DropDownMenuClass="dropdown-menu-end" ButtonClass="btn-secondary">
                     <ButtonContent>
                         <i class="fa-solid fa-ellipsis"></i> Mais
@@ -157,6 +171,19 @@
                         </li>
                     </ChildListItems>
                 </DropdownButton>
+                }
+                else
+                {
+                    <button class="btn btn-secondary" @onclick="ShowAllDisks">
+                        <i class="fa-solid fa-hard-drive"></i> Discos
+                    </button>
+                }
+                @if (!string.IsNullOrWhiteSpace(_permissions.ProfileName))
+                {
+                    <span class="pill accent no-dot ms-auto align-self-center" title="Perfil de acesso">
+                        <i class="fa-solid fa-id-badge me-1"></i>@_permissions.ProfileName
+                    </span>
+                }
             </div>
 
             <div class="dc-columns">
@@ -196,6 +223,7 @@
                     <h3 class="dc-section-title">Identificação</h3>
                     <EditForm Model="Device" OnValidSubmit="HandleValidSubmit">
                         <DataAnnotationsValidator />
+                        <fieldset disabled="@(!_permissions.ManageDevices)">
 
                         <div class="mb-3">
                             <label class="form-label" for="alias-@Device.ID">Apelido</label>
@@ -229,11 +257,19 @@
 
                         <ValidationSummary />
 
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fa-solid fa-floppy-disk"></i> Salvar
-                            </button>
-                        </div>
+                        @if (_permissions.ManageDevices)
+                        {
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fa-solid fa-floppy-disk"></i> Salvar
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="form-text mb-0"><i class="fa-solid fa-lock me-1"></i> Seu perfil não permite editar dispositivos.</p>
+                        }
+                        </fieldset>
                     </EditForm>
                 </section>
             </div>
