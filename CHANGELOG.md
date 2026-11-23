@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.6.0 — 2026-11-23
+
+### Diagnóstico remoto (novo)
+- Nova aba **Diagnóstico** nos detalhes do dispositivo, ao lado de Inventário. Escolha os testes, clique em **Executar** e acompanhe o resultado teste a teste, com ✅/⚠️/❌, explicação e recomendação em cada item.
+- **Testes rápidos** (segundos, sem atrapalhar o usuário):
+  - **Saúde dos discos**: saúde informada pelo Windows, temperatura, desgaste do SSD, erros corrigidos e não corrigidos, horas ligado, previsão de falha SMART e espaço livre dos volumes.
+  - **Bateria**: saúde (capacidade real × de fábrica), ciclos e carga atual.
+  - **Dispositivos com erro**: drivers com problema (o ponto amarelo do Gerenciador de Dispositivos), telas azuis, desligamentos inesperados, erros de hardware (WHEA), erros de disco e eventos críticos.
+  - **Rede**: velocidade do link, sinal do Wi-Fi, ping do gateway e da internet com perda de pacotes, tempo do DNS e conexão com o servidor do Remotely.
+  - **Sistema**: tempo ligado, reinício pendente, última atualização do Windows, antivírus, firewall, BitLocker, ativação e resultado do último teste de memória.
+- **Testes pesados** (com confirmação):
+  - **Velocidade do disco**: grava e lê até 1 GB sem cache e mede MB/s.
+  - **Estresse de CPU**: 60 s a 100%, medindo frequência (detecta throttling) e temperatura.
+  - **Teste de memória**: agenda o Diagnóstico de Memória do Windows e reinicia em 2 minutos, com aviso ao usuário. O resultado aparece no teste Sistema depois do reinício.
+- Histórico das últimas 20 execuções por dispositivo. Executar exige a permissão **Gerenciar dispositivos**.
+- Linux: discos pelo smartctl, bateria, erros do kernel, rede, reinício pendente, velocidade do disco e estresse de CPU.
+- Migração de banco `Add_DeviceDiagnostics`.
+
+### Interface
+- Menu lateral na ordem Dispositivos, Inventário, Controle remoto e Scripts.
+
 ## v1.5.1 — 2026-11-23
 
 ### Segurança

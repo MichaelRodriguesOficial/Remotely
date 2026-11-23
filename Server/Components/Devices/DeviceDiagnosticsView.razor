@@ -1,0 +1,395 @@
+@using Remotely.Shared.Models.Diagnostics
+@using Remotely.Server.Models.Messages
+@inherits AuthComponentBase
+
+<div class="row g-3">
+    <div class="col-xxl-4 col-xl-5">
+        <section class="panel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title"><i class="fa-solid fa-stethoscope"></i> Executar testes</h2>
+                    <p class="panel-description">O agente roda os testes na máquina e o resultado aparece aqui.</p>
+                </div>
+            </div>
+
+            <h3 class="diag-group-title">Testes rápidos <span class="text-muted">· segundos, sem atrapalhar o usuário</span></h3>
+            @foreach (var test in DiagnosticTests.All.Where(x => !x.Heavy))
+            {
+                @TestOption(test)
+            }
+
+            <h3 class="diag-group-title mt-3">Testes pesados <span class="text-muted">· deixam a máquina lenta ou reiniciam</span></h3>
+            @foreach (var test in DiagnosticTests.All.Where(x => x.Heavy))
+            {
+                @TestOption(test)
+            }
+
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                <button type="button" class="btn btn-ghost btn-sm" @onclick="SelectQuick">Só os rápidos</button>
+                <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _selected.Clear()">Limpar</button>
+                <button type="button" class="btn btn-primary ms-auto" disabled="@(!CanRun || _selected.Count == 0 || _isStarting)" @onclick="Start">
+                    <i class="fa-solid @(_isStarting ? "fa-circle-notch fa-spin" : "fa-play")"></i> Executar
+                </button>
+            </div>
+
+            @if (!Device.IsOnline)
+            {
+                <p class="form-text mt-2 mb-0"><i class="fa-solid fa-plug-circle-xmark me-1"></i> O dispositivo precisa estar online.</p>
+            }
+            else if (!Permissions.ManageDevices)
+            {
+                <p class="form-text mt-2 mb-0"><i class="fa-solid fa-lock me-1"></i> Seu perfil não permite executar diagnósticos.</p>
+            }
+        </section>
+
+        <section class="panel mt-3">
+            <div class="panel-header">
+                <h2 class="panel-title"><i class="fa-solid fa-clock-rotate-left"></i> Histórico</h2>
+            </div>
+            @if (_runs.Count == 0)
+            {
+                <p class="text-muted mb-0">Nenhum diagnóstico executado ainda.</p>
+            }
+            else
+            {
+                <div class="diag-history">
+                    @foreach (var run in _runs)
+                    {
+                        var status = GetRunStatus(run);
+                        <button type="button" class="diag-history-item @(run.ID == _selectedRunId ? "active" : "")" @onclick="() => SelectRun(run.ID)">
+                            <i class="@StatusIcon(status)"></i>
+                            <span class="flex-grow-1 text-start">
+                                <span class="d-block">@run.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                                <span class="small text-muted">@TestNames(run.Tests)</span>
+                            </span>
+                            <span class="small text-muted">@run.RequestedBy</span>
+                        </button>
+                    }
+                </div>
+            }
+        </section>
+    </div>
+
+    <div class="col-xxl-8 col-xl-7">
+        @if (_selectedReport is null || _selectedRun is null)
+        {
+            <div class="empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-stethoscope"></i></div>
+                <h3>Nenhum resultado selecionado</h3>
+                <p>Escolha os testes e clique em Executar, ou abra um diagnóstico do histórico.</p>
+            </div>
+        }
+        else
+        {
+            var runStatus = GetRunStatus(_selectedRun);
+            <section class="panel diag-summary diag-@runStatus.ToString().ToLowerInvariant()">
+                <i class="@StatusIcon(runStatus) diag-summary-icon"></i>
+                <div class="flex-grow-1">
+                    <h2 class="panel-title mb-1">@RunTitle(runStatus)</h2>
+                    <div class="small text-muted">
+                        @_selectedRun.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        @if (!string.IsNullOrWhiteSpace(_selectedRun.RequestedBy))
+                        {
+                            <span> · por @_selectedRun.RequestedBy</span>
+                        }
+                        @if (_selectedRun.FinishedAt is { } finished)
+                        {
+                            <span> · @FormatDuration(finished - _selectedRun.StartedAt)</span>
+                        }
+                    </div>
+                </div>
+                <div class="diag-counts">
+                    <span class="pill success no-dot">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Ok) ok</span>
+                    <span class="pill warning no-dot">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Warning) alerta(s)</span>
+                    <span class="pill danger no-dot">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Error) erro(s)</span>
+                </div>
+            </section>
+
+            @foreach (var test in _selectedReport.Tests)
+            {
+                <section class="panel mt-3 diag-test diag-@test.Status.ToString().ToLowerInvariant()">
+                    <div class="panel-header">
+                        <h2 class="panel-title">
+                            <i class="@StatusIcon(test.Status)"></i> @test.Name
+                        </h2>
+                        <span class="small text-muted">@StatusLabel(test.Status)</span>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(test.Summary))
+                    {
+                        <p class="diag-test-summary">@test.Summary</p>
+                    }
+                    @if (test.Items.Count > 0)
+                    {
+                        <div class="table-wrap">
+                            <table class="table diag-items">
+                                <tbody>
+                                    @foreach (var group in test.Items.GroupBy(x => x.Group))
+                                    {
+                                        @if (!string.IsNullOrWhiteSpace(group.Key))
+                                        {
+                                            <tr class="diag-item-group"><td colspan="3">@group.Key</td></tr>
+                                        }
+                                        @foreach (var item in group)
+                                        {
+                                            <tr>
+                                                <td class="diag-item-icon"><i class="@StatusIcon(item.Status)"></i></td>
+                                                <td class="diag-item-label">@item.Label</td>
+                                                <td>
+                                                    <div>@item.Value</div>
+                                                    @if (!string.IsNullOrWhiteSpace(item.Hint))
+                                                    {
+                                                        <div class="small text-muted">@item.Hint</div>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private readonly HashSet<string> _selected = [DiagnosticTests.Disks, DiagnosticTests.Battery, DiagnosticTests.Devices, DiagnosticTests.Network, DiagnosticTests.System];
+    private List<DeviceDiagnosticRun> _runs = [];
+    private string? _selectedRunId;
+    private DeviceDiagnosticRun? _selectedRun;
+    private DiagnosticReport? _selectedReport;
+    private bool _isStarting;
+
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    [Inject]
+    private IDataService DataService { get; init; } = null!;
+
+    [Inject]
+    private ICircuitConnection CircuitConnection { get; init; } = null!;
+
+    [Inject]
+    private IJsInterop JsInterop { get; init; } = null!;
+
+    [Inject]
+    private IToastService ToastService { get; init; } = null!;
+
+    private bool CanRun => Device.IsOnline && Permissions.ManageDevices;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        EnsureUserSet();
+        await LoadRuns(selectLatest: true);
+
+        await Register<DiagnosticsUpdatedMessage, string>(
+            CircuitConnection.ConnectionId,
+            HandleDiagnosticsUpdated);
+    }
+
+    private async Task HandleDiagnosticsUpdated(object subscriber, DiagnosticsUpdatedMessage message)
+    {
+        if (message.DeviceId != Device.ID)
+        {
+            return;
+        }
+
+        await InvokeAsync(async () =>
+        {
+            // Acompanha a execução nova automaticamente.
+            var follow = _selectedRunId is null || _selectedRunId == message.RunId ||
+                _runs.FirstOrDefault()?.ID == message.RunId;
+            await LoadRuns(selectLatest: false);
+            if (follow)
+            {
+                SelectRun(message.RunId);
+            }
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadRuns(bool selectLatest)
+    {
+        _runs = await DataService.GetDiagnosticRuns(Device.ID);
+        if (selectLatest && _runs.Count > 0)
+        {
+            SelectRun(_runs[0].ID);
+        }
+        else if (_selectedRunId is not null)
+        {
+            SelectRun(_selectedRunId);
+        }
+    }
+
+    private void SelectRun(string runId)
+    {
+        _selectedRunId = runId;
+        _selectedRun = _runs.FirstOrDefault(x => x.ID == runId);
+        _selectedReport = DiagnosticSerializer.FromJson(_selectedRun?.Data);
+
+        // Execução recém-criada, ainda sem resposta do agente.
+        if (_selectedRun is not null && _selectedReport is null)
+        {
+            _selectedReport = new DiagnosticReport
+            {
+                RunId = _selectedRun.ID,
+                StartedAt = _selectedRun.StartedAt,
+                Tests = _selectedRun.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(id => new DiagnosticTestResult
+                    {
+                        Id = id,
+                        Name = DiagnosticTests.Get(id)?.Name ?? id,
+                        Status = DiagnosticStatus.Pending
+                    })
+                    .ToList()
+            };
+        }
+    }
+
+    private void SelectQuick()
+    {
+        _selected.Clear();
+        foreach (var test in DiagnosticTests.All.Where(x => !x.Heavy))
+        {
+            _selected.Add(test.Id);
+        }
+    }
+
+    private void Toggle(string id, bool value)
+    {
+        if (value)
+        {
+            _selected.Add(id);
+        }
+        else
+        {
+            _selected.Remove(id);
+        }
+    }
+
+    private async Task Start()
+    {
+        if (!CanRun || _selected.Count == 0)
+        {
+            return;
+        }
+
+        if (_selected.Contains(DiagnosticTests.MemoryTest))
+        {
+            var confirmed = await JsInterop.Confirm(
+                $"O teste de memória reinicia {Device.DeviceName} em 2 minutos (o usuário recebe um aviso) " +
+                "e a máquina fica 10 a 20 minutos testando a memória antes de voltar ao Windows. Continuar?");
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+        else if (DiagnosticTests.All.Any(x => x.Heavy && _selected.Contains(x.Id)))
+        {
+            var confirmed = await JsInterop.Confirm(
+                $"Os testes pesados deixam {Device.DeviceName} lento por cerca de 2 minutos. Continuar?");
+            if (!confirmed)
+            {
+                return;
+            }
+        }
+
+        _isStarting = true;
+        try
+        {
+            var result = await CircuitConnection.RunDiagnostics(Device.ID, _selected.ToArray());
+            if (!result.IsSuccess)
+            {
+                ToastService.ShowToast2(result.Reason, Enums.ToastType.Warning);
+                return;
+            }
+
+            ToastService.ShowToast2("Diagnóstico iniciado. O resultado aparece aqui conforme os testes terminam.", Enums.ToastType.Info);
+            await LoadRuns(selectLatest: false);
+            SelectRun(result.Value);
+        }
+        finally
+        {
+            _isStarting = false;
+        }
+    }
+
+    private DiagnosticStatus GetRunStatus(DeviceDiagnosticRun run)
+    {
+        if (run.Status == "Running")
+        {
+            // Agente antigo (sem diagnóstico), desligado no meio ou reiniciado pelo teste de memória.
+            var limit = run.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(20);
+            return DateTimeOffset.Now - run.StartedAt > limit && run.Data is null
+                ? DiagnosticStatus.Skipped
+                : DiagnosticStatus.Running;
+        }
+
+        return Enum.TryParse<DiagnosticStatus>(run.Status, out var status) ? status : DiagnosticStatus.Info;
+    }
+
+    private static string RunTitle(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Ok => "Tudo certo",
+        DiagnosticStatus.Warning => "Pontos de atenção",
+        DiagnosticStatus.Error => "Problemas encontrados",
+        DiagnosticStatus.Running => "Executando...",
+        DiagnosticStatus.Skipped => "Sem resposta do agente",
+        _ => "Diagnóstico"
+    };
+
+    private static string StatusLabel(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Pending => "Na fila",
+        DiagnosticStatus.Running => "Executando",
+        DiagnosticStatus.Ok => "Ok",
+        DiagnosticStatus.Warning => "Atenção",
+        DiagnosticStatus.Error => "Problema",
+        DiagnosticStatus.Skipped => "Não se aplica",
+        _ => "Informação"
+    };
+
+    private static string StatusIcon(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Pending => "fa-regular fa-clock text-muted",
+        DiagnosticStatus.Running => "fa-solid fa-circle-notch fa-spin text-info",
+        DiagnosticStatus.Ok => "fa-solid fa-circle-check text-success",
+        DiagnosticStatus.Warning => "fa-solid fa-triangle-exclamation text-warning",
+        DiagnosticStatus.Error => "fa-solid fa-circle-xmark text-danger",
+        DiagnosticStatus.Skipped => "fa-solid fa-circle-minus text-muted",
+        _ => "fa-solid fa-circle-info text-muted"
+    };
+
+    private static string TestNames(string tests) =>
+        string.Join(", ", tests.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => DiagnosticTests.Get(x)?.Name ?? x));
+
+    private static string FormatDuration(TimeSpan span) =>
+        span.TotalMinutes >= 1 ? $"{(int)span.TotalMinutes} min {span.Seconds} s" : $"{span.Seconds} s";
+
+    private RenderFragment TestOption(DiagnosticTests.TestInfo test) => __builder =>
+    {
+        var id = $"diag-{test.Id}";
+        <label class="diag-option @(_selected.Contains(test.Id) ? "selected" : "")" for="@id">
+            <input id="@id" type="checkbox" class="form-check-input"
+                   checked="@_selected.Contains(test.Id)"
+                   @onchange="e => Toggle(test.Id, e.Value is true)" />
+            <span>
+                <span class="diag-option-name">
+                    @test.Name
+                    @if (test.RequiresRestart)
+                    {
+                        <span class="pill danger no-dot ms-1">reinicia</span>
+                    }
+                    else if (test.Heavy)
+                    {
+                        <span class="pill warning no-dot ms-1">pesado</span>
+                    }
+                </span>
+                <span class="diag-option-desc">@test.Description</span>
+            </span>
+        </label>
+    };
+}

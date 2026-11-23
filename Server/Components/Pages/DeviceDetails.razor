@@ -63,6 +63,9 @@ else
             <TabHeader Name="inventory" NavigationUri="@($"/device-details/{DeviceId}/inventory")">
                 <i class="fa-solid fa-boxes-stacked me-1"></i> Inventário
             </TabHeader>
+            <TabHeader Name="diagnostics" NavigationUri="@($"/device-details/{DeviceId}/diagnostics")">
+                <i class="fa-solid fa-stethoscope me-1"></i> Diagnóstico
+            </TabHeader>
             <TabHeader Name="remote-logs" OnActivated="GetRemoteLogs" NavigationUri="@($"/device-details/{DeviceId}/remote-logs")">
                 <i class="fa-solid fa-file-lines me-1"></i> Logs do agente
             </TabHeader>
@@ -158,6 +161,10 @@ else
                                      IsRefreshing="_isRefreshingInventory"
                                      OnRefresh="RefreshInventory"
                                      ShowSensitive="@(User?.IsAdministrator == true)" />
+            </TabContent>
+
+            <TabContent Name="diagnostics">
+                <DeviceDiagnosticsView @key="_device.ID" Device="_device" />
             </TabContent>
 
             <TabContent Name="remote-logs">

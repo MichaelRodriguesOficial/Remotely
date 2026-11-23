@@ -1,5 +1,6 @@
 ﻿using Remotely.Shared.Models;
 using Remotely.Shared.Models.Inventory;
+using Remotely.Shared.Models.Diagnostics;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +28,13 @@ public interface IDataService
     Task<Result<Device>> AddOrUpdateDevice(DeviceClientDto device);
 
     Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId);
+
+    /// <summary>Registra uma execução de diagnóstico e mantém só as 20 mais recentes do dispositivo.</summary>
+    Task<DeviceDiagnosticRun> CreateDiagnosticRun(string deviceId, string? requestedBy, IReadOnlyCollection<string> tests);
+
+    Task<Result<DeviceDiagnosticRun>> UpdateDiagnosticRun(string deviceId, DiagnosticReport report);
+
+    Task<List<DeviceDiagnosticRun>> GetDiagnosticRuns(string deviceId, int take = 20);
 
     /// <summary>
     /// IDs dos dispositivos (entre os informados) cujo inventário contém o texto
@@ -432,6 +440,74 @@ public class DataService : IDataService
         return await dbContext.DeviceInventories
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.DeviceID == deviceId);
+    }
+
+    public async Task<DeviceDiagnosticRun> CreateDiagnosticRun(string deviceId, string? requestedBy, IReadOnlyCollection<string> tests)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+
+        var run = new DeviceDiagnosticRun
+        {
+            DeviceID = deviceId,
+            RequestedBy = Truncate(requestedBy, 256),
+            Tests = Truncate(string.Join(',', tests), 500) ?? string.Empty,
+            StartedAt = DateTimeOffset.Now,
+            Status = "Running"
+        };
+        await dbContext.DeviceDiagnosticRuns.AddAsync(run);
+        await dbContext.SaveChangesAsync();
+
+        var old = await dbContext.DeviceDiagnosticRuns
+            .Where(x => x.DeviceID == deviceId)
+            .OrderByDescending(x => x.StartedAt)
+            .Skip(20)
+            .ToListAsync();
+        if (old.Count > 0)
+        {
+            dbContext.DeviceDiagnosticRuns.RemoveRange(old);
+            await dbContext.SaveChangesAsync();
+        }
+
+        return run;
+    }
+
+    public async Task<Result<DeviceDiagnosticRun>> UpdateDiagnosticRun(string deviceId, DiagnosticReport report)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+
+        var run = await dbContext.DeviceDiagnosticRuns
+            .FirstOrDefaultAsync(x => x.ID == report.RunId && x.DeviceID == deviceId);
+        if (run is null)
+        {
+            return Result.Fail<DeviceDiagnosticRun>("Diagnostic run not found.");
+        }
+
+        // Só aceita os testes que foram pedidos.
+        var requested = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        report.Tests = report.Tests.Where(x => requested.Contains(x.Id)).ToList();
+        report.StartedAt = run.StartedAt;
+
+        if (report.Completed)
+        {
+            report.FinishedAt ??= DateTimeOffset.Now;
+            run.FinishedAt = report.FinishedAt;
+        }
+
+        run.Status = report.Completed ? report.OverallStatus.ToString() : "Running";
+        run.Data = DiagnosticSerializer.ToJson(report);
+        await dbContext.SaveChangesAsync();
+        return Result.Ok(run);
+    }
+
+    public async Task<List<DeviceDiagnosticRun>> GetDiagnosticRuns(string deviceId, int take = 20)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        return await dbContext.DeviceDiagnosticRuns
+            .AsNoTracking()
+            .Where(x => x.DeviceID == deviceId)
+            .OrderByDescending(x => x.StartedAt)
+            .Take(take)
+            .ToListAsync();
     }
 
     public async Task<HashSet<string>> SearchDeviceInventories(IReadOnlyCollection<string> deviceIds, string text)

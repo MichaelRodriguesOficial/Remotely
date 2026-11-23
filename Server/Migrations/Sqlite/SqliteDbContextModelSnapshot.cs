@@ -525,6 +525,47 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.ToTable("DeviceInventories");
                 });
 
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceDiagnosticRun", b =>
+                {
+                    b.Property<string>("ID")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceID")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FinishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tests")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("DeviceID");
+
+                    b.ToTable("DeviceDiagnosticRuns");
+                });
+
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
                 {
                     b.Property<string>("ID")
@@ -1065,6 +1106,15 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.HasOne("Remotely.Shared.Entities.Device", null)
                         .WithOne()
                         .HasForeignKey("Remotely.Shared.Entities.DeviceInventoryRecord", "DeviceID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Remotely.Shared.Entities.DeviceDiagnosticRun", b =>
+                {
+                    b.HasOne("Remotely.Shared.Entities.Device", null)
+                        .WithMany()
+                        .HasForeignKey("DeviceID")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

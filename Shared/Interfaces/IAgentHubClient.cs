@@ -86,5 +86,8 @@ public interface IAgentHubClient
     /// <summary>Coleta o inventário de hardware e software e envia ao servidor.</summary>
     Task RequestInventory();
 
+    /// <summary>Executa os testes da aba Diagnóstico e envia o resultado com ReportDiagnostics.</summary>
+    Task RunDiagnostics(string runId, string[] tests);
+
     Task WakeDevice(string macAddress);
 }

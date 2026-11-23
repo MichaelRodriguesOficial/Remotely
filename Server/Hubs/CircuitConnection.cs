@@ -46,6 +46,9 @@ public interface ICircuitConnection
     /// <summary>Pede ao agente uma nova coleta de inventário.</summary>
     Task<bool> RequestInventory(string deviceId);
 
+    /// <summary>Inicia os testes da aba Diagnóstico. Retorna o ID da execução.</summary>
+    Task<Result<string>> RunDiagnostics(string deviceId, IReadOnlyCollection<string> tests);
+
     Task UninstallAgents(string[] deviceIDs);
     Task UpdateTags(string deviceID, string tags);
 
@@ -502,6 +505,40 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
         await _agentHubContext.Clients.Client(connectionId).RequestInventory();
         return true;
+    }
+
+    public async Task<Result<string>> RunDiagnostics(string deviceId, IReadOnlyCollection<string> tests)
+    {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Result.Fail<string>("Seu perfil não permite executar diagnósticos.");
+        }
+
+        var validTests = tests
+            .Where(x => Remotely.Shared.Models.Diagnostics.DiagnosticTests.Get(x) is not null)
+            .Distinct()
+            .ToArray();
+        if (validTests.Length == 0)
+        {
+            return Result.Fail<string>("Escolha ao menos um teste.");
+        }
+
+        var (canAccess, connectionId) = CanAccessDevice(deviceId);
+        if (!canAccess)
+        {
+            return Result.Fail<string>("Dispositivo offline ou sem acesso.");
+        }
+
+        var run = await _dataService.CreateDiagnosticRun(deviceId, User?.UserName, validTests);
+
+        _logger.LogInformation(
+            "Diagnostics requested. Device: {deviceId}. Tests: {tests}. User: {username}",
+            deviceId,
+            string.Join(',', validTests),
+            User?.UserName);
+
+        await _agentHubContext.Clients.Client(connectionId).RunDiagnostics(run.ID, validTests);
+        return Result.Ok(run.ID);
     }
 
     public async Task UninstallAgents(string[] deviceIDs)

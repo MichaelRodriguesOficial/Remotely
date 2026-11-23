@@ -95,6 +95,7 @@ public class Program
         services.AddTransient<IPsCoreShell, PsCoreShell>();
         services.AddTransient<IExternalScriptingShell, ExternalScriptingShell>();
         services.AddSingleton<IConfigService, ConfigService>();
+        services.AddSingleton<Remotely.Agent.Services.Diagnostics.IDiagnosticsRunner, Remotely.Agent.Services.Diagnostics.DiagnosticsRunner>();
         services.AddSingleton<IUninstaller, Uninstaller>();
         services.AddSingleton<IScriptExecutor, ScriptExecutor>();
         services.AddSingleton<IProcessInvoker, ProcessInvoker>();

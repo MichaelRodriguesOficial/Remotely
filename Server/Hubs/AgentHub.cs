@@ -1,4 +1,5 @@
 ﻿using Remotely.Shared.Models.Inventory;
+using Remotely.Shared.Models.Diagnostics;
 using Remotely.Server.Services;
 using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.SignalR;
@@ -262,6 +263,43 @@ public class AgentHub : Hub<IAgentHubClient>
 
 
         await CheckForPendingScriptRuns();
+    }
+
+    /// <summary>
+    /// Recebe o resultado (parcial ou final) de um diagnóstico pedido pelo painel.
+    /// </summary>
+    public async Task ReportDiagnostics(byte[] compressedReport)
+    {
+        var device = Device;
+        if (device is null)
+        {
+            return;
+        }
+
+        if (!DiagnosticSerializer.TryDecompress(compressedReport, out var report) || report is null)
+        {
+            _logger.LogWarning("Invalid diagnostic report received from device {deviceId}.", device.ID);
+            return;
+        }
+
+        // Só atualiza execuções que o painel criou para este dispositivo.
+        var result = await _dataService.UpdateDiagnosticRun(device.ID, report);
+        if (!result.IsSuccess)
+        {
+            _logger.LogWarning("Diagnostic report ignored for device {deviceId}: {reason}", device.ID, result.Reason);
+            return;
+        }
+
+        var userIDs = _circuitManager.Connections.Select(x => x.User.Id);
+        var filteredUserIDs = _dataService.FilterUsersByDevicePermission(userIDs, device.ID);
+        var connections = _circuitManager.Connections
+            .Where(x => x.User.OrganizationID == device.OrganizationID &&
+                filteredUserIDs.Contains(x.User.Id));
+
+        foreach (var connection in connections)
+        {
+            await _messenger.Send(new DiagnosticsUpdatedMessage(device.ID, report.RunId), connection.ConnectionId);
+        }
     }
 
     /// <summary>

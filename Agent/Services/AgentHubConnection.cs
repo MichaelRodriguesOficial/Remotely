@@ -7,6 +7,7 @@ using Remotely.Agent.Interfaces;
 using Remotely.Shared;
 using Remotely.Shared.Enums;
 using Remotely.Shared.Models.Inventory;
+using Remotely.Shared.Models.Diagnostics;
 using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
 using System;
@@ -39,6 +40,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
     private readonly IConfigService _configService;
     private readonly IDeviceInformationService _deviceInfoService;
     private readonly IInventoryCollector _inventoryCollector;
+    private readonly Remotely.Agent.Services.Diagnostics.IDiagnosticsRunner _diagnosticsRunner;
+    private readonly SemaphoreSlim _diagnosticsLock = new(1, 1);
     private readonly SemaphoreSlim _inventoryLock = new(1, 1);
     private Timer? _inventoryTimer;
     private DateTimeOffset _lastInventorySent = DateTimeOffset.MinValue;
@@ -69,9 +72,11 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         IHostApplicationLifetime appLifetime,
         IScriptingShellFactory scriptingShellFactory,
         IInventoryCollector inventoryCollector,
+        Remotely.Agent.Services.Diagnostics.IDiagnosticsRunner diagnosticsRunner,
         ILogger<AgentHubConnection> logger)
     {
         _inventoryCollector = inventoryCollector;
+        _diagnosticsRunner = diagnosticsRunner;
         _configService = configService;
         _uninstaller = uninstaller;
         _scriptExecutor = scriptExecutor;
@@ -229,6 +234,54 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
     }
 
     public Task RequestInventory() => SendInventory(force: true);
+
+    public Task RunDiagnostics(string runId, string[] tests)
+    {
+        if (_hubConnection is null || !_isServerVerified)
+        {
+            _logger.LogWarning("Diagnostics requested before the server was verified.");
+            return Task.CompletedTask;
+        }
+
+        // Os testes podem levar minutos; não segura a conexão com o servidor.
+        _ = Task.Run(async () =>
+        {
+            if (!await _diagnosticsLock.WaitAsync(0))
+            {
+                _logger.LogWarning("Diagnostics already running. Request {runId} ignored.", runId);
+                return;
+            }
+
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
+                cts.CancelAfter(TimeSpan.FromMinutes(15));
+
+                await _diagnosticsRunner.Run(
+                    runId,
+                    tests,
+                    _connectionInfo?.Host,
+                    async report =>
+                    {
+                        if (_hubConnection?.State == HubConnectionState.Connected)
+                        {
+                            await _hubConnection.SendAsync("ReportDiagnostics", DiagnosticSerializer.Compress(report), cts.Token);
+                        }
+                    },
+                    cts.Token);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while running diagnostics {runId}.", runId);
+            }
+            finally
+            {
+                _diagnosticsLock.Release();
+            }
+        });
+
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// Coleta o inventário e envia ao servidor (JSON compactado).
@@ -728,6 +781,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         _hubConnection.On(nameof(TriggerHeartbeat), TriggerHeartbeat);
 
         _hubConnection.On(nameof(RequestInventory), RequestInventory);
+
+        _hubConnection.On<string, string[]>(nameof(RunDiagnostics), RunDiagnostics);
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
     }

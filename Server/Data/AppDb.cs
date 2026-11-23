@@ -32,6 +32,7 @@ public class AppDb : IdentityDbContext
     public DbSet<DeviceGroup> DeviceGroups { get; set; }
     public DbSet<Device> Devices { get; set; }
     public DbSet<DeviceInventoryRecord> DeviceInventories { get; set; }
+    public DbSet<DeviceDiagnosticRun> DeviceDiagnosticRuns { get; set; }
     public DbSet<InviteLink> InviteLinks { get; set; }
     public DbSet<KeyValueRecord> KeyValueRecords { get; set; }
     public DbSet<Organization> Organizations { get; set; }
@@ -168,6 +169,15 @@ public class AppDb : IdentityDbContext
 
         builder.Entity<Device>()
             .HasIndex(x => x.AssetTag);
+
+        builder.Entity<DeviceDiagnosticRun>()
+            .HasOne<Device>()
+            .WithMany()
+            .HasForeignKey(x => x.DeviceID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<DeviceDiagnosticRun>()
+            .HasIndex(x => x.DeviceID);
 
         builder.Entity<DeviceInventoryRecord>()
             .HasOne<Device>()
