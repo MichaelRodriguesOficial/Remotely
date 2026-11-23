@@ -188,6 +188,18 @@ services.Configure<ForwardedHeadersOptions>(options =>
         options.KnownProxies.Add(dockerGatewayIp);
     }
 
+    var runningInContainer = string.Equals(
+        Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"), "true", StringComparison.OrdinalIgnoreCase);
+    if (appOptions?.TrustPrivateNetworkProxies ?? runningInContainer)
+    {
+        // Sem isso, atrás do proxy o servidor via o acesso como http e o IP do Docker
+        // (ex.: 172.19.0.1) como IP de clientes e dispositivos.
+        foreach (var network in new[] { "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7" })
+        {
+            options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+        }
+    }
+
     if (settings.KnownProxies is { Count: > 0 } knownProxies)
     {
         foreach (var proxy in knownProxies)

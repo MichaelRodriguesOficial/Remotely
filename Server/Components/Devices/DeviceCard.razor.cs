@@ -265,7 +265,7 @@ public partial class DeviceCard : AuthComponentBase
         {
             return Device.Alias;
         }
-        return Device.OSDescription ?? Device.Platform ?? string.Empty;
+        return DeviceDisplay.GetOperatingSystem(Device).Name;
     }
 
     private string GetProgressMessage(string key)

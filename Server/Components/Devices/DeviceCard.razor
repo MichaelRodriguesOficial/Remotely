@@ -56,8 +56,18 @@
         }
         @if (!string.IsNullOrWhiteSpace(Device.CurrentUser))
         {
-            <span class="dc-user" title="Usuário conectado">
-                <i class="fa-regular fa-user"></i> @Device.CurrentUser
+            var (userName, fullName) = DeviceDisplay.GetUser(Device);
+            <span class="dc-user" title="@(fullName is null ? $"Usuário conectado: {userName}" : $"Usuário conectado: {fullName} ({userName})")">
+                <i class="fa-regular fa-user"></i>
+                @if (fullName is not null)
+                {
+                    <span class="dc-user-name">@fullName</span>
+                    <span class="dc-user-login">@userName</span>
+                }
+                else
+                {
+                    @userName
+                }
             </span>
         }
     </div>
@@ -190,8 +200,33 @@
                 <section>
                     <h3 class="dc-section-title">Sistema</h3>
                     <dl class="dc-info">
+                        @{
+                            var (osName, osVersion) = DeviceDisplay.GetOperatingSystem(Device);
+                            var (loggedUser, loggedFullName) = DeviceDisplay.GetUser(Device);
+                        }
                         <dt>Sistema operacional</dt>
-                        <dd>@(Device.OSDescription ?? Device.Platform)</dd>
+                        <dd>@osName</dd>
+
+                        @if (!string.IsNullOrWhiteSpace(osVersion))
+                        {
+                            <dt>Versão</dt>
+                            <dd class="mono">@osVersion</dd>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(loggedUser))
+                        {
+                            <dt>Usuário conectado</dt>
+                            <dd>
+                                @if (loggedFullName is not null)
+                                {
+                                    @loggedFullName <span class="text-muted">· @loggedUser</span>
+                                }
+                                else
+                                {
+                                    @loggedUser
+                                }
+                            </dd>
+                        }
 
                         <dt>Arquitetura</dt>
                         <dd>@Device.OSArchitecture · @Device.ProcessorCount núcleos</dd>

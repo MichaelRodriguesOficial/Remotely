@@ -21,6 +21,26 @@ public abstract class DeviceInfoGeneratorBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// "usuario (Nome Sobrenome)". O painel separa as duas partes; sem nome de exibição
+    /// fica só o usuário, como antes.
+    /// </summary>
+    protected static string FormatUserWithDisplayName(string userName, string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(userName))
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName) ||
+            displayName.Trim().Equals(userName.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return userName.Trim();
+        }
+
+        return $"{userName.Trim()} ({displayName.Trim().Replace("(", "").Replace(")", "")})";
+    }
+
     protected DeviceClientDto GetDeviceBase(string deviceID, string orgID)
     {
 

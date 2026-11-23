@@ -1,5 +1,20 @@
 # Changelog
 
+## v1.2.1 — 2026-11-23
+
+### Login e downloads
+- No login, o título, o texto e a área **"Precisa de suporte agora?"** ficam centralizados no painel esquerdo, também em telas grandes.
+- **"Reenviar confirmação de e-mail"** só aparece quando o servidor exige confirmar o e-mail antes do primeiro acesso.
+- Página pública de **Downloads** centralizada, com os cards ocupando a largura.
+- **Nome curto no download do cliente de suporte:** `Remotely_Desktop_x64 (suporte.empresa.com.br).exe`, `Remotely_Desktop_x86 (...)` e `Remotely_Desktop (...)` no Linux, no lugar de `Remotely_Desktop[gq5Pcm...]`. O endereço entre parênteses é o que o cliente usa para achar o servidor; o formato antigo continua aceito.
+
+### Dispositivos
+- O card e os detalhes mostram o **nome e sobrenome** do usuário conectado, além do usuário (ex.: "Michael Rodrigues · ums112").
+- **Sistema operacional com nome comercial e versão separados**: "Microsoft Windows 11 Enterprise" e, abaixo, "10.0.26300 · 25H2". No Linux, o nome da distribuição e a versão do kernel. Agentes antigos já aparecem como "Microsoft Windows 11" + versão.
+
+### Proxy reverso
+- Em Docker, o servidor passa a aceitar os cabeçalhos `X-Forwarded-*` de proxies em redes privadas (opção `TrustPrivateNetworkProxies`). Antes, atrás do aaPanel/Nginx o acesso era visto como `http` e o IP público dos dispositivos aparecia como o IP interno do Docker (ex.: `172.19.0.1`).
+
 ## v1.2.0 — 2026-11-23
 
 ### Perfis de acesso

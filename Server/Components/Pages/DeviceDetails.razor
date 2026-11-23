@@ -50,7 +50,7 @@ else if (!_userHasAccess)
 else
 {
     <PageHeader Title="@(_device.DeviceName ?? "Dispositivo")"
-                Subtitle="@(_device.OSDescription ?? _device.Platform)"
+                Subtitle="@DeviceDisplay.GetOperatingSystem(_device).Name"
                 Icon="@GetOsIcon()">
         <Actions>
             @if (_device.IsOnline)
@@ -89,9 +89,26 @@ else
                             <dl class="detail-list">
                                 <dt>Nome</dt><dd>@_device.DeviceName</dd>
                                 <dt>Plataforma</dt><dd>@_device.Platform</dd>
-                                <dt>Sistema</dt><dd>@_device.OSDescription</dd>
+                                <dt>Sistema</dt><dd>@DeviceDisplay.GetOperatingSystem(_device).Name</dd>
+                                @if (DeviceDisplay.GetOperatingSystem(_device).Version is { } detailsOsVersion)
+                                {
+                                    <dt>Versão</dt><dd class="mono">@detailsOsVersion</dd>
+                                }
                                 <dt>Arquitetura</dt><dd>@_device.OSArchitecture · @_device.ProcessorCount núcleos</dd>
-                                <dt>Usuário</dt><dd>@_device.CurrentUser</dd>
+                                <dt>Usuário</dt>
+                                <dd>
+                                    @{
+                                        var (detailsUser, detailsFullName) = DeviceDisplay.GetUser(_device);
+                                    }
+                                    @if (detailsFullName is not null)
+                                    {
+                                        @detailsFullName <span class="text-muted">· @detailsUser</span>
+                                    }
+                                    else
+                                    {
+                                        @detailsUser
+                                    }
+                                </dd>
                                 <dt>Memória</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedMemoryPercent)) de @_device.TotalMemory.ToString("N1") GB</dd>
                                 <dt>Disco</dt><dd>@(MathHelper.GetFormattedPercent(_device.UsedStoragePercent)) de @_device.TotalStorage.ToString("N1") GB</dd>
                                 <dt>Versão do agente</dt><dd>@_device.AgentVersion</dd>

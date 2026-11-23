@@ -234,3 +234,17 @@ fieldset {
     padding: 0;
     border: 0;
 }
+
+.dc-user-name {
+    color: var(--rm-text);
+    font-weight: 600;
+}
+
+.dc-user-login {
+    color: var(--rm-text-subtle);
+    margin-left: 0.3rem;
+}
+
+    .dc-user-login::before {
+        content: "· ";
+    }

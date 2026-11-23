@@ -1269,7 +1269,7 @@ label, .form-label {
    ========================================================= */
 .platform-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 1rem;
 }
 
@@ -1505,4 +1505,35 @@ label, .form-label {
 .nav-tabs .nav-link.active .tab-count {
     background: rgba(var(--rm-accent-rgb), 0.18);
     color: var(--rm-accent);
+}
+
+/* Bloco central do painel esquerdo do login: título, texto e downloads centralizados. */
+.auth-hero {
+    width: 100%;
+    max-width: 34rem;
+    margin: 0 auto;
+    text-align: center;
+}
+
+    .auth-aside .auth-hero h2,
+    .auth-aside .auth-hero > p {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .auth-hero .auth-downloads {
+        margin: 2rem auto 0 auto;
+        text-align: left;
+    }
+
+    .auth-hero .auth-downloads-head {
+        align-items: center;
+        text-align: center;
+    }
+
+@media (min-width: 1600px) {
+    .auth-aside h2 { font-size: 2.5rem; max-width: 32rem; }
+    .auth-aside .auth-hero > p { font-size: 1.05rem; max-width: 32rem; }
+    .auth-hero { max-width: 38rem; }
+    .auth-hero .auth-downloads { max-width: 34rem; }
 }

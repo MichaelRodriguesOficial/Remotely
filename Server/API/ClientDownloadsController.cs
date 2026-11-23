@@ -176,7 +176,21 @@ public class ClientDownloadsController : ControllerBase
         var serverUrl = $"{effectiveScheme}://{Request.Host}";
 
         var embeddedData = new EmbeddedServerData(new Uri(serverUrl), organizationId);
-        var fileName = _embeddedDataSearcher.GetEncodedFileName(relativeFilePath, embeddedData);
+
+        // Nome curto, com o endereço do servidor que o cliente lê ao abrir:
+        // "Remotely_Desktop_x64 (suporte.empresa.com.br).exe".
+        var normalizedPath = relativeFilePath.Replace('\\', '/');
+        var displayName = normalizedPath switch
+        {
+            _ when normalizedPath.Contains("/Win-x64/") => "Remotely_Desktop_x64",
+            _ when normalizedPath.Contains("/Win-x86/") => "Remotely_Desktop_x86",
+            _ => "Remotely_Desktop"
+        };
+        var fileName = _embeddedDataSearcher.GetFriendlyFileName(
+            displayName,
+            Path.GetExtension(relativeFilePath),
+            embeddedData);
+
         return File(relativeFilePath, "application/octet-stream", fileName);
     }
 

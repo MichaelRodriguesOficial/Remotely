@@ -79,7 +79,7 @@ Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta 
 
 - **Dados:** os dados ficam no volume `remotely-data`, montado em `/app/AppData`. Lá estão o banco SQLite, os logs, as gravações e as chaves de criptografia.
 - **Pasta do host em vez do volume:** monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta`, porque o container roda com o usuário `app`.
-- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.2.0` ou `latest`).
+- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.2.1` ou `latest`).
 - **Atualizar:** `docker compose pull && docker compose up -d`.
 
 A imagem também é publicada em `ghcr.io/michaelrodriguesoficial/remotely`.
@@ -93,7 +93,7 @@ curl -fsSLO https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/m
 chmod +x remotely_install.sh
 sudo ./remotely_install.sh
 # versão específica:
-sudo REMOTELY_VERSION=v1.2.0 ./remotely_install.sh
+sudo REMOTELY_VERSION=v1.2.1 ./remotely_install.sh
 ```
 
 | Script | Para que serve |
@@ -155,6 +155,7 @@ Opções exclusivas deste fork (`ApplicationOptions`, ou variáveis `Remotely_Ap
 |---|---|---|
 | `EnableSwagger` | `true` | Publica a documentação da API em `/swagger`. Só abre para usuários logados no painel. |
 | `AllowedFrameAncestors` | vazio | Origens que podem exibir o Remotely em `<iframe>` (ex.: `https://glpi.suaempresa.com.br`). Vazio = só o próprio Remotely. |
+| `TrustPrivateNetworkProxies` | automático | Aceita `X-Forwarded-*` de proxies em redes privadas (10.x, 172.16–31.x, 192.168.x). Ligado por padrão no Docker. |
 | `AuthRateLimitPerMinute` | `20` | Tentativas de login/cadastro/redefinição por IP por minuto. |
 
 Banco de dados: `DbProvider` aceita `SQLite` (padrão), `SQLServer` ou `PostgreSQL`, com as strings de conexão `ConnectionStrings__SQLite`, `ConnectionStrings__SQLServer` e `ConnectionStrings__PostgreSQL`.
@@ -203,8 +204,8 @@ Os arquivos `.ts` do viewer (`Server/wwwroot/src`) são compilados para `.js` no
 - **Tests:** compila a solução e roda os testes a cada push e PR.
 - **Release:** em PRs e pushes, compila os agents no Windows, monta a imagem Docker com eles e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões, Swagger, cabeçalhos e os arquivos dos agents.
 - **Publicar uma nova versão:**
-  1. Altere o arquivo `VERSION` (ex.: `1.2.1`).
-  2. Adicione a seção `## v1.2.1` no `CHANGELOG.md`.
+  1. Altere o arquivo `VERSION` (ex.: `1.2.2`).
+  2. Adicione a seção `## v1.2.2` no `CHANGELOG.md`.
   3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` e `Remotely_Agents.zip` (com SHA-256) e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
   - O Docker Hub exige os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
 

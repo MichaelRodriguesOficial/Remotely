@@ -7,6 +7,14 @@ public class ApplicationOptions
     public string? DockerGatewayIp { get; set; }
 
     /// <summary>
+    /// Aceita os cabeçalhos X-Forwarded-* de proxies em redes privadas
+    /// (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 e fc00::/7).
+    /// Sem valor, fica ligado quando o servidor roda em container (Docker), onde o proxy
+    /// reverso (Nginx, aaPanel, Traefik) chega por uma rede interna do Docker.
+    /// </summary>
+    public bool? TrustPrivateNetworkProxies { get; set; }
+
+    /// <summary>
     /// Publica a documentação da API em /swagger. Só usuários logados no painel
     /// conseguem abrir a página e o documento JSON.
     /// </summary>

@@ -3,6 +3,7 @@ using Remotely.Agent.Interfaces;
 using Remotely.Shared.Dtos;
 using Remotely.Shared.Services;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -33,7 +34,9 @@ public class DeviceInfoGeneratorLinux : DeviceInfoGeneratorBase, IDeviceInformat
             var (usedStorage, totalStorage) = GetSystemDriveInfo();
             var (usedMemory, totalMemory) = GetMemoryInGB();
 
-            device.CurrentUser = GetCurrentUser();
+            var userName = GetCurrentUser();
+            device.CurrentUser = FormatUserWithDisplayName(userName, GetDisplayName(userName));
+            device.OSDescription = GetFriendlyOsDescription() ?? device.OSDescription;
             device.Drives = GetAllDrives();
             device.UsedStorage = usedStorage;
             device.TotalStorage = totalStorage;
@@ -47,6 +50,65 @@ public class DeviceInfoGeneratorLinux : DeviceInfoGeneratorBase, IDeviceInformat
         }
 
         return Task.FromResult(device);
+    }
+
+    /// <summary>
+    /// "Ubuntu 24.04.1 LTS (6.8.0-41-generic)": nome da distribuição e versão do kernel.
+    /// </summary>
+    private static string? GetFriendlyOsDescription()
+    {
+        try
+        {
+            if (!File.Exists("/etc/os-release"))
+            {
+                return null;
+            }
+
+            var prettyName = File.ReadAllLines("/etc/os-release")
+                .FirstOrDefault(x => x.StartsWith("PRETTY_NAME=", StringComparison.Ordinal))
+                ?.Split('=', 2)[1]
+                .Trim('"', '\'', ' ');
+
+            if (string.IsNullOrWhiteSpace(prettyName))
+            {
+                return null;
+            }
+
+            var kernel = File.Exists("/proc/sys/kernel/osrelease")
+                ? File.ReadAllText("/proc/sys/kernel/osrelease").Trim()
+                : string.Empty;
+
+            return string.IsNullOrWhiteSpace(kernel) ? prettyName : $"{prettyName} ({kernel})";
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Nome completo do usuário (campo GECOS do /etc/passwd), quando existir.
+    /// </summary>
+    private static string? GetDisplayName(string userName)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(userName) || !File.Exists("/etc/passwd"))
+            {
+                return null;
+            }
+
+            var entry = File.ReadLines("/etc/passwd")
+                .Select(x => x.Split(':'))
+                .FirstOrDefault(x => x.Length > 4 && x[0] == userName);
+
+            var gecos = entry?[4].Split(',')[0].Trim();
+            return string.IsNullOrWhiteSpace(gecos) ? null : gecos;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private string GetCurrentUser()

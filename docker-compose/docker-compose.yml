@@ -22,7 +22,7 @@ volumes:
 
 services:
   remotely:
-    image: ${REMOTELY_IMAGE:-michechel10/remotely}:${REMOTELY_TAG:-1.2.0}
+    image: ${REMOTELY_IMAGE:-michechel10/remotely}:${REMOTELY_TAG:-1.2.1}
     container_name: remotely
     restart: unless-stopped
     ports:

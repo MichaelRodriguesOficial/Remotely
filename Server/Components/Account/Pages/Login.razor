@@ -64,9 +64,13 @@
                 <a href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))">Criar uma conta</a>
             </p>
         }
-        <p>
-            <a href="Account/ResendEmailConfirmation">Reenviar confirmação de e-mail</a>
-        </p>
+        @* Só faz sentido quando o servidor exige confirmar o e-mail antes do primeiro acesso. *@
+        @if (SignInManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            <p>
+                <a href="Account/ResendEmailConfirmation">Reenviar confirmação de e-mail</a>
+            </p>
+        }
     </div>
 </EditForm>
 
