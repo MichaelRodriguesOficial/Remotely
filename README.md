@@ -61,7 +61,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 
 - **Tudo em .NET 10**: servidor, agents (Windows, Linux, macOS) e clientes de desktop, compilados no CI deste repositório (o .NET 8 saiu do suporte em novembro de 2026).
 - **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
-- **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores, memórias, discos, placas de vídeo e som, monitores, controladoras, bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
+- **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores e memórias (pela tabela SMBIOS, como o dmidecode), discos, placas de rede, vídeo e som, monitores, todas as controladoras PCI (com os nomes da base pci.ids), bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
 - **Segurança:** dezenas de correções. Entre elas:

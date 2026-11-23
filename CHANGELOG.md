@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.5.0 — 2026-11-23
+
+### Inventário mais completo (como o GLPI Inventory)
+- **Controladoras**: todos os dispositivos PCI do computador, com o nome da base **pci.ids** (a mesma do GLPI), por exemplo "Alder Lake PCH USB 3.2 xHCI Host Controller", e o nome do Windows na coluna Interface. A base vai embutida no servidor.
+- **Placas de rede** físicas com fabricante, nome pela pci.ids e endereço MAC.
+- **Processador** lido da tabela SMBIOS (a fonte do dmidecode): frequência máxima e base, núcleos, threads, soquete e fabricante.
+- **Memória** com a frequência nominal do módulo (a que o GLPI mostra), a frequência em uso e a posição no barramento.
+- **Bateria** com química, voltagem, capacidade de projeto, capacidade real com percentual e data de fabricação. Os dados do SMBIOS e do driver de bateria são juntados numa linha por bateria física.
+- **Placa de vídeo** com chipset e memória em MB.
+- Cada tipo de componente mostra as próprias colunas e a quantidade, na ordem do GLPI.
+- Linux: dispositivos PCI pelo `/sys/bus/pci`, SMBIOS por `/sys/firmware/dmi/tables/DMI` e baterias com voltagem e capacidade em mWh.
+
 ## v1.4.0 — 2026-11-23
 
 ### Inventário

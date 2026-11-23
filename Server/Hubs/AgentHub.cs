@@ -18,6 +18,7 @@ public class AgentHub : Hub<IAgentHubClient>
 {
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> _lastInventoryReport = new();
     private readonly IDataService _dataService;
+    private readonly IPciIdsDatabase? _pciIds;
     private readonly ICircuitManager _circuitManager;
     private readonly IExpiringTokenService _expiringTokenService;
     private readonly ILogger<AgentHub> _logger;
@@ -34,8 +35,10 @@ public class AgentHub : Hub<IAgentHubClient>
         IExpiringTokenService expiringTokenService,
         IRemoteControlSessionCache remoteControlSessionCache,
         IMessenger messenger,
-        ILogger<AgentHub> logger)
+        ILogger<AgentHub> logger,
+        IPciIdsDatabase? pciIds = null)
     {
+        _pciIds = pciIds;
         _dataService = dataService;
         _serviceSessionCache = serviceSessionCache;
         _viewerHubContext = viewerHubContext;
@@ -287,6 +290,13 @@ public class AgentHub : Hub<IAgentHubClient>
         {
             _logger.LogWarning("Invalid inventory received from device {deviceId}.", device.ID);
             return;
+        }
+
+        if (_pciIds is not null)
+        {
+            // Nomes dos dispositivos PCI pela base pci.ids, como no GLPI.
+            _pciIds.Apply(inventory);
+            json = InventorySerializer.ToJson(inventory);
         }
 
         var result = await _dataService.SaveDeviceInventory(device.ID, inventory, json);

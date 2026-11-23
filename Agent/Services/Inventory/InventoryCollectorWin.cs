@@ -49,11 +49,20 @@ public class InventoryCollectorWin : InventoryCollectorBase
         Run(inventory, "Placas de vídeo", () => CollectVideo(inventory));
         Run(inventory, "Monitores", () => CollectMonitors(inventory));
         Run(inventory, "Placas de som", () => CollectSound(inventory));
-        Run(inventory, "Controladoras", () => CollectControllers(inventory));
         Run(inventory, "Bateria", () => CollectBatteries(inventory));
         Run(inventory, "TPM", () => CollectTpm(inventory));
         cancellationToken.ThrowIfCancellationRequested();
 
+        Run(inventory, "SMBIOS", () =>
+        {
+            var table = Query("SELECT SMBiosData FROM MSSmBios_RawSMBiosTables", @"root\wmi", reportErrors: false)
+                .Select(x => Get(x, "SMBiosData") as byte[])
+                .FirstOrDefault(x => x is { Length: > 0 });
+            ApplySmbios(inventory, table);
+        });
+        cancellationToken.ThrowIfCancellationRequested();
+
+        Run(inventory, "Dispositivos PCI", () => CollectPciDevices(inventory));
         Run(inventory, "Adaptadores de rede", () => CollectNetworkAdapters(inventory));
         Run(inventory, "Antivírus", () => CollectAntivirus(inventory, isServerOs));
         Run(inventory, "Softwares", () => CollectSoftware(inventory));
@@ -348,17 +357,18 @@ public class InventoryCollectorWin : InventoryCollectorBase
     {
         foreach (var module in Query("SELECT DeviceLocator, BankLabel, Capacity, ConfiguredClockSpeed, Speed, SMBIOSMemoryType, FormFactor, Manufacturer, PartNumber, SerialNumber FROM Win32_PhysicalMemory"))
         {
-            var speed = ToInt(Get(module, "ConfiguredClockSpeed"));
-            if (speed is null or 0)
-            {
-                speed = ToInt(Get(module, "Speed"));
-            }
+            // Speed = frequência nominal do módulo (a que o GLPI mostra);
+            // ConfiguredClockSpeed = a frequência em uso.
+            var speed = ToInt(Get(module, "Speed"));
+            var configured = ToInt(Get(module, "ConfiguredClockSpeed"));
 
             inventory.Memory.Add(new InventoryMemoryModule
             {
                 Slot = Clean(Get(module, "DeviceLocator")) ?? Clean(Get(module, "BankLabel")),
                 CapacityBytes = ToLong(Get(module, "Capacity")),
-                SpeedMhz = speed,
+                SpeedMhz = speed is > 0 ? speed : configured,
+                ConfiguredSpeedMhz = configured is > 0 ? configured : null,
+                BusPosition = inventory.Memory.Count + 1,
                 Type = ToInt(Get(module, "SMBIOSMemoryType")) switch
                 {
                     18 => "DDR",
@@ -565,10 +575,20 @@ public class InventoryCollectorWin : InventoryCollectorBase
                 Version = Clean(Get(video, "DriverVersion"))
             };
 
-            var memory = GetVideoMemory(Clean(Get(video, "PNPDeviceID"))) ?? ToLong(Get(video, "AdapterRAM"));
+            if (Clean(Get(video, "VideoProcessor")) is { } chipset)
+            {
+                component.Details["Chipset"] = chipset;
+            }
+
+            // AdapterRAM tem 32 bits (no máximo 4 GB); acima disso vale o registro do driver.
+            var memory = ToLong(Get(video, "AdapterRAM"));
+            if (memory is null or <= 0 or >= 4L * 1024 * 1024 * 1024 - 1024 * 1024)
+            {
+                memory = GetVideoMemory(Clean(Get(video, "PNPDeviceID"))) ?? memory;
+            }
             if (memory is > 0)
             {
-                component.Details["Memória"] = InventoryFormat.Bytes(memory.Value);
+                component.Details["Memória"] = $"{memory.Value / 1024 / 1024} MB";
             }
 
             var width = ToInt(Get(video, "CurrentHorizontalResolution"));
@@ -734,32 +754,55 @@ public class InventoryCollectorWin : InventoryCollectorBase
         }
     }
 
-    private void CollectControllers(DeviceInventory inventory)
+    /// <summary>
+    /// Todos os dispositivos PCI, como a lista de controladoras do GLPI. O servidor troca
+    /// o nome pelo da base pci.ids e guarda o nome do Windows em "Interface".
+    /// </summary>
+    private void CollectPciDevices(DeviceInventory inventory)
     {
-        void Add(string wmiClass, string type)
+        foreach (var device in Query(@"SELECT Name, Manufacturer, PNPDeviceID, PNPClass FROM Win32_PnPEntity WHERE PNPDeviceID LIKE 'PCI\\%'"))
         {
-            foreach (var controller in Query($"SELECT Name, Manufacturer FROM {wmiClass}"))
+            var pnpId = Clean(Get(device, "PNPDeviceID"));
+            var name = Clean(Get(device, "Name"));
+            if (pnpId is null || name is null)
             {
-                var name = Clean(Get(controller, "Name"));
-                if (name is null)
-                {
-                    continue;
-                }
-
-                var component = new InventoryComponent
-                {
-                    Category = "Controladora",
-                    Name = name,
-                    Manufacturer = CleanDiskManufacturer(Clean(Get(controller, "Manufacturer")))
-                };
-                component.Details["Tipo"] = type;
-                inventory.Components.Add(component);
+                continue;
             }
+
+            var component = new InventoryComponent
+            {
+                Category = "Controladora",
+                Name = name,
+                Manufacturer = CleanDiskManufacturer(Clean(Get(device, "Manufacturer"))),
+                PciId = GetPciId(pnpId)
+            };
+            component.Details["Interface"] = name;
+            if (Clean(Get(device, "PNPClass")) is { } pnpClass)
+            {
+                component.Details["Classe"] = pnpClass;
+            }
+
+            inventory.Components.Add(component);
+        }
+    }
+
+    /// <summary>"PCI\VEN_8086&amp;DEV_51ED&amp;..." → "8086:51ED".</summary>
+    private static string? GetPciId(string? pnpDeviceId)
+    {
+        if (string.IsNullOrWhiteSpace(pnpDeviceId) ||
+            !pnpDeviceId.StartsWith(@"PCI\", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
         }
 
-        Add("Win32_USBController", "USB");
-        Add("Win32_SCSIController", "Armazenamento (SCSI/NVMe/RAID)");
-        Add("Win32_IDEController", "Armazenamento (IDE/SATA)");
+        var match = System.Text.RegularExpressions.Regex.Match(
+            pnpDeviceId,
+            "VEN_(?<ven>[0-9A-F]{4})&DEV_(?<dev>[0-9A-F]{4})",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return match.Success
+            ? $"{match.Groups["ven"].Value.ToUpperInvariant()}:{match.Groups["dev"].Value.ToUpperInvariant()}"
+            : null;
     }
 
     private void CollectBatteries(DeviceInventory inventory)
@@ -772,16 +815,24 @@ public class InventoryCollectorWin : InventoryCollectorBase
             "SELECT FullChargedCapacity FROM BatteryFullChargedCapacity",
             @"root\wmi",
             reportErrors: false);
+        var status = Query(
+            "SELECT Voltage FROM BatteryStatus",
+            @"root\wmi",
+            reportErrors: false);
 
         if (staticData.Count == 0)
         {
-            foreach (var battery in Query("SELECT Name, DeviceID, EstimatedChargeRemaining FROM Win32_Battery"))
+            foreach (var battery in Query("SELECT Name, DeviceID, EstimatedChargeRemaining, DesignVoltage FROM Win32_Battery"))
             {
                 var component = new InventoryComponent
                 {
                     Category = "Bateria",
                     Name = Clean(Get(battery, "Name")) ?? Clean(Get(battery, "DeviceID")) ?? "Bateria"
                 };
+                if (ToInt(Get(battery, "DesignVoltage")) is > 0 and var voltage)
+                {
+                    component.Details["Voltagem"] = $"{voltage} mV";
+                }
                 if (ToInt(Get(battery, "EstimatedChargeRemaining")) is { } charge)
                 {
                     component.Details["Carga"] = $"{charge}%";
@@ -791,6 +842,7 @@ public class InventoryCollectorWin : InventoryCollectorBase
             return;
         }
 
+        // Uma instância por bateria física (o driver de bateria do Windows).
         for (var i = 0; i < staticData.Count; i++)
         {
             var battery = staticData[i];
@@ -802,24 +854,46 @@ public class InventoryCollectorWin : InventoryCollectorBase
                 SerialNumber = Clean(Get(battery, "SerialNumber"))
             };
 
+            if (DecodeChemistry(Get(battery, "Chemistry")) is { } chemistry)
+            {
+                component.Details["Química"] = chemistry;
+            }
+
+            if (i < status.Count && ToInt(Get(status[i], "Voltage")) is > 0 and var voltage)
+            {
+                component.Details["Voltagem"] = $"{voltage} mV";
+            }
+
             var designed = ToLong(Get(battery, "DesignedCapacity"));
             var full = i < fullCharge.Count ? ToLong(Get(fullCharge[i], "FullChargedCapacity")) : null;
 
             if (designed is > 0)
             {
-                component.Details["Capacidade de projeto"] = $"{designed.Value / 1000.0:0.#} Wh";
+                component.Details["Capacidade de projeto"] = $"{designed} mWh";
             }
             if (full is > 0)
             {
-                component.Details["Capacidade atual"] = $"{full.Value / 1000.0:0.#} Wh";
-            }
-            if (designed is > 0 && full is > 0)
-            {
-                component.Details["Saúde"] = $"{Math.Min(100, 100.0 * full.Value / designed.Value):0}%";
+                component.Details["Capacidade real"] = designed is > 0
+                    ? $"{full} mWh ({Math.Min(100, 100.0 * full.Value / designed.Value):0}%)"
+                    : $"{full} mWh";
             }
 
             inventory.Components.Add(component);
         }
+    }
+
+    /// <summary>Chemistry do WMI: 4 letras ASCII num inteiro ("LiP", "LION", "PbAc"...).</summary>
+    private static string? DecodeChemistry(object? value)
+    {
+        var number = ToLong(value);
+        if (number is null or 0)
+        {
+            return null;
+        }
+
+        var bytes = BitConverter.GetBytes((uint)number.Value);
+        var text = Encoding.ASCII.GetString(bytes).Replace("\0", string.Empty).Trim();
+        return text.Length == 0 || text.Any(c => c < 32 || c > 126) ? null : text;
     }
 
     private void CollectTpm(DeviceInventory inventory)
@@ -876,6 +950,33 @@ public class InventoryCollectorWin : InventoryCollectorBase
                 Virtual = physical == false || LooksVirtual(description),
                 Connected = ToBool(Get(adapter, "NetEnabled"))
             });
+        }
+
+        // Placas de rede físicas (lista "Placa de rede" do GLPI).
+        foreach (var adapter in Query("SELECT Name, Manufacturer, MACAddress, PNPDeviceID FROM Win32_NetworkAdapter WHERE PhysicalAdapter = TRUE"))
+        {
+            var name = Clean(Get(adapter, "Name"));
+            var pnpId = Clean(Get(adapter, "PNPDeviceID"));
+            if (name is null || LooksVirtual(name) ||
+                pnpId is null || pnpId.StartsWith(@"ROOT\", StringComparison.OrdinalIgnoreCase) ||
+                pnpId.StartsWith(@"SWD\", StringComparison.OrdinalIgnoreCase) ||
+                pnpId.StartsWith(@"BTH", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var card = new InventoryComponent
+            {
+                Category = "Placa de rede",
+                Name = name,
+                Manufacturer = CleanDiskManufacturer(Clean(Get(adapter, "Manufacturer"))),
+                PciId = GetPciId(pnpId)
+            };
+            if (FormatMac(Clean(Get(adapter, "MACAddress"))) is { } mac)
+            {
+                card.Details["Endereço MAC"] = mac;
+            }
+            inventory.Components.Add(card);
         }
 
         foreach (var config in Query("SELECT MACAddress, DHCPEnabled FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = TRUE"))

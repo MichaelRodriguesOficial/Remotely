@@ -40,8 +40,13 @@ public class InventoryCollectorLinux : InventoryCollectorBase
         Run(inventory, "Volumes", () => inventory.Volumes = CollectVolumesFromDriveInfo());
         cancellationToken.ThrowIfCancellationRequested();
 
-        Run(inventory, "Dispositivos PCI", () => CollectPciDevices(inventory));
         Run(inventory, "Bateria", () => CollectBatteries(inventory));
+        Run(inventory, "SMBIOS", () =>
+        {
+            const string table = "/sys/firmware/dmi/tables/DMI";
+            ApplySmbios(inventory, File.Exists(table) ? File.ReadAllBytes(table) : null);
+        });
+        Run(inventory, "Dispositivos PCI", () => CollectPciDevices(inventory));
         Run(inventory, "Softwares", () => CollectSoftware(inventory));
         Run(inventory, "Antivírus", () => CollectAntivirus(inventory));
 
@@ -335,41 +340,94 @@ public class InventoryCollectorLinux : InventoryCollectorBase
         }
     }
 
+    /// <summary>
+    /// Todos os dispositivos PCI (lista "Controladora" do GLPI), mais placas de vídeo,
+    /// som e rede. O servidor completa os nomes pela base pci.ids.
+    /// </summary>
     private void CollectPciDevices(DeviceInventory inventory)
     {
-        var output = RunProcess("lspci", "-mm", 15);
-        if (string.IsNullOrWhiteSpace(output))
+        const string pciRoot = "/sys/bus/pci/devices";
+        if (!Directory.Exists(pciRoot))
         {
             return;
         }
 
+        // Nomes que o lspci já conhece (quando a pci.ids local está instalada).
+        var lspci = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         var quoted = new Regex("\"([^\"]*)\"");
-        foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        foreach (var line in (RunProcess("lspci", "-mm -D", 15) ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries))
         {
-            var fields = quoted.Matches(line).Select(x => x.Groups[1].Value).ToList();
-            if (fields.Count < 3)
+            var slot = line.Split(' ', 2)[0];
+            lspci[slot] = quoted.Matches(line).Select(x => x.Groups[1].Value).ToList();
+        }
+
+        // Interfaces de rede físicas por dispositivo PCI (para o MAC).
+        var netBySlot = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        if (Directory.Exists("/sys/class/net"))
+        {
+            foreach (var netDir in Directory.GetDirectories("/sys/class/net"))
+            {
+                try
+                {
+                    var deviceLink = new DirectoryInfo(Path.Combine(netDir, "device")).ResolveLinkTarget(true);
+                    if (deviceLink is null)
+                    {
+                        continue;
+                    }
+                    var slot = Path.GetFileName(deviceLink.FullName);
+                    if (!netBySlot.TryGetValue(slot, out var list))
+                    {
+                        netBySlot[slot] = list = [];
+                    }
+                    list.Add(Path.GetFileName(netDir));
+                }
+                catch
+                {
+                    // Interface virtual, sem dispositivo.
+                }
+            }
+        }
+
+        foreach (var dir in Directory.GetDirectories(pciRoot).OrderBy(x => x, StringComparer.Ordinal))
+        {
+            var slot = Path.GetFileName(dir);
+            var vendor = ReadFile(Path.Combine(dir, "vendor"))?.Replace("0x", string.Empty).ToUpperInvariant();
+            var device = ReadFile(Path.Combine(dir, "device"))?.Replace("0x", string.Empty).ToUpperInvariant();
+            var classCode = ReadFile(Path.Combine(dir, "class"))?.Replace("0x", string.Empty);
+            if (vendor is null || device is null)
             {
                 continue;
             }
 
-            var pciClass = fields[0];
-            var category = pciClass switch
+            lspci.TryGetValue(slot, out var names);
+            var className = names is { Count: > 0 } ? names[0] : PciClassName(classCode);
+            var name = names is { Count: > 2 } ? names[2] : className;
+            var manufacturer = names is { Count: > 1 } ? names[1] : null;
+            var pciId = $"{vendor}:{device}";
+
+            var controller = new InventoryComponent
             {
-                _ when pciClass.Contains("VGA", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("3D controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("Display controller", StringComparison.OrdinalIgnoreCase) => "Placa de vídeo",
-                _ when pciClass.Contains("Audio", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("Multimedia audio", StringComparison.OrdinalIgnoreCase) => "Placa de som",
-                _ when pciClass.Contains("USB controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("SATA controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("RAID bus controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("Non-Volatile memory controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("SCSI storage controller", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("IDE interface", StringComparison.OrdinalIgnoreCase) ||
-                       pciClass.Contains("Serial Attached SCSI", StringComparison.OrdinalIgnoreCase) => "Controladora",
+                Category = "Controladora",
+                Name = name,
+                Manufacturer = manufacturer,
+                PciId = pciId
+            };
+            if (className is not null)
+            {
+                controller.Details["Interface"] = className;
+            }
+            inventory.Components.Add(controller);
+
+            var baseClass = classCode is { Length: >= 2 } ? classCode[..2] : null;
+            var subClass = classCode is { Length: >= 4 } ? classCode[2..4] : null;
+
+            var category = baseClass switch
+            {
+                "03" => "Placa de vídeo",
+                "04" when subClass is "01" or "03" => "Placa de som",
+                "02" => "Placa de rede",
                 _ => null
             };
-
             if (category is null)
             {
                 continue;
@@ -378,18 +436,39 @@ public class InventoryCollectorLinux : InventoryCollectorBase
             var component = new InventoryComponent
             {
                 Category = category,
-                Name = Clean(fields[2]),
-                Manufacturer = Clean(fields[1])
+                Name = name,
+                Manufacturer = manufacturer,
+                PciId = pciId
             };
 
-            if (category == "Controladora")
+            if (category == "Placa de rede" && netBySlot.TryGetValue(slot, out var interfaces))
             {
-                component.Details["Tipo"] = pciClass;
+                var mac = FormatMac(ReadFile(Path.Combine("/sys/class/net", interfaces[0], "address")));
+                if (mac is not null)
+                {
+                    component.Details["Endereço MAC"] = mac;
+                }
+                component.Details["Interface"] = string.Join(", ", interfaces);
             }
 
             inventory.Components.Add(component);
         }
     }
+
+    private static string? PciClassName(string? classCode) => classCode is { Length: >= 2 } ? classCode[..2] switch
+    {
+        "01" => "Controladora de armazenamento",
+        "02" => "Controladora de rede",
+        "03" => "Controladora de vídeo",
+        "04" => "Controladora multimídia",
+        "05" => "Controladora de memória",
+        "06" => "Ponte",
+        "07" => "Controladora de comunicação",
+        "08" => "Periférico do sistema",
+        "0c" or "0C" => "Controladora de barramento serial",
+        "0d" or "0D" => "Controladora sem fio",
+        _ => null
+    } : null;
 
     private static void CollectBatteries(DeviceInventory inventory)
     {
@@ -418,23 +497,29 @@ public class InventoryCollectorLinux : InventoryCollectorBase
             var technology = Clean(ReadFile(Path.Combine(dir, "technology")));
             if (technology is not null)
             {
-                component.Details["Tecnologia"] = technology;
+                component.Details["Química"] = technology;
             }
 
-            // energy_* em µWh; charge_* em µAh (sem tensão, só o percentual faz sentido).
+            // energy_* em µWh (vira mWh); charge_* em µAh (só o percentual faz sentido).
+            var hasEnergy = File.Exists(Path.Combine(dir, "energy_full_design"));
             var design = ToLong(ReadFile(Path.Combine(dir, "energy_full_design"))) ?? ToLong(ReadFile(Path.Combine(dir, "charge_full_design")));
             var full = ToLong(ReadFile(Path.Combine(dir, "energy_full"))) ?? ToLong(ReadFile(Path.Combine(dir, "charge_full")));
-            if (File.Exists(Path.Combine(dir, "energy_full_design")) && design is > 0)
+            var voltage = ToLong(ReadFile(Path.Combine(dir, "voltage_min_design")));
+
+            if (voltage is > 0)
             {
-                component.Details["Capacidade de projeto"] = $"{design.Value / 1_000_000.0:0.#} Wh";
-                if (full is > 0)
-                {
-                    component.Details["Capacidade atual"] = $"{full.Value / 1_000_000.0:0.#} Wh";
-                }
+                component.Details["Voltagem"] = $"{voltage.Value / 1000} mV";
+            }
+            if (hasEnergy && design is > 0)
+            {
+                component.Details["Capacidade de projeto"] = $"{design.Value / 1000} mWh";
             }
             if (design is > 0 && full is > 0)
             {
-                component.Details["Saúde"] = $"{Math.Min(100, 100.0 * full.Value / design.Value):0}%";
+                var percent = Math.Min(100, 100.0 * full.Value / design.Value);
+                component.Details["Capacidade real"] = hasEnergy
+                    ? $"{full.Value / 1000} mWh ({percent:0}%)"
+                    : $"{percent:0}%";
             }
 
             inventory.Components.Add(component);

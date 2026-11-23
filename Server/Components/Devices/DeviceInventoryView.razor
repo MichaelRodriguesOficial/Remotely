@@ -116,7 +116,7 @@ else
                         {
                             <div class="table-wrap">
                                 <table class="table">
-                                    <thead><tr><th>Modelo</th><th>Fabricante</th><th>Núcleos</th><th>Threads</th><th>Frequência</th><th>Soquete</th></tr></thead>
+                                    <thead><tr><th>Modelo</th><th>Fabricante</th><th>Núcleos</th><th>Threads</th><th>Frequência máxima</th><th>Frequência base</th><th>Soquete</th></tr></thead>
                                     <tbody>
                                         @foreach (var cpu in Inventory.Processors)
                                         {
@@ -125,7 +125,8 @@ else
                                                 <td>@cpu.Manufacturer</td>
                                                 <td>@cpu.Cores</td>
                                                 <td>@cpu.Threads</td>
-                                                <td>@(cpu.MaxClockMhz is > 0 ? $"{cpu.MaxClockMhz} MHz" : "")</td>
+                                                <td class="text-nowrap">@(cpu.MaxClockMhz is > 0 ? $"{cpu.MaxClockMhz} MHz" : "")</td>
+                                                <td class="text-nowrap">@(cpu.CurrentClockMhz is > 0 ? $"{cpu.CurrentClockMhz} MHz" : "")</td>
                                                 <td>@cpu.Socket</td>
                                             </tr>
                                         }
@@ -151,7 +152,7 @@ else
                         {
                             <div class="table-wrap">
                                 <table class="table">
-                                    <thead><tr><th>Slot</th><th>Capacidade</th><th>Tipo</th><th>Frequência</th><th>Fabricante</th><th>Part number</th><th>Número de série</th></tr></thead>
+                                    <thead><tr><th>Slot</th><th>Capacidade</th><th>Tipo</th><th>Frequência</th><th>Em uso</th><th>Fabricante</th><th>Part number</th><th>Número de série</th><th>Posição</th></tr></thead>
                                     <tbody>
                                         @foreach (var module in Inventory.Memory)
                                         {
@@ -159,10 +160,12 @@ else
                                                 <td>@module.Slot</td>
                                                 <td class="text-nowrap">@FormatBytes(module.CapacityBytes)</td>
                                                 <td>@JoinNonEmpty(" · ", module.Type, module.FormFactor)</td>
-                                                <td>@(module.SpeedMhz is > 0 ? $"{module.SpeedMhz} MHz" : "")</td>
+                                                <td class="text-nowrap">@(module.SpeedMhz is > 0 ? $"{module.SpeedMhz} MHz" : "")</td>
+                                                <td class="text-nowrap">@(module.ConfiguredSpeedMhz is > 0 ? $"{module.ConfiguredSpeedMhz} MHz" : "")</td>
                                                 <td>@module.Manufacturer</td>
                                                 <td class="mono small">@module.PartNumber</td>
                                                 <td class="mono small">@module.SerialNumber</td>
+                                                <td>@module.BusPosition</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -188,7 +191,7 @@ else
                                         @foreach (var disk in Inventory.Disks)
                                         {
                                             <tr>
-                                                <td>@JoinNonEmpty(" ", disk.Manufacturer, disk.Model)</td>
+                                                <td>@(disk.Model is not null && disk.Manufacturer is not null && disk.Model.Contains(disk.Manufacturer, StringComparison.OrdinalIgnoreCase) ? disk.Model : JoinNonEmpty(" ", disk.Manufacturer, disk.Model))</td>
                                                 <td class="text-nowrap">@FormatBytes(disk.SizeBytes)</td>
                                                 <td>@disk.MediaType</td>
                                                 <td>@disk.Interface</td>
@@ -208,25 +211,53 @@ else
                         .GroupBy(x => x.Category)
                         .OrderBy(x => CategoryOrder(x.Key)))
                     {
+                        var items = group.ToList();
+                        var detailColumns = items.SelectMany(x => x.Details.Keys).Distinct().ToList();
+                        var hasSerial = items.Any(x => !string.IsNullOrWhiteSpace(x.SerialNumber));
+                        var hasVersion = items.Any(x => !string.IsNullOrWhiteSpace(x.Version));
                         <section class="panel mt-3">
                             <div class="panel-header">
-                                <h2 class="panel-title"><i class="@CategoryIcon(group.Key)"></i> @group.Key</h2>
+                                <h2 class="panel-title"><i class="@CategoryIcon(group.Key)"></i> @CategoryTitle(group.Key)</h2>
+                                <span class="pill no-dot">@items.Count</span>
                             </div>
                             <div class="table-wrap">
                                 <table class="table">
-                                    <thead><tr><th>Nome</th><th>Fabricante</th><th>Detalhes</th></tr></thead>
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>Fabricante</th>
+                                            @if (hasVersion)
+                                            {
+                                                <th>Versão</th>
+                                            }
+                                            @if (hasSerial)
+                                            {
+                                                <th>Número de série</th>
+                                            }
+                                            @foreach (var column in detailColumns)
+                                            {
+                                                <th>@column</th>
+                                            }
+                                        </tr>
+                                    </thead>
                                     <tbody>
-                                        @foreach (var component in group)
+                                        @foreach (var component in items)
                                         {
                                             <tr>
                                                 <td>@component.Name</td>
                                                 <td>@component.Manufacturer</td>
-                                                <td class="small">
-                                                    @foreach (var detail in GetComponentDetails(component))
-                                                    {
-                                                        <span class="inv-kv"><span class="text-muted">@detail.Key:</span> @detail.Value</span>
-                                                    }
-                                                </td>
+                                                @if (hasVersion)
+                                                {
+                                                    <td class="mono small">@component.Version</td>
+                                                }
+                                                @if (hasSerial)
+                                                {
+                                                    <td class="mono small">@component.SerialNumber</td>
+                                                }
+                                                @foreach (var column in detailColumns)
+                                                {
+                                                    <td class="small">@(component.Details.TryGetValue(column, out var value) ? value : "")</td>
+                                                }
                                             </tr>
                                         }
                                     </tbody>
@@ -550,34 +581,33 @@ else
         return Math.Clamp(100.0 * (volume.TotalBytes.Value - volume.FreeBytes.Value) / volume.TotalBytes.Value, 0, 100);
     }
 
-    private static IEnumerable<KeyValuePair<string, string>> GetComponentDetails(InventoryComponent component)
-    {
-        if (!string.IsNullOrWhiteSpace(component.Version))
-        {
-            yield return new("Versão", component.Version);
-        }
-        if (!string.IsNullOrWhiteSpace(component.SerialNumber))
-        {
-            yield return new("Série", component.SerialNumber);
-        }
-        foreach (var detail in component.Details.Where(x => !string.IsNullOrWhiteSpace(x.Value)))
-        {
-            yield return detail;
-        }
-    }
-
+    // Mesma ordem do GLPI: rede, vídeo, monitor, som, bateria, controladoras...
     private static int CategoryOrder(string category) => category switch
     {
-        "Placa de vídeo" => 0,
-        "Monitor" => 1,
-        "Placa de som" => 2,
-        "Controladora" => 3,
+        "Placa de rede" => 0,
+        "Placa de vídeo" => 1,
+        "Monitor" => 2,
+        "Placa de som" => 3,
         "Bateria" => 4,
+        "TPM" => 5,
+        "Controladora" => 6,
         _ => 10
+    };
+
+    private static string CategoryTitle(string category) => category switch
+    {
+        "Controladora" => "Controladoras",
+        "Placa de rede" => "Placas de rede",
+        "Placa de vídeo" => "Placas de vídeo",
+        "Placa de som" => "Placas de som",
+        "Bateria" => "Baterias",
+        "Monitor" => "Monitores",
+        _ => category
     };
 
     private static string CategoryIcon(string category) => category switch
     {
+        "Placa de rede" => "fa-solid fa-ethernet",
         "Placa de vídeo" => "fa-solid fa-display",
         "Monitor" => "fa-solid fa-tv",
         "Placa de som" => "fa-solid fa-volume-high",

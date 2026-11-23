@@ -285,6 +285,7 @@ else
 }
 services.AddSingleton<IAppDbFactory, AppDbFactory>();
 services.AddSingleton<IAccessProfileService, AccessProfileService>();
+services.AddSingleton<IPciIdsDatabase, PciIdsDatabase>();
 services.AddTransient<IDataService, DataService>();
 services.AddScoped<ApiAuthorizationFilter>();
 services.AddScoped<LocalOnlyFilter>();

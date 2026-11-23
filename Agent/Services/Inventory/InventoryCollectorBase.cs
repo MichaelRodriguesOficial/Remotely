@@ -88,6 +88,119 @@ public abstract class InventoryCollectorBase : IInventoryCollector
         }
     }
 
+    /// <summary>
+    /// Completa processadores, memórias e baterias com a tabela SMBIOS (as mesmas
+    /// informações do dmidecode/GLPI): frequência máxima, núcleos e threads, frequência
+    /// nominal das memórias, posição no barramento, química, voltagem e data da bateria.
+    /// </summary>
+    protected void ApplySmbios(DeviceInventory inventory, byte[]? table)
+    {
+        if (table is null || table.Length < 8)
+        {
+            return;
+        }
+
+        var smbios = SmbiosReader.Parse(table);
+
+        Run(inventory, "SMBIOS: processadores", () =>
+        {
+            var processors = smbios.GetProcessors().ToList();
+            for (var i = 0; i < processors.Count; i++)
+            {
+                var source = processors[i];
+                var target = i < inventory.Processors.Count ? inventory.Processors[i] : null;
+                if (target is null)
+                {
+                    target = new InventoryProcessor { Name = Clean(source.Version) };
+                    inventory.Processors.Add(target);
+                }
+
+                target.Name ??= Clean(source.Version);
+                target.Manufacturer = Clean(source.Manufacturer) ?? target.Manufacturer;
+                target.Cores = source.Cores ?? target.Cores;
+                target.Threads = source.Threads ?? target.Threads;
+                target.MaxClockMhz = source.MaxSpeedMhz ?? target.MaxClockMhz;
+                target.CurrentClockMhz = source.CurrentSpeedMhz ?? target.CurrentClockMhz;
+                target.Socket = Clean(source.Socket) ?? target.Socket;
+                target.SerialNumber = Clean(source.SerialNumber) ?? target.SerialNumber;
+            }
+        });
+
+        Run(inventory, "SMBIOS: memórias", () =>
+        {
+            var modules = smbios.GetMemoryDevices().ToList();
+            if (modules.Count == 0)
+            {
+                return;
+            }
+
+            var previous = inventory.Memory;
+            inventory.Memory = [];
+            for (var i = 0; i < modules.Count; i++)
+            {
+                var source = modules[i];
+                var match = previous.FirstOrDefault(x =>
+                    string.Equals(x.Slot, source.Locator, StringComparison.OrdinalIgnoreCase) ||
+                    (x.SerialNumber is not null && string.Equals(x.SerialNumber, Clean(source.SerialNumber), StringComparison.OrdinalIgnoreCase)));
+
+                inventory.Memory.Add(new InventoryMemoryModule
+                {
+                    Slot = Clean(source.Locator) ?? Clean(source.BankLocator) ?? match?.Slot,
+                    CapacityBytes = source.SizeBytes > 0 ? source.SizeBytes : match?.CapacityBytes,
+                    SpeedMhz = source.SpeedMhz ?? match?.SpeedMhz,
+                    ConfiguredSpeedMhz = source.ConfiguredSpeedMhz ?? match?.ConfiguredSpeedMhz,
+                    Type = source.Type ?? match?.Type,
+                    FormFactor = source.FormFactor ?? match?.FormFactor,
+                    Manufacturer = Clean(source.Manufacturer) ?? match?.Manufacturer,
+                    PartNumber = Clean(source.PartNumber) ?? match?.PartNumber,
+                    SerialNumber = Clean(source.SerialNumber) ?? match?.SerialNumber,
+                    BusPosition = i + 1
+                });
+            }
+        });
+
+        Run(inventory, "SMBIOS: baterias", () =>
+        {
+            var batteries = smbios.GetBatteries().ToList();
+            var existing = inventory.Components.Where(x => x.Category == "Bateria").ToList();
+
+            for (var i = 0; i < batteries.Count; i++)
+            {
+                var source = batteries[i];
+
+                // Uma bateria física: junta o que o SMBIOS informa (data, química, voltagem)
+                // com o que o driver informa (capacidade atual e saúde).
+                var target = i < existing.Count ? existing[i] : null;
+                if (target is null)
+                {
+                    target = new InventoryComponent { Category = "Bateria" };
+                    inventory.Components.Add(target);
+                }
+
+                target.Name = Clean(source.Name) ?? target.Name ?? "Bateria";
+                target.Manufacturer = Clean(source.Manufacturer) ?? target.Manufacturer;
+                target.SerialNumber ??= Clean(source.SerialNumber);
+
+                if (Clean(source.Chemistry) is { } chemistry)
+                {
+                    target.Details["Química"] = chemistry;
+                }
+                if (source.DesignVoltageMv is { } voltage)
+                {
+                    target.Details["Voltagem"] = $"{voltage} mV";
+                }
+                if (source.DesignCapacityMwh is { } capacity && !target.Details.ContainsKey("Capacidade de projeto"))
+                {
+                    target.Details["Capacidade de projeto"] = $"{capacity} mWh";
+                }
+                if (Clean(source.ManufactureDate) is { } date)
+                {
+                    target.Details["Data de fabricação"] = date;
+                }
+            }
+        });
+    }
+
     /// <summary>Remove espaços e valores genéricos de fábrica ("To be filled by O.E.M." etc.).</summary>
     protected static string? Clean(object? value)
     {

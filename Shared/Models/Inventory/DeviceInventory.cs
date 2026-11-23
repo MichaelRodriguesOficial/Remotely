@@ -121,7 +121,13 @@ public class InventoryProcessor
     public string? Manufacturer { get; set; }
     public int? Cores { get; set; }
     public int? Threads { get; set; }
+    /// <summary>Frequência máxima (turbo) informada pelo SMBIOS ou pelo WMI.</summary>
     public int? MaxClockMhz { get; set; }
+
+    /// <summary>Frequência base/atual informada pelo SMBIOS.</summary>
+    public int? CurrentClockMhz { get; set; }
+
+    public string? SerialNumber { get; set; }
     public string? Socket { get; set; }
     public string? Architecture { get; set; }
 }
@@ -130,9 +136,17 @@ public class InventoryMemoryModule
 {
     public string? Slot { get; set; }
     public long? CapacityBytes { get; set; }
+    /// <summary>Frequência nominal do módulo.</summary>
     public int? SpeedMhz { get; set; }
+
+    /// <summary>Frequência em que o módulo está operando.</summary>
+    public int? ConfiguredSpeedMhz { get; set; }
+
     public string? Type { get; set; }
     public string? FormFactor { get; set; }
+
+    /// <summary>Posição no barramento (1, 2...), como no GLPI.</summary>
+    public int? BusPosition { get; set; }
     public string? Manufacturer { get; set; }
     public string? PartNumber { get; set; }
     public string? SerialNumber { get; set; }
@@ -205,6 +219,12 @@ public class InventoryComponent
     public string? Manufacturer { get; set; }
     public string? SerialNumber { get; set; }
     public string? Version { get; set; }
+
+    /// <summary>
+    /// Fabricante e dispositivo PCI ("8086:51ED"). O servidor usa para trocar o nome
+    /// pelo da base pci.ids, como o GLPI faz.
+    /// </summary>
+    public string? PciId { get; set; }
 
     /// <summary>Detalhes extras em pares chave/valor (ex.: "Memória" = "4 GB").</summary>
     public Dictionary<string, string> Details { get; set; } = [];
