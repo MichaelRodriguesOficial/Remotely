@@ -13,32 +13,47 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 
 <table>
   <tr>
-    <td><img src=".github/media/dispositivo-aberto.png" alt="Card do dispositivo aberto com inventário e ações" /></td>
-    <td><img src=".github/media/configuracoes.png" alt="Configuração do servidor organizada por seções" /></td>
+    <td><img src=".github/media/inventario.png" alt="Aba Inventário com firmware, placa-mãe, processadores e memórias" /></td>
+    <td><img src=".github/media/detalhes.png" alt="Detalhes do dispositivo com tipo, fabricante, modelo, série, patrimônio e localização" /></td>
   </tr>
   <tr>
-    <td align="center">Card aberto: inventário, ações e identificação</td>
+    <td align="center">Inventário: componentes, volumes, softwares, rede e antivírus</td>
+    <td align="center">Detalhes: série, UUID, patrimônio e localização</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/inventario-softwares.png" alt="Softwares instalados com busca" /></td>
+    <td><img src=".github/media/dispositivo-aberto.png" alt="Card do dispositivo aberto com ações e identificação" /></td>
+  </tr>
+  <tr>
+    <td align="center">Softwares instalados, com busca</td>
+    <td align="center">Card aberto: ações, equipamento e identificação</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/configuracoes.png" alt="Configuração do servidor organizada por seções" /></td>
+    <td><img src=".github/media/organizacao.png" alt="Organização, grupos, usuários e perfis de acesso" /></td>
+  </tr>
+  <tr>
     <td align="center">Configuração do servidor por seções</td>
+    <td align="center">Organização, grupos, usuários e perfis de acesso</td>
   </tr>
   <tr>
     <td><img src=".github/media/login.png" alt="Tela de login" /></td>
     <td><img src=".github/media/tema-claro.png" alt="Tema claro" /></td>
   </tr>
   <tr>
-    <td align="center">Login</td>
+    <td align="center">Login com downloads do cliente de suporte</td>
     <td align="center">Tema claro</td>
   </tr>
   <tr>
-    <td><img src=".github/media/organizacao.png" alt="Organização, grupos, usuários e convites" /></td>
     <td><img src=".github/media/swagger.png" alt="Documentação da API no Swagger" /></td>
+    <td align="center"><img src=".github/media/celular.png" alt="Tela no celular" width="260" /></td>
   </tr>
   <tr>
-    <td align="center">Organização, grupos e usuários</td>
     <td align="center">API documentada no Swagger</td>
+    <td align="center">No celular</td>
   </tr>
 </table>
 
-<p align="center"><img src=".github/media/celular.png" alt="Tela no celular" width="260" /></p>
 
 ## O que muda neste fork
 
