@@ -1,0 +1,269 @@
+@inherits AuthComponentBase
+
+@* Histórico de comandos e scripts do dispositivo. Cada execução abre ali mesmo, em estilo terminal. *@
+<div class="panel script-history">
+    <div class="script-history-toolbar">
+        <div class="input-icon script-history-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control form-control-sm" placeholder="Buscar no comando ou na saída"
+                   @bind="_filter" @bind:event="oninput" aria-label="Buscar no histórico" />
+        </div>
+        <div class="script-history-filters" role="group" aria-label="Filtrar por resultado">
+            <button type="button" class="@(_only == "" ? "active" : "")" @onclick='() => _only = ""'>Todos <span>@Results.Count</span></button>
+            <button type="button" class="@(_only == "ok" ? "active" : "")" @onclick='() => _only = "ok"'><i class="fa-solid fa-circle-check text-success"></i> Sucesso <span>@Results.Count(x => !HasError(x))</span></button>
+            <button type="button" class="@(_only == "error" ? "active" : "")" @onclick='() => _only = "error"'><i class="fa-solid fa-circle-xmark text-danger"></i> Com erro <span>@Results.Count(HasError)</span></button>
+        </div>
+        <div class="ms-auto d-flex gap-2">
+            @if (Permissions.Scripts)
+            {
+                <button type="button" class="btn btn-primary btn-sm" disabled="@(!Device.IsOnline)" @onclick="() => OpenShell(null)"
+                        title="@(Device.IsOnline ? "Abrir o terminal deste dispositivo" : "Disponível com o dispositivo online")">
+                    <i class="fa-solid fa-terminal"></i> Terminal
+                </button>
+            }
+            <button type="button" class="btn btn-secondary btn-sm" @onclick="OnRefresh">
+                <i class="fa-solid fa-rotate"></i> Atualizar
+            </button>
+        </div>
+    </div>
+
+    @if (Results.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <h3>Sem histórico</h3>
+            <p>Nenhum comando ou script foi executado neste dispositivo.</p>
+        </div>
+    }
+    else if (!Filtered.Any())
+    {
+        <p class="text-muted small mb-0 py-3 text-center">Nada encontrado com esse filtro.</p>
+    }
+    else
+    {
+        <div class="script-runs">
+            @foreach (var result in Filtered.Take(_limit))
+            {
+                var expanded = _expanded.Contains(result.ID);
+                var error = HasError(result);
+                <div @key="result.ID" class="script-run @(expanded ? "expanded" : "") @(error ? "has-error" : "")">
+                    <button type="button" class="script-run-head" aria-expanded="@expanded" @onclick="() => Toggle(result.ID)">
+                        <span class="script-run-status @(error ? "error" : "ok")" title="@(error ? "Terminou com erro" : "Executado com sucesso")">
+                            <i class="fa-solid @(error ? "fa-xmark" : "fa-check")"></i>
+                        </span>
+                        <span class="script-run-main">
+                            <span class="script-run-command">
+                                @if (result.SavedScriptId is not null)
+                                {
+                                    <i class="fa-solid fa-scroll me-1 text-warning" title="Script salvo"></i>
+                                }
+                                @FirstLine(result.ScriptInput)
+                            </span>
+                            <span class="script-run-meta">
+                                <span class="shell-badge">@ShellLabel(result.Shell)</span>
+                                <span><i class="fa-regular fa-clock"></i> @result.TimeStamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                                <span><i class="fa-regular fa-user"></i> @(string.IsNullOrWhiteSpace(result.SenderUserName) ? "Agendado" : result.SenderUserName)</span>
+                                <span><i class="fa-solid fa-stopwatch"></i> @FormatDuration(result.RunTime)</span>
+                                @if (!expanded && FirstOutputLine(result) is { } preview)
+                                {
+                                    <span class="script-run-preview @(error ? "text-danger" : "")">@preview</span>
+                                }
+                            </span>
+                        </span>
+                        <i class="fa-solid fa-chevron-down script-run-chevron"></i>
+                    </button>
+
+                    @if (expanded)
+                    {
+                        var stdOut = CleanLines(result.StandardOutput);
+                        var stdErr = CleanLines(result.ErrorOutput);
+                        <div class="script-run-body">
+                            <div class="script-run-actions">
+                                <button type="button" class="btn btn-ghost btn-sm" @onclick='() => Copy(result.ScriptInput, "Comando copiado.")'>
+                                    <i class="fa-regular fa-copy"></i> Copiar comando
+                                </button>
+                                <button type="button" class="btn btn-ghost btn-sm" @onclick='() => Copy(string.Join(Environment.NewLine, stdOut.Concat(stdErr)), "Saída copiada.")'>
+                                    <i class="fa-regular fa-copy"></i> Copiar saída
+                                </button>
+                                @if (Permissions.Scripts && result.SavedScriptId is null)
+                                {
+                                    <button type="button" class="btn btn-secondary btn-sm ms-auto" disabled="@(!Device.IsOnline)" @onclick="() => OpenShell(result)"
+                                            title="@(Device.IsOnline ? "Abre o terminal com este comando" : "Disponível com o dispositivo online")">
+                                        <i class="fa-solid fa-rotate-right"></i> Executar de novo
+                                    </button>
+                                }
+                            </div>
+
+                            <div class="script-console">
+                                <div class="script-console-label">Comando</div>
+                                @foreach (var line in SplitLines(result.ScriptInput))
+                                {
+                                    <div class="shell-line shell-command">@Prompt(result.Shell) @line</div>
+                                }
+
+                                <div class="script-console-label">Saída</div>
+                                @if (stdOut.Count == 0)
+                                {
+                                    <div class="shell-line shell-muted">(sem saída)</div>
+                                }
+                                @foreach (var line in stdOut)
+                                {
+                                    <div class="shell-line">@line</div>
+                                }
+
+                                @if (stdErr.Count > 0)
+                                {
+                                    <div class="script-console-label error">Erros</div>
+                                    @foreach (var line in stdErr)
+                                    {
+                                        <div class="shell-line shell-error">@line</div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (Filtered.Count() > _limit)
+        {
+            <div class="text-center mt-3">
+                <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _limit += 50">
+                    Mostrar mais (@(Filtered.Count() - _limit))
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@if (_shellOpen)
+{
+    <DeviceShellDialog Device="Device" InitialCommand="@_shellCommand" InitialShell="@_shellShell" OnClose="CloseShell" />
+}
+
+@code {
+    private readonly HashSet<string> _expanded = [];
+    private string _filter = string.Empty;
+    private string _only = string.Empty;
+    private int _limit = 50;
+    private bool _shellOpen;
+    private string? _shellCommand;
+    private ScriptingShell? _shellShell;
+
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    [Parameter, EditorRequired]
+    public IReadOnlyCollection<ScriptResult> Results { get; set; } = [];
+
+    [Parameter]
+    public EventCallback OnRefresh { get; set; }
+
+    [Inject]
+    private IJsInterop JsInterop { get; init; } = null!;
+
+    [Inject]
+    private IToastService ToastService { get; init; } = null!;
+
+    private IEnumerable<ScriptResult> Filtered => Results
+        .Where(x => _only switch { "ok" => !HasError(x), "error" => HasError(x), _ => true })
+        .Where(x => string.IsNullOrWhiteSpace(_filter) ||
+            x.ScriptInput.Contains(_filter, StringComparison.OrdinalIgnoreCase) ||
+            (x.StandardOutput?.Any(l => l.Contains(_filter, StringComparison.OrdinalIgnoreCase)) ?? false) ||
+            (x.ErrorOutput?.Any(l => l.Contains(_filter, StringComparison.OrdinalIgnoreCase)) ?? false));
+
+    protected override void OnParametersSet()
+    {
+        // Abre a execução mais recente na primeira carga.
+        if (_expanded.Count == 0 && Results.FirstOrDefault() is { } latest)
+        {
+            _expanded.Add(latest.ID);
+        }
+    }
+
+    private static bool HasError(ScriptResult result) =>
+        result.HadErrors || (result.ErrorOutput?.Any(x => !string.IsNullOrWhiteSpace(x)) ?? false);
+
+    private void Toggle(string id)
+    {
+        if (!_expanded.Remove(id))
+        {
+            _expanded.Add(id);
+        }
+    }
+
+    private async Task Copy(string text, string message)
+    {
+        if (await JsInterop.SetClipboardText(text))
+        {
+            ToastService.ShowToast2(message, Enums.ToastType.Success);
+        }
+    }
+
+    private void OpenShell(ScriptResult? result)
+    {
+        _shellCommand = result?.ScriptInput;
+        _shellShell = result?.Shell;
+        _shellOpen = true;
+    }
+
+    private async Task CloseShell()
+    {
+        _shellOpen = false;
+        await OnRefresh.InvokeAsync();
+    }
+
+    private static IEnumerable<string> SplitLines(string? text) =>
+        (text ?? string.Empty).Replace("\r\n", "\n").Split('\n').Where(x => x.Length > 0).DefaultIfEmpty(string.Empty);
+
+    /// <summary>Tira linhas em branco do começo e do fim (o shell sempre devolve algumas).</summary>
+    private static List<string> CleanLines(string[]? lines)
+    {
+        var list = (lines ?? []).Select(x => x.TrimEnd('\r')).ToList();
+        while (list.Count > 0 && string.IsNullOrWhiteSpace(list[0])) list.RemoveAt(0);
+        while (list.Count > 0 && string.IsNullOrWhiteSpace(list[^1])) list.RemoveAt(list.Count - 1);
+        return list;
+    }
+
+    private static string FirstLine(string? text)
+    {
+        var line = SplitLines(text).FirstOrDefault()?.Trim() ?? string.Empty;
+        var lines = SplitLines(text).Count();
+        line = line.Length > 140 ? line[..140] + "…" : line;
+        return lines > 1 ? $"{line}  (+{lines - 1} linha(s))" : line;
+    }
+
+    private static string? FirstOutputLine(ScriptResult result)
+    {
+        var line = CleanLines(result.ErrorOutput).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))
+            ?? CleanLines(result.StandardOutput).LastOrDefault(x => !string.IsNullOrWhiteSpace(x));
+        if (line is null)
+        {
+            return null;
+        }
+        line = line.Trim();
+        return line.Length > 90 ? line[..90] + "…" : line;
+    }
+
+    private static string Prompt(ScriptingShell shell) => shell switch
+    {
+        ScriptingShell.CMD => ">",
+        ScriptingShell.Bash => "$",
+        _ => "PS>"
+    };
+
+    private static string ShellLabel(ScriptingShell shell) => shell switch
+    {
+        ScriptingShell.WinPS => "Windows PowerShell",
+        ScriptingShell.PSCore => "PowerShell 7",
+        ScriptingShell.CMD => "CMD",
+        ScriptingShell.Bash => "Bash",
+        _ => shell.ToString()
+    };
+
+    private static string FormatDuration(TimeSpan span) =>
+        span.TotalSeconds < 60 ? $"{span.TotalSeconds:0.0} s".Replace('.', ',')
+        : span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes} min {span.Seconds} s"
+        : $"{(int)span.TotalHours} h {span.Minutes} min";
+}

@@ -197,50 +197,7 @@ else
             </TabContent>
 
             <TabContent Name="script-history">
-                @if (_scriptResults.IsEmpty)
-                {
-                    <div class="empty-state mt-3">
-                        <div class="empty-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                        <h3>Sem histórico</h3>
-                        <p>Nenhum script foi executado neste dispositivo.</p>
-                    </div>
-                }
-                else
-                {
-                    <div class="table-wrap">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Shell</th>
-                                    <th>Data/hora</th>
-                                    <th>Usuário</th>
-                                    <th>Duração</th>
-                                    <th>Entrada</th>
-                                    <th>Saída</th>
-                                    <th>Erro</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var scriptResult in _scriptResults)
-                                {
-                                    <tr>
-                                        <td><span class="pill accent no-dot">@scriptResult.Shell</span></td>
-                                        <td class="text-nowrap">@scriptResult.TimeStamp.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
-                                        <td>@scriptResult.SenderUserName</td>
-                                        <td>@scriptResult.RunTime</td>
-                                        <td class="mono small">@GetTrimmedText(scriptResult.ScriptInput, 25)</td>
-                                        <td class="mono small">@GetTrimmedText(scriptResult.StandardOutput, 25)</td>
-                                        <td class="mono small text-danger">@GetTrimmedText(scriptResult.ErrorOutput, 25)</td>
-                                        <td class="text-end">
-                                            <button class="btn btn-sm btn-secondary" @onclick="() => ShowFullScriptOutput(scriptResult)">Ver completo</button>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                <ScriptHistoryView Device="_device" Results="_scriptResults" OnRefresh="GetScriptHistory" />
             </TabContent>
         </TabContents>
     </TabControl>

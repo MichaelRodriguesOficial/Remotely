@@ -797,29 +797,5 @@ internal static class RepairRunner
         }
     }
 
-    private static Encoding? _consoleEncoding;
-
-    /// <summary>As ferramentas do Windows escrevem na página de código OEM (850 em pt-BR).</summary>
-    private static Encoding ConsoleEncoding()
-    {
-        if (_consoleEncoding is not null)
-        {
-            return _consoleEncoding;
-        }
-
-        if (!OperatingSystem.IsWindows())
-        {
-            return _consoleEncoding = Encoding.UTF8;
-        }
-
-        try
-        {
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            return _consoleEncoding = Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
-        }
-        catch
-        {
-            return _consoleEncoding = Encoding.UTF8;
-        }
-    }
+    private static Encoding ConsoleEncoding() => ConsoleEncodings.Oem;
 }

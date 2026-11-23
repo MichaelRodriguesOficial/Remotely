@@ -55,6 +55,12 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td align="center">Scripts rápidos com um clique</td>
   </tr>
   <tr>
+    <td colspan="2"><img src=".github/media/historico-scripts.png" alt="Histórico de scripts do dispositivo em estilo terminal" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Histórico de scripts: saída em estilo terminal, filtros e executar de novo</td>
+  </tr>
+  <tr>
     <td><img src=".github/media/relatorio-diagnostico.png" alt="Relatório do diagnóstico exportado em PDF/HTML" /></td>
     <td><img src=".github/media/relatorio-email.png" alt="Envio do inventário filtrado por e-mail" /></td>
   </tr>
@@ -97,7 +103,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Diagnóstico remoto** (aba ao lado do Inventário): saúde dos discos (SMART), bateria, dispositivos com erro e telas azuis, rede (ping, DNS, Wi-Fi), sistema (reinício pendente, atualizações, antivírus), velocidade do disco, estresse de CPU com temperatura e teste de memória do Windows, com histórico das execuções.
 - **Reparos remotos com um clique**: botão Corrigir nos itens do diagnóstico (reiniciar com aviso ou num horário, chkdsk, limpeza de disco, sfc/DISM, rede, Windows Update, firewall, Defender, relógio e dispositivos com erro), com re-teste automático e permissão própria nos perfis.
 - **Diagnóstico agendado e painel de saúde**: testes rápidos automáticos e, no Inventário, quantos computadores estão com problema ou atenção.
-- **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card.
+- **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").
 - **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.

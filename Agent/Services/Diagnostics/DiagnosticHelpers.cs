@@ -109,7 +109,8 @@ internal static class DiagnosticHelpers
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
-                StandardOutputEncoding = OperatingSystem.IsWindows() ? null : Encoding.UTF8
+                StandardOutputEncoding = OperatingSystem.IsWindows() ? ConsoleEncodings.Oem : Encoding.UTF8,
+                StandardErrorEncoding = OperatingSystem.IsWindows() ? ConsoleEncodings.Oem : Encoding.UTF8
             };
             if (!OperatingSystem.IsWindows())
             {

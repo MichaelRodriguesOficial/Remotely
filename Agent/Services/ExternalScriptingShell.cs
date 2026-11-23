@@ -70,6 +70,26 @@ public class ExternalScriptingShell : IExternalScriptingShell
             RedirectStandardOutput = true
         };
 
+        if (OperatingSystem.IsWindows() && shell is ScriptingShell.CMD or ScriptingShell.WinPS)
+        {
+            // Lê e escreve na página OEM do console, senão os acentos chegam trocados.
+            psi.StandardOutputEncoding = ConsoleEncodings.Oem;
+            psi.StandardErrorEncoding = ConsoleEncodings.Oem;
+            psi.StandardInputEncoding = ConsoleEncodings.Oem;
+        }
+        else
+        {
+            psi.StandardOutputEncoding = new System.Text.UTF8Encoding(false);
+            psi.StandardErrorEncoding = new System.Text.UTF8Encoding(false);
+            psi.StandardInputEncoding = new System.Text.UTF8Encoding(false);
+        }
+
+        if (shell == ScriptingShell.CMD)
+        {
+            // /Q: sem eco do prompt e do comando; /K rem: sem o cabeçalho "Microsoft Windows [versão...]".
+            psi.Arguments = "/Q /K rem";
+        }
+
         var configInfo = _configService.GetConnectionInfo();
         psi.Environment.Add("DeviceId", configInfo.DeviceID);
         psi.Environment.Add("ServerUrl", configInfo.Host);

@@ -135,6 +135,13 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    /// <summary>Comando já preenchido (ex.: "Executar de novo" no histórico).</summary>
+    [Parameter]
+    public string? InitialCommand { get; set; }
+
+    [Parameter]
+    public ScriptingShell? InitialShell { get; set; }
+
     [Inject]
     private ICircuitConnection CircuitConnection { get; init; } = null!;
 
@@ -172,7 +179,8 @@
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
-        _shell = AvailableShells.First();
+        _shell = InitialShell is { } initial && AvailableShells.Contains(initial) ? initial : AvailableShells.First();
+        _command = InitialCommand;
         _tab = Tab == "scripts" ? "scripts" : "terminal";
 
         await Register<ScriptResultMessage, string>(CircuitConnection.ConnectionId, HandleScriptResult);

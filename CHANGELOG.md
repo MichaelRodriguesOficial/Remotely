@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.8.1 — 2026-11-23
+
+### Interface
+- **Histórico de scripts** do dispositivo redesenhado, sem o pop-up "Entrada/saída do script": cada execução abre ali mesmo, em estilo terminal (comando, saída e erros), com status de sucesso/erro, shell, usuário e duração.
+- Busca no comando e na saída, filtro Todos / Sucesso / Com erro, botões **Copiar comando**, **Copiar saída** e **Executar de novo** (abre o terminal do dispositivo com o comando preenchido) e botão **Terminal** no topo.
+
+### Correções
+- Acentos trocados na saída do CMD e do Windows PowerShell ("versÆo", "J  existe"): o agente agora lê e escreve na página de código do console do Windows (850 em pt-BR). Vale também para os testes de diagnóstico.
+- O CMD não repete mais o cabeçalho "Microsoft Windows [versão...]" e o prompt com o comando na saída.
+
 ## v1.8.0 — 2026-11-23
 
 ### Reparos remotos (novo)

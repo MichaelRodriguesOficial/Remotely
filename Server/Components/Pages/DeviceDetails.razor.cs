@@ -295,27 +295,6 @@ public partial class DeviceDetails : AuthComponentBase
         }
     }
 
-    private string GetTrimmedText(string? source, int stringLength)
-    {
-        if (string.IsNullOrWhiteSpace(source))
-        {
-            return "(none)";
-        }
-
-        if (source.Length <= stringLength)
-        {
-            return source;
-        }
-
-        return source[0..25] + "...";
-    }
-
-    private string GetTrimmedText(string[]? source, int stringLength)
-    {
-        source ??= Array.Empty<string>();
-        return GetTrimmedText(string.Join("", source), stringLength);
-    }
-
     private async Task HandleValidSubmit()
     {
         if (_device is null)
@@ -365,26 +344,5 @@ public partial class DeviceDetails : AuthComponentBase
             return "fa-brands fa-linux";
         }
         return "fa-solid fa-computer";
-    }
-
-    private void ShowFullScriptOutput(ScriptResult result)
-    {
-        void outputModal(RenderTreeBuilder builder)
-        {
-            var output = string.Join("\r\n", result.StandardOutput ?? Array.Empty<string>());
-            var error = string.Join("\r\n", result.ErrorOutput ?? Array.Empty<string>());
-            var textareaStyle = "width: 100%; height: 200px; white-space: pre;";
-
-            // Script input/output is controlled by users and devices.  It must be
-            // HTML-encoded, or a device could inject markup (stored XSS).
-            builder.AddMarkupContent(0, "<h5>Input</h5>");
-            builder.AddMarkupContent(1, $"<textarea readonly style=\"{textareaStyle}\">{WebUtility.HtmlEncode(result.ScriptInput)}</textarea>");
-            builder.AddMarkupContent(2, "<h5 class=\"mt-3\">Standard Output</h5>");
-            builder.AddMarkupContent(3, $"<textarea readonly style=\"{textareaStyle}\">{WebUtility.HtmlEncode(output)}</textarea>");
-            builder.AddMarkupContent(4, "<h5 class=\"mt-3\">Error Output</h5>");
-            builder.AddMarkupContent(5, $"<textarea readonly style=\"{textareaStyle}\">{WebUtility.HtmlEncode(error)}</textarea>");
-        }
-
-        ModalService.ShowModal("Entrada/saída do script", outputModal);
     }
 }
