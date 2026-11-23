@@ -13,6 +13,7 @@ using Remotely.Shared.Entities;
 using Remotely.Shared.Utilities;
 using Remotely.Shared.ViewModels;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace Remotely.Server.Services;
 
@@ -35,6 +36,15 @@ public interface IDataService
     Task<Result<DeviceDiagnosticRun>> UpdateDiagnosticRun(string deviceId, DiagnosticReport report);
 
     Task<List<DeviceDiagnosticRun>> GetDiagnosticRuns(string deviceId, int take = 20);
+
+    /// <summary>Início do último diagnóstico (não reparo) de cada dispositivo.</summary>
+    Task<Dictionary<string, DateTimeOffset>> GetLastDiagnosticTimes(IReadOnlyCollection<string> deviceIds);
+
+    /// <summary>
+    /// Situação de cada dispositivo pelos diagnósticos mais recentes: o resultado mais novo de
+    /// cada teste (um re-teste de disco não apaga o problema que o teste de sistema achou antes).
+    /// </summary>
+    Task<Dictionary<string, DeviceDiagnosticSummary>> GetDiagnosticSummaries(IReadOnlyCollection<string> deviceIds);
 
     /// <summary>
     /// IDs dos dispositivos (entre os informados) cujo inventário contém o texto
@@ -482,6 +492,13 @@ public class DataService : IDataService
             return Result.Fail<DeviceDiagnosticRun>("Diagnostic run not found.");
         }
 
+        // Depois de concluída, a execução não muda mais (evita reescrever o histórico
+        // e disparar o re-teste automático mais de uma vez).
+        if (run.FinishedAt is not null)
+        {
+            return Result.Fail<DeviceDiagnosticRun>("Diagnostic run already completed.");
+        }
+
         // Só aceita os testes que foram pedidos.
         var requested = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
         report.Tests = report.Tests.Where(x => requested.Contains(x.Id)).ToList();
@@ -508,6 +525,115 @@ public class DataService : IDataService
             .OrderByDescending(x => x.StartedAt)
             .Take(take)
             .ToListAsync();
+    }
+
+    public async Task<Dictionary<string, DateTimeOffset>> GetLastDiagnosticTimes(IReadOnlyCollection<string> deviceIds)
+    {
+        if (deviceIds.Count == 0)
+        {
+            return [];
+        }
+
+        using var dbContext = _appDbFactory.GetContext();
+        var rows = await dbContext.DeviceDiagnosticRuns
+            .AsNoTracking()
+            .Where(x => deviceIds.Contains(x.DeviceID) && !x.Tests.StartsWith(DiagnosticRepairs.Prefix))
+            .Select(x => new { x.DeviceID, x.StartedAt })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(x => x.DeviceID)
+            .ToDictionary(x => x.Key, x => x.Max(y => y.StartedAt));
+    }
+
+    // Execuções concluídas não mudam: o resultado de cada teste pode ficar em memória.
+    private static readonly ConcurrentDictionary<string, Dictionary<string, (string Name, DiagnosticStatus Status)>> _diagnosticTestCache = new();
+
+    public async Task<Dictionary<string, DeviceDiagnosticSummary>> GetDiagnosticSummaries(IReadOnlyCollection<string> deviceIds)
+    {
+        var summaries = new Dictionary<string, DeviceDiagnosticSummary>();
+        if (deviceIds.Count == 0)
+        {
+            return summaries;
+        }
+
+        using var dbContext = _appDbFactory.GetContext();
+        var rows = await dbContext.DeviceDiagnosticRuns
+            .AsNoTracking()
+            .Where(x => deviceIds.Contains(x.DeviceID) &&
+                        x.FinishedAt != null &&
+                        !x.Tests.StartsWith(DiagnosticRepairs.Prefix))
+            .Select(x => new { x.ID, x.DeviceID, x.StartedAt, x.Status, x.Tests })
+            .ToListAsync();
+
+        var since = DateTimeOffset.Now.AddDays(-60);
+        var quickTests = DiagnosticTests.All.Where(x => !x.Heavy).Select(x => x.Id).ToHashSet();
+
+        foreach (var device in rows.Where(x => x.StartedAt >= since).GroupBy(x => x.DeviceID))
+        {
+            var covered = new HashSet<string>();
+            var issues = new List<(string Name, DiagnosticStatus Status)>();
+
+            foreach (var run in device.OrderByDescending(x => x.StartedAt).Take(10))
+            {
+                var tests = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                var uncovered = tests.Where(x => !covered.Contains(x)).ToList();
+                if (uncovered.Count == 0)
+                {
+                    continue;
+                }
+
+                // Execução toda ok: nada a buscar no JSON.
+                if (run.Status == nameof(DiagnosticStatus.Ok))
+                {
+                    covered.UnionWith(uncovered);
+                }
+                else
+                {
+                    if (!_diagnosticTestCache.TryGetValue(run.ID, out var perTest))
+                    {
+                        var data = await dbContext.DeviceDiagnosticRuns
+                            .AsNoTracking()
+                            .Where(x => x.ID == run.ID)
+                            .Select(x => x.Data)
+                            .FirstOrDefaultAsync();
+                        perTest = DiagnosticSerializer.FromJson(data)?.Tests
+                            .GroupBy(x => x.Id)
+                            .ToDictionary(x => x.Key, x => (x.First().Name, x.First().Status)) ?? [];
+                        if (_diagnosticTestCache.Count > 5000)
+                        {
+                            _diagnosticTestCache.Clear();
+                        }
+                        _diagnosticTestCache[run.ID] = perTest;
+                    }
+
+                    foreach (var testId in uncovered)
+                    {
+                        covered.Add(testId);
+                        if (perTest.TryGetValue(testId, out var result) &&
+                            result.Status is DiagnosticStatus.Warning or DiagnosticStatus.Error)
+                        {
+                            issues.Add(result);
+                        }
+                    }
+                }
+
+                if (quickTests.IsSubsetOf(covered))
+                {
+                    break;
+                }
+            }
+
+            var status = issues.Any(x => x.Status == DiagnosticStatus.Error) ? DiagnosticStatus.Error
+                : issues.Count > 0 ? DiagnosticStatus.Warning
+                : DiagnosticStatus.Ok;
+            summaries[device.Key] = new DeviceDiagnosticSummary(
+                status,
+                device.Max(x => x.StartedAt),
+                issues.OrderByDescending(x => x.Status == DiagnosticStatus.Error).ToList());
+        }
+
+        return summaries;
     }
 
     public async Task<HashSet<string>> SearchDeviceInventories(IReadOnlyCollection<string> deviceIds, string text)

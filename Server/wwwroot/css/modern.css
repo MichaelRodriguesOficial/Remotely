@@ -1677,7 +1677,7 @@ label, .form-label {
 
 .detail-list-compact { font-size: 0.86rem; row-gap: 0.45rem; column-gap: 1.1rem; }
 .inv-list-table td { font-size: 0.88rem; }
-.inv-list-table td:nth-child(10) { min-width: 170px; }
+.inv-list-table td:nth-child(11) { min-width: 170px; }
 
 /* Diagnóstico */
 .diag-launcher { margin-bottom: 1rem; }
@@ -1886,7 +1886,7 @@ label, .form-label {
 }
 .diag-item {
     display: grid;
-    grid-template-columns: 1.4rem minmax(140px, 34%) minmax(0, 1fr);
+    grid-template-columns: 1.4rem minmax(140px, 34%) minmax(0, 1fr) auto;
     gap: 0.6rem;
     align-items: baseline;
     padding: 0.5rem 0.75rem;
@@ -1899,10 +1899,74 @@ label, .form-label {
     .diag-item-value small { display: block; color: var(--rm-text-subtle); font-size: 0.78rem; margin-top: 0.1rem; }
 .diag-item-error .diag-item-value { color: var(--rm-danger); font-weight: 550; }
 .diag-item-warning .diag-item-value { color: var(--rm-warning); font-weight: 550; }
+.diag-item-action { align-self: center; }
+.diag-fix-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid rgba(var(--rm-accent-rgb), 0.45);
+    background: rgba(var(--rm-accent-rgb), 0.1);
+    color: var(--rm-accent);
+    white-space: nowrap;
+}
+    .diag-fix-btn:hover:not(:disabled) { background: var(--rm-accent); color: #fff; border-color: var(--rm-accent); }
+    .diag-fix-btn:disabled { opacity: 0.5; }
 @media (max-width: 575.98px) {
     .diag-item { grid-template-columns: 1.4rem minmax(0, 1fr); }
-    .diag-item-value { grid-column: 2; }
+    .diag-item-value, .diag-item-action { grid-column: 2; }
 }
+
+.diag-repair-menu { min-width: 300px; max-height: 70vh; overflow-y: auto; }
+.diag-repair-menu .dropdown-item { display: flex; align-items: center; gap: 0.6rem; }
+.diag-repair-menu .dropdown-item i { width: 1.1rem; text-align: center; color: var(--rm-text-muted); }
+
+/* Janela de confirmação (reparos, terminal) */
+.rm-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    background: rgba(5, 8, 15, 0.55);
+    backdrop-filter: blur(2px);
+}
+.rm-dialog {
+    position: fixed;
+    z-index: 1061;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(560px, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    margin: 0 !important;
+    box-shadow: var(--rm-shadow-lg);
+}
+.rm-dialog-head { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 1rem; }
+    .rm-dialog-head h2 { font-size: 1.1rem; font-weight: 650; margin: 0.1rem 0 0.25rem; color: var(--rm-text-strong); }
+    .rm-dialog-head p { margin: 0; color: var(--rm-text-muted); font-size: 0.9rem; }
+.rm-dialog-facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.55rem 1rem;
+    align-items: center;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+    font-size: 0.9rem;
+}
+    .rm-dialog-facts dt { font-weight: 500; color: var(--rm-text-muted); }
+    .rm-dialog-facts dd { margin: 0; color: var(--rm-text-strong); }
+.rm-dialog-drive { width: 4.5rem; text-transform: uppercase; }
+.rm-dialog-when { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .rm-dialog-when select { width: auto; min-width: 11rem; }
+    .rm-dialog-when input { width: 8rem; }
+.rm-dialog-note { display: flex; gap: 0.5rem; align-items: center; color: var(--rm-text-muted); font-size: 0.86rem; margin-bottom: 1rem; }
+.rm-dialog-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
 
 /* Exportar / enviar relatórios */
 .report-actions-wrap { position: relative; }
@@ -1919,3 +1983,114 @@ label, .form-label {
 }
 .inv-toolbar-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
 .inv-list-summary .report-actions-wrap { margin-left: auto; }
+
+/* Terminal e scripts rápidos de um dispositivo */
+.rm-dialog-wide { width: min(920px, calc(100vw - 2rem)); cursor: default; }
+.shell-tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--rm-border); margin-bottom: 0.85rem; }
+    .shell-tabs button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.85rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--rm-text-muted);
+        font-weight: 550;
+        font-size: 0.9rem;
+    }
+    .shell-tabs button:hover { color: var(--rm-text-strong); }
+    .shell-tabs button.active { color: var(--rm-text-strong); border-bottom-color: var(--rm-accent); }
+.shell-output {
+    height: min(420px, 50vh);
+    overflow-y: auto;
+    padding: 0.75rem 0.9rem;
+    border-radius: var(--rm-radius-sm);
+    background: #0a0e17;
+    border: 1px solid var(--rm-border);
+    font-family: var(--rm-font-mono);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    color: #d6deeb;
+}
+.shell-line { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.2em; }
+.shell-command { color: #7dd3fc; font-weight: 600; margin-top: 0.35rem; }
+.shell-meta { color: #64748b; font-size: 0.75rem; }
+.shell-error { color: #fca5a5; }
+.shell-muted { color: #64748b; }
+.shell-input-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
+.shell-select { width: auto; min-width: 12.5rem; flex: 0 0 auto; }
+.shell-input-wrap { position: relative; flex: 1 1 auto; min-width: 0; }
+.shell-prompt {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--rm-font-mono);
+    font-size: 0.8rem;
+    color: var(--rm-accent);
+    pointer-events: none;
+}
+.shell-input { font-family: var(--rm-font-mono); padding-left: 2.6rem; }
+.shell-scripts { display: flex; flex-direction: column; gap: 0.45rem; max-height: min(480px, 55vh); overflow-y: auto; }
+.shell-script {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+}
+    .shell-script strong { display: block; color: var(--rm-text-strong); font-size: 0.92rem; }
+.shell-script-icon {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--rm-radius-sm);
+    background: rgba(var(--rm-warning-rgb), 0.13);
+    color: var(--rm-warning);
+}
+@media (max-width: 575.98px) {
+    .shell-input-row { flex-wrap: wrap; }
+    .shell-select { width: 100%; }
+}
+
+/* Painel de saúde (Inventário) */
+.diag-health {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+.diag-health-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--rm-border);
+    border-radius: var(--rm-radius);
+    background: var(--rm-surface);
+    color: var(--rm-text-muted);
+    font-size: 0.88rem;
+    text-align: left;
+    transition: border-color var(--rm-transition), background var(--rm-transition);
+}
+    .diag-health-item strong { color: var(--rm-text-strong); font-size: 1.15rem; margin-right: 0.15rem; }
+    .diag-health-item:hover { border-color: var(--rm-border-strong); }
+    .diag-health-item.active { border-color: rgba(var(--rm-accent-rgb), 0.7); background: rgba(var(--rm-accent-rgb), 0.08); }
+.diag-health-icon {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-3);
+    color: var(--rm-text-muted);
+}
+.diag-health-error .diag-health-icon { background: rgba(var(--rm-danger-rgb), 0.14); color: var(--rm-danger); }
+.diag-health-warning .diag-health-icon { background: rgba(var(--rm-warning-rgb), 0.15); color: var(--rm-warning); }
+.diag-health-ok .diag-health-icon { background: rgba(var(--rm-success-rgb), 0.14); color: var(--rm-success); }
+.inv-diag-issues { max-width: 220px; white-space: normal; margin-top: 0.2rem; line-height: 1.3; }
+.inv-list-table a.pill { text-decoration: none; }

@@ -18,6 +18,14 @@ internal static class DiagnosticHelpers
         new() { Label = label, Value = value, Status = status, Hint = hint, Group = group };
 
     /// <summary>O pior status entre os itens (erro &gt; alerta &gt; ok).</summary>
+    /// <summary>Liga o item ao reparo que o painel oferece no botão "Corrigir".</summary>
+    public static DiagnosticItem WithRepair(this DiagnosticItem item, string repair, string? target = null)
+    {
+        item.Repair = repair;
+        item.RepairTarget = target;
+        return item;
+    }
+
     public static DiagnosticStatus Worst(IEnumerable<DiagnosticItem> items)
     {
         var list = items.ToList();

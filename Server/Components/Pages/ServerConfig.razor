@@ -14,6 +14,7 @@
         <a href="server-config#geral"><i class="fa-solid fa-sliders"></i> Geral</a>
         <a href="server-config#seguranca"><i class="fa-solid fa-shield-halved"></i> Segurança</a>
         <a href="server-config#acesso-remoto"><i class="fa-solid fa-desktop"></i> Acesso remoto</a>
+        <a href="server-config#diagnostico"><i class="fa-solid fa-stethoscope"></i> Diagnóstico agendado</a>
         <a href="server-config#email"><i class="fa-solid fa-envelope"></i> E-mail (SMTP)</a>
         <a href="server-config#rede"><i class="fa-solid fa-network-wired"></i> Rede e registros</a>
         <a href="server-config#banidos"><i class="fa-solid fa-ban"></i> Dispositivos banidos</a>
@@ -241,6 +242,46 @@
             <div class="setting-control">
                 <div class="form-check form-switch">
                     <InputCheckbox id="cfg-EnableRemoteControlRecording" class="form-check-input" role="switch" @bind-Value="Input.EnableRemoteControlRecording" />
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="diagnostico" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-stethoscope"></i> Diagnóstico agendado</h2>
+                <p class="panel-description">Roda os testes rápidos (discos, bateria, dispositivos, rede e sistema) sozinho em cada computador online. O resultado aparece no Inventário, na coluna Diagnóstico.</p>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-ScheduledDiagnosticsEnabled">Ativar diagnóstico agendado</label>
+                <p class="setting-desc">Os testes rápidos levam segundos e não atrapalham o usuário. Os pesados nunca rodam sozinhos.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-ScheduledDiagnosticsEnabled" class="form-check-input" role="switch" @bind-Value="Input.ScheduledDiagnosticsEnabled" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-ScheduledDiagnosticsIntervalDays">Repetir a cada (dias)</label>
+                <p class="setting-desc">Cada computador é testado quando o último diagnóstico tiver mais que este intervalo (1 a 30 dias).</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-ScheduledDiagnosticsIntervalDays" class="form-control" min="1" max="30" @bind-Value="Input.ScheduledDiagnosticsIntervalDays" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-ScheduledDiagnosticsBusinessHoursOnly">Só em horário comercial</label>
+                <p class="setting-desc">De segunda a sexta, das 8h às 18h (horário do servidor), quando os computadores costumam estar ligados.</p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-ScheduledDiagnosticsBusinessHoursOnly" class="form-check-input" role="switch" @bind-Value="Input.ScheduledDiagnosticsBusinessHoursOnly" />
                 </div>
             </div>
         </div>

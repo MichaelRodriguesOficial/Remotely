@@ -187,7 +187,7 @@ internal static class WindowsDiagnostics
 
     public static void Devices(DiagnosticTestResult test)
     {
-        var problems = Wmi("SELECT Name, ConfigManagerErrorCode, PNPClass FROM Win32_PnPEntity WHERE ConfigManagerErrorCode <> 0");
+        var problems = Wmi("SELECT Name, ConfigManagerErrorCode, PNPClass, PNPDeviceID FROM Win32_PnPEntity WHERE ConfigManagerErrorCode <> 0");
         foreach (var device in problems)
         {
             var code = ToLong(Get(device, "ConfigManagerErrorCode")) ?? 0;
@@ -204,12 +204,27 @@ internal static class WindowsDiagnostics
                 _ => ($"Erro {code}", DiagnosticStatus.Warning)
             };
 
-            test.Items.Add(Item(
+            var item = Item(
                 ToText(Get(device, "Name")) ?? "Dispositivo",
                 $"{description} (código {code})",
                 status,
                 status == DiagnosticStatus.Error ? "Reinstale ou atualize o driver; se continuar, pode ser defeito de hardware." : null,
-                "Dispositivos com problema"));
+                "Dispositivos com problema");
+            var instanceId = ToText(Get(device, "PNPDeviceID"));
+            if (code is 14 or 21)
+            {
+                item.WithRepair(DiagnosticRepairs.Reboot);
+            }
+            else if (code == 28)
+            {
+                item.WithRepair(DiagnosticRepairs.DeviceRescan);
+            }
+            else if (status != DiagnosticStatus.Info && instanceId is not null &&
+                     DiagnosticRepairs.NormalizeTarget(DiagnosticRepairs.Get(DiagnosticRepairs.DeviceRestart)!, instanceId) is { } target)
+            {
+                item.WithRepair(DiagnosticRepairs.DeviceRestart, target);
+            }
+            test.Items.Add(item);
         }
 
         if (!test.Items.Any(x => x.Group == "Dispositivos com problema"))
@@ -230,13 +245,132 @@ internal static class WindowsDiagnostics
             "*[System[Provider[@Name='Microsoft-Windows-WHEA-Logger'] and (Level=1 or Level=2 or Level=3) and TimeCreated[timediff(@SystemTime) <= 2592000000]]]",
             warnAt: 1, errorAt: 5, "O processador, a memória ou o barramento PCIe relataram erros de hardware.");
 
-        AddEventCount(test, group, "Erros de disco", "System",
-            "*[System[(Provider[@Name='disk'] or Provider[@Name='Ntfs'] or Provider[@Name='stornvme'] or Provider[@Name='storahci']) and (Level=1 or Level=2) and TimeCreated[timediff(@SystemTime) <= 2592000000]]]",
-            warnAt: 1, errorAt: 10, "Blocos defeituosos, cabo ou controladora com problema.");
+        DiskErrors(test, group);
 
         AddEventCount(test, group, "Eventos críticos (7 dias)", "System",
             "*[System[(Level=1) and TimeCreated[timediff(@SystemTime) <= 604800000]]]",
             warnAt: 1, errorAt: 5, null);
+    }
+
+    /// <summary>
+    /// Erros de disco do log do sistema, separados por unidade. Pen drive, HD externo ou cartão
+    /// retirados sem "Ejetar" geram centenas de eventos e não indicam problema no computador.
+    /// </summary>
+    private static void DiskErrors(DiagnosticTestResult test, string group)
+    {
+        const int cap = 2000;
+        var events = new List<(int? Disk, char? Letter, int Id, DateTime Time)>();
+        try
+        {
+            var query = new EventLogQuery("System", PathType.LogName,
+                "*[System[(Provider[@Name='disk'] or Provider[@Name='Ntfs'] or Provider[@Name='Microsoft-Windows-Ntfs'] or Provider[@Name='stornvme'] or Provider[@Name='storahci']) and (Level=1 or Level=2) and TimeCreated[timediff(@SystemTime) <= 2592000000]]]")
+            {
+                ReverseDirection = true
+            };
+            using var reader = new EventLogReader(query);
+            for (var record = reader.ReadEvent(); record is not null && events.Count < cap; record = reader.ReadEvent())
+            {
+                using (record)
+                {
+                    var text = string.Join(" ", record.Properties.Select(x => x.Value?.ToString()));
+                    var diskMatch = Regex.Match(text, @"Harddisk(\d+)\\DR", RegexOptions.IgnoreCase);
+                    var letterMatch = Regex.Match(text, @"(?:^|[\s,:])([A-Z]):(?:$|[\s,\\])");
+                    events.Add((
+                        diskMatch.Success ? int.Parse(diskMatch.Groups[1].Value, CultureInfo.InvariantCulture) : null,
+                        letterMatch.Success ? letterMatch.Groups[1].Value[0] : null,
+                        record.Id,
+                        record.TimeCreated ?? DateTime.MinValue));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            test.Items.Add(Item("Erros de disco", $"Não foi possível ler o log ({ex.GetType().Name})", DiagnosticStatus.Info, group: group));
+            return;
+        }
+
+        if (events.Count == 0)
+        {
+            test.Items.Add(Item("Erros de disco", "Nenhum", DiagnosticStatus.Ok, group: group));
+            return;
+        }
+
+        // Discos atuais e a letra de cada partição.
+        var disks = Wmi("SELECT Number, FriendlyName, BusType, IsBoot, IsSystem FROM MSFT_Disk", StorageScope)
+            .Where(x => ToLong(Get(x, "Number")) is not null)
+            .ToDictionary(x => (int)ToLong(Get(x, "Number"))!.Value);
+        var letters = new Dictionary<char, int>();
+        foreach (var partition in Wmi("SELECT DiskNumber, DriveLetter FROM MSFT_Partition", StorageScope))
+        {
+            var letter = Get(partition, "DriveLetter") switch
+            {
+                char c => c,
+                ushort u => (char)u,
+                int i => (char)i,
+                string { Length: > 0 } text => text[0],
+                _ => '\0'
+            };
+            if (char.IsAsciiLetter(letter) && ToLong(Get(partition, "DiskNumber")) is { } number)
+            {
+                letters[char.ToUpperInvariant(letter)] = (int)number;
+            }
+        }
+
+        var systemLetter = (Path.GetPathRoot(Environment.SystemDirectory) ?? "C:")[0];
+        var recentLimit = DateTime.Now.AddDays(-7);
+
+        var groups = events
+            .GroupBy(x => x.Disk ?? (x.Letter is { } l && letters.TryGetValue(l, out var n) ? n : x.Letter is null ? -1 : -2 - x.Letter.Value))
+            .OrderByDescending(x => x.Count());
+
+        foreach (var diskEvents in groups)
+        {
+            var count = diskEvents.Count();
+            var recent = diskEvents.Count(x => x.Time >= recentLimit);
+            var last = diskEvents.Max(x => x.Time);
+            var ids = string.Join(", ", diskEvents.Select(x => x.Id).Distinct().OrderBy(x => x).Take(4));
+            var value = $"{count}{(events.Count >= cap ? "+" : "")} (último em {last:dd/MM/yyyy HH:mm}; {recent} nos últimos 7 dias)";
+
+            disks.TryGetValue(diskEvents.Key, out var disk);
+            var bus = ToLong(Get(disk, "BusType"));
+            var isSystem = ToBool(Get(disk, "IsBoot")) == true || ToBool(Get(disk, "IsSystem")) == true;
+            var removedLetter = diskEvents.Key <= -2 ? (char?)(-2 - diskEvents.Key) : null;
+
+            // 7 = USB, 12 = SD, 13 = MMC. Unidade que nem existe mais também foi removível.
+            var external = bus is 7 or 12 or 13 || (diskEvents.Key >= 0 && disk is null) || removedLetter is not null;
+            if (external)
+            {
+                var name = ToText(Get(disk, "FriendlyName")) ?? (removedLetter is { } r ? $"unidade {r}: (removida)" : "unidade removida");
+                test.Items.Add(Item(
+                    $"Erros de disco: {name} (externa)",
+                    value,
+                    recent > 0 ? DiagnosticStatus.Warning : DiagnosticStatus.Info,
+                    $"Pen drive, HD externo ou cartão (eventos {ids}). Normalmente é retirada sem \"Ejetar\" ou mídia com defeito; não afeta o Windows.",
+                    group));
+                continue;
+            }
+
+            var diskName = ToText(Get(disk, "FriendlyName")) ?? (diskEvents.Key == -1 ? "controladora/sem unidade identificada" : $"disco {diskEvents.Key}");
+            var driveLetter = letters.Where(x => x.Value == diskEvents.Key).Select(x => (char?)x.Key)
+                .OrderByDescending(x => x == systemLetter).FirstOrDefault() ?? (diskEvents.Key == -1 ? systemLetter : null);
+
+            var status = recent >= 10 && (isSystem || diskEvents.Key == -1 && driveLetter == systemLetter)
+                ? DiagnosticStatus.Error
+                : recent > 0 || count >= 10 ? DiagnosticStatus.Warning : DiagnosticStatus.Info;
+            var item = Item(
+                $"Erros de disco: {diskName}{(isSystem ? " (sistema)" : "")}",
+                value,
+                status,
+                status == DiagnosticStatus.Info
+                    ? $"Poucos eventos antigos (eventos {ids}). Acompanhe."
+                    : $"Eventos {ids}: blocos defeituosos, cabo/conexão ou controladora. Verifique o disco e faça backup se continuar.",
+                group);
+            if (driveLetter is { } letterToScan && status != DiagnosticStatus.Info)
+            {
+                item.WithRepair(DiagnosticRepairs.DiskScan, $"{letterToScan}:");
+            }
+            test.Items.Add(item);
+        }
     }
 
     private static void AddEventCount(
@@ -293,15 +427,55 @@ internal static class WindowsDiagnostics
         {
             if (wu is not null) pending.Add("Windows Update");
         }
+        string? fileDetails = null;
+        var onlyTempCleanup = false;
         using (var session = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Session Manager"))
         {
-            if (session?.GetValue("PendingFileRenameOperations") is string[] { Length: > 0 }) pending.Add("arquivos a substituir");
+            if (session?.GetValue("PendingFileRenameOperations") is string[] { Length: > 0 } operations)
+            {
+                pending.Add("arquivos a substituir");
+
+                // Pares (origem, destino); destino vazio = apagar no próximo início.
+                var sources = new List<(string Path, bool Delete)>();
+                for (var i = 0; i < operations.Length; i += 2)
+                {
+                    var source = operations[i].Replace(@"\??\", string.Empty).Trim();
+                    if (source.Length == 0)
+                    {
+                        continue;
+                    }
+                    var destination = i + 1 < operations.Length ? operations[i + 1].Trim() : string.Empty;
+                    sources.Add((source, destination.Length == 0));
+                }
+
+                onlyTempCleanup = sources.Count > 0 && sources.All(x => x.Delete &&
+                    (x.Path.Contains(@"\Temp\", StringComparison.OrdinalIgnoreCase) ||
+                     x.Path.Contains(@"\AppData\Local\Temp", StringComparison.OrdinalIgnoreCase)));
+                var names = sources.Select(x => Path.GetFileName(x.Path.TrimEnd('\\')))
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                fileDetails = $"{sources.Count} arquivo(s){(onlyTempCleanup ? ", só temporários para apagar" : "")}: " +
+                    string.Join(", ", names.Take(5)) + (names.Count > 5 ? $" e mais {names.Count - 5}" : "");
+            }
         }
-        test.Items.Add(Item(
+
+        // Só temporários para apagar no próximo início: não é motivo para reiniciar agora.
+        var rebootStatus = pending.Count == 0 ? DiagnosticStatus.Ok
+            : pending.Count == 1 && onlyTempCleanup ? DiagnosticStatus.Info
+            : DiagnosticStatus.Warning;
+        var rebootItem = Item(
             "Reinício pendente",
             pending.Count == 0 ? "Não" : $"Sim ({string.Join(", ", pending)})",
-            pending.Count == 0 ? DiagnosticStatus.Ok : DiagnosticStatus.Warning,
-            pending.Count == 0 ? null : "Reinicie para concluir atualizações e instalações."));
+            rebootStatus,
+            pending.Count == 0 ? null
+                : rebootStatus == DiagnosticStatus.Info ? $"Pode esperar o próximo reinício normal. {fileDetails}"
+                : $"Reinicie para concluir atualizações e instalações.{(fileDetails is null ? "" : $" {fileDetails}")}");
+        if (rebootStatus == DiagnosticStatus.Warning)
+        {
+            rebootItem.WithRepair(DiagnosticRepairs.Reboot);
+        }
+        test.Items.Add(rebootItem);
 
         // Última atualização instalada.
         var hotfixDates = Wmi("SELECT InstalledOn FROM Win32_QuickFixEngineering")
@@ -314,11 +488,16 @@ internal static class WindowsDiagnostics
         {
             var last = hotfixDates.Max();
             var days = (DateTime.Now - last).TotalDays;
-            test.Items.Add(Item(
+            var updateItem = Item(
                 "Última atualização do Windows",
                 $"{last:dd/MM/yyyy} ({(int)days} dias)",
                 days > 90 ? DiagnosticStatus.Error : days > 45 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-                days > 45 ? "O Windows está sem atualizações há muito tempo. Verifique o Windows Update." : null));
+                days > 45 ? "O Windows está sem atualizações há muito tempo. Verifique o Windows Update." : null);
+            if (days > 45)
+            {
+                updateItem.WithRepair(DiagnosticRepairs.WindowsUpdateReset);
+            }
+            test.Items.Add(updateItem);
         }
 
         // Antivírus.
@@ -344,8 +523,14 @@ internal static class WindowsDiagnostics
             var age = ToLong(Get(defender, "AntivirusSignatureAge"));
             if (enabled == true)
             {
-                test.Items.Add(Item("Antivírus", $"Microsoft Defender — assinaturas de {age ?? 0} dia(s)",
-                    age > 7 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok));
+                var defenderItem = Item("Antivírus", $"Microsoft Defender — assinaturas de {age ?? 0} dia(s)",
+                    age > 7 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
+                    age > 7 ? "Definições do antivírus antigas." : null);
+                if (age > 7)
+                {
+                    defenderItem.WithRepair(DiagnosticRepairs.DefenderUpdate);
+                }
+                test.Items.Add(defenderItem);
             }
             else
             {
@@ -360,9 +545,14 @@ internal static class WindowsDiagnostics
         if (profiles.Count > 0)
         {
             var disabled = profiles.Where(x => ToLong(Get(x, "Enabled")) is 0).Select(x => ToText(Get(x, "Name"))).ToList();
-            test.Items.Add(Item("Firewall do Windows",
+            var firewallItem = Item("Firewall do Windows",
                 disabled.Count == 0 ? "Ativo em todos os perfis" : $"Desativado: {string.Join(", ", disabled)}",
-                disabled.Count == 0 ? DiagnosticStatus.Ok : DiagnosticStatus.Warning));
+                disabled.Count == 0 ? DiagnosticStatus.Ok : DiagnosticStatus.Warning);
+            if (disabled.Count > 0)
+            {
+                firewallItem.WithRepair(DiagnosticRepairs.FirewallEnable);
+            }
+            test.Items.Add(firewallItem);
         }
 
         // BitLocker no disco do sistema.

@@ -1,0 +1,345 @@
+@using Remotely.Server.Hubs
+@using Remotely.Server.Models.Messages
+@using Remotely.Shared.Enums
+@using Remotely.Shared.Utilities
+@inherits AuthComponentBase
+
+@* Terminal e scripts rápidos de um único dispositivo, aberto pelo menu "Mais" do card. *@
+<div class="rm-dialog-backdrop" @onclick="Close" @onclick:stopPropagation></div>
+<div class="rm-dialog rm-dialog-wide panel shell-dialog" role="dialog" aria-modal="true" aria-labelledby="@($"shell-title-{Device.ID}")"
+     @onclick:stopPropagation>
+    <div class="rm-dialog-head">
+        <span class="diag-tile-icon"><i class="fa-solid fa-terminal"></i></span>
+        <div class="min-w-0">
+            <h2 id="@($"shell-title-{Device.ID}")">@Device.DeviceName</h2>
+            <p>Os comandos e scripts rodam só neste computador@(Device.IsOnline ? "" : " (offline no momento)").</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-icon btn-sm ms-auto" title="Fechar" @onclick="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="shell-tabs" role="tablist">
+        <button type="button" role="tab" class="@(_tab == "terminal" ? "active" : "")" aria-selected="@(_tab == "terminal")" @onclick='() => _tab = "terminal"'>
+            <i class="fa-solid fa-terminal"></i> Terminal
+        </button>
+        <button type="button" role="tab" class="@(_tab == "scripts" ? "active" : "")" aria-selected="@(_tab == "scripts")" @onclick="OpenScripts">
+            <i class="fa-solid fa-bolt"></i> Scripts rápidos
+            @if (_quickScripts is not null)
+            {
+                <span class="inv-count">@_quickScripts.Count</span>
+            }
+        </button>
+    </div>
+
+    @if (_tab == "terminal")
+    {
+        <div class="shell-output" @ref="_output" aria-live="polite">
+            @if (_lines.Count == 0)
+            {
+                <div class="shell-line shell-muted">Digite um comando e tecle Enter. Setas ↑ ↓ navegam pelo histórico.</div>
+            }
+            @foreach (var line in _lines)
+            {
+                <div @key="line.Id" class="shell-line @line.Class">@line.Text</div>
+            }
+            @if (_pending > 0)
+            {
+                <div class="shell-line shell-muted"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Aguardando resposta...</div>
+            }
+        </div>
+
+        <div class="shell-input-row">
+            <select class="form-select form-select-sm shell-select" @bind="_shell" aria-label="Shell">
+                @foreach (var shell in AvailableShells)
+                {
+                    <option value="@shell">@ShellLabel(shell)</option>
+                }
+            </select>
+            <div class="shell-input-wrap">
+                <span class="shell-prompt">@Prompt</span>
+                <input @ref="_input"
+                       class="form-control form-control-sm shell-input"
+                       placeholder="@(Device.IsOnline ? "Comando" : "Dispositivo offline")"
+                       spellcheck="false"
+                       autocomplete="off"
+                       disabled="@(!Device.IsOnline)"
+                       @bind="_command"
+                       @bind:event="oninput"
+                       @onkeydown="OnKeyDown" />
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" disabled="@(!Device.IsOnline || string.IsNullOrWhiteSpace(_command))" @onclick="RunCommand">
+                <i class="fa-solid fa-play"></i> Executar
+            </button>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Limpar a saída" @onclick="() => _lines.Clear()">
+                <i class="fa-solid fa-eraser"></i>
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="shell-scripts">
+            @if (_quickScripts is null)
+            {
+                <div class="shell-line shell-muted"><i class="fa-solid fa-circle-notch fa-spin me-1"></i> Carregando...</div>
+            }
+            else if (_quickScripts.Count == 0)
+            {
+                <div class="empty-state py-3">
+                    <div class="empty-icon"><i class="fa-solid fa-bolt"></i></div>
+                    <h3>Nenhum script rápido</h3>
+                    <p>Marque "Script rápido" ao salvar um script em <a href="/scripts/saved-scripts" target="_blank">Scripts</a> para ele aparecer aqui.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var script in _quickScripts)
+                {
+                    <div @key="script.Id" class="shell-script">
+                        <span class="shell-script-icon"><i class="fa-solid fa-scroll"></i></span>
+                        <div class="min-w-0 flex-grow-1">
+                            <strong>@script.Name</strong>
+                            <span class="small text-muted">@ShellLabel(script.Shell)@(string.IsNullOrWhiteSpace(script.FolderPath) ? "" : $" · {script.FolderPath}")</span>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" disabled="@(!Device.IsOnline)" @onclick="() => RunQuickScript(script)">
+                            <i class="fa-solid fa-play"></i> Executar
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private sealed record Line(Guid Id, string Text, string Class);
+
+    private readonly List<Line> _lines = [];
+    private readonly List<string> _history = [];
+    private int _historyIndex;
+    private int _pending;
+    private string _tab = "terminal";
+    private string? _command;
+    private ScriptingShell _shell;
+    private List<SavedScript>? _quickScripts;
+    private ElementReference _output;
+    private ElementReference _input;
+    private bool _scrollToEnd;
+    private bool _focusInput = true;
+
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    /// <summary>"terminal" ou "scripts".</summary>
+    [Parameter]
+    public string Tab { get; set; } = "terminal";
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Inject]
+    private ICircuitConnection CircuitConnection { get; init; } = null!;
+
+    [Inject]
+    private IDataService DataService { get; init; } = null!;
+
+    [Inject]
+    private IJsInterop JsInterop { get; init; } = null!;
+
+    [Inject]
+    private IToastService ToastService { get; init; } = null!;
+
+    private bool IsWindows => string.Equals(Device.Platform, "Windows", StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<ScriptingShell> AvailableShells => IsWindows
+        ? [ScriptingShell.WinPS, ScriptingShell.PSCore, ScriptingShell.CMD]
+        : [ScriptingShell.Bash, ScriptingShell.PSCore];
+
+    private string Prompt => _shell switch
+    {
+        ScriptingShell.CMD => ">",
+        ScriptingShell.Bash => "$",
+        _ => "PS>"
+    };
+
+    private static string ShellLabel(ScriptingShell shell) => shell switch
+    {
+        ScriptingShell.WinPS => "Windows PowerShell",
+        ScriptingShell.PSCore => "PowerShell 7",
+        ScriptingShell.CMD => "CMD",
+        ScriptingShell.Bash => "Bash",
+        _ => shell.ToString()
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        _shell = AvailableShells.First();
+        _tab = Tab == "scripts" ? "scripts" : "terminal";
+
+        await Register<ScriptResultMessage, string>(CircuitConnection.ConnectionId, HandleScriptResult);
+
+        if (_tab == "scripts")
+        {
+            await LoadQuickScripts();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (_tab != "terminal")
+        {
+            return;
+        }
+
+        if (_scrollToEnd)
+        {
+            _scrollToEnd = false;
+            JsInterop.ScrollToEnd(_output);
+        }
+
+        if (_focusInput && Device.IsOnline)
+        {
+            _focusInput = false;
+            try
+            {
+                await _input.FocusAsync();
+            }
+            catch
+            {
+                // Elemento ainda não montado.
+            }
+        }
+    }
+
+    private Task Close() => OnClose.InvokeAsync();
+
+    private async Task OpenScripts()
+    {
+        _tab = "scripts";
+        if (_quickScripts is null)
+        {
+            await LoadQuickScripts();
+        }
+    }
+
+    private async Task LoadQuickScripts()
+    {
+        EnsureUserSet();
+        _quickScripts = (await DataService.GetQuickScripts(User.Id))
+            .Where(x => IsWindows ? x.Shell != ScriptingShell.Bash : x.Shell is ScriptingShell.Bash or ScriptingShell.PSCore)
+            .OrderBy(x => x.Name)
+            .ToList();
+    }
+
+    private void AddLine(string text, string cssClass = "")
+    {
+        _lines.Add(new Line(Guid.NewGuid(), text, cssClass));
+        if (_lines.Count > 1000)
+        {
+            _lines.RemoveRange(0, _lines.Count - 1000);
+        }
+        _scrollToEnd = true;
+    }
+
+    private async Task RunCommand()
+    {
+        var command = _command?.Trim();
+        if (string.IsNullOrWhiteSpace(command) || !Device.IsOnline)
+        {
+            return;
+        }
+
+        if (!Permissions.Scripts)
+        {
+            ToastService.ShowToast2("Seu perfil não permite executar comandos.", Enums.ToastType.Warning);
+            return;
+        }
+
+        AddLine($"{Prompt} {command}", "shell-command");
+        _history.Remove(command);
+        _history.Add(command);
+        _historyIndex = _history.Count;
+        _command = string.Empty;
+        _pending++;
+
+        await CircuitConnection.ExecuteCommandOnAgent(_shell, command, [Device.ID]);
+    }
+
+    private async Task RunQuickScript(SavedScript script)
+    {
+        if (!Permissions.Scripts)
+        {
+            ToastService.ShowToast2("Seu perfil não permite executar scripts.", Enums.ToastType.Warning);
+            return;
+        }
+
+        EnsureUserSet();
+        var scriptRun = new ScriptRun
+        {
+            OrganizationID = User.OrganizationID,
+            RunAt = Time.Now,
+            SavedScriptId = script.Id,
+            RunOnNextConnect = false,
+            Initiator = User.UserName,
+            InputType = ScriptInputType.OneTimeScript,
+            Devices = DataService.GetDevices([Device.ID])
+        };
+        await DataService.AddScriptRun(scriptRun);
+        await CircuitConnection.RunScript([Device.ID], script.Id, scriptRun.Id, ScriptInputType.OneTimeScript, false);
+
+        _tab = "terminal";
+        AddLine($"▶ Script rápido: {script.Name} ({ShellLabel(script.Shell)})", "shell-command");
+        _pending++;
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs ev)
+    {
+        switch (ev.Key)
+        {
+            case "Enter" when !ev.ShiftKey:
+                await RunCommand();
+                break;
+            case "ArrowUp" when _history.Count > 0:
+                _historyIndex = Math.Max(0, _historyIndex - 1);
+                _command = _history[_historyIndex];
+                break;
+            case "ArrowDown" when _history.Count > 0:
+                _historyIndex = Math.Min(_history.Count, _historyIndex + 1);
+                _command = _historyIndex < _history.Count ? _history[_historyIndex] : string.Empty;
+                break;
+            case "Escape":
+                await Close();
+                break;
+        }
+    }
+
+    private async Task HandleScriptResult(object subscriber, ScriptResultMessage message)
+    {
+        var result = message.ScriptResult;
+        if (result.DeviceID != Device.ID)
+        {
+            return;
+        }
+
+        await InvokeAsync(() =>
+        {
+            _pending = Math.Max(0, _pending - 1);
+            var stdOut = result.StandardOutput ?? [];
+            var stdErr = result.ErrorOutput ?? [];
+            AddLine($"{result.TimeStamp.ToLocalTime():HH:mm:ss} · {result.RunTime.TotalSeconds:0.0} s{(result.HadErrors ? " · com erros" : "")}", "shell-meta");
+            foreach (var line in stdOut)
+            {
+                AddLine(line);
+            }
+            foreach (var line in stdErr)
+            {
+                AddLine(line, "shell-error");
+            }
+            if (stdOut.Length == 0 && stdErr.Length == 0)
+            {
+                AddLine("(sem saída)", "shell-muted");
+            }
+            StateHasChanged();
+        });
+    }
+}

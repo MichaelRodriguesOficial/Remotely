@@ -27,6 +27,9 @@ public partial class DeviceCard : AuthComponentBase
     private Remotely.Shared.Models.Inventory.DeviceInventory? _inventory;
     private Remotely.Server.Models.UserPermissions _permissions = Remotely.Server.Models.UserPermissions.Full;
 
+    /// <summary>Aba do terminal do dispositivo aberto pelo menu "Mais" (null = fechado).</summary>
+    private string? _shellTab;
+
     [Parameter]
     public Device Device { get; set; } = null!;
 

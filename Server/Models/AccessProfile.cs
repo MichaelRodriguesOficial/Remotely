@@ -21,6 +21,12 @@ public class AccessProfile
     public bool AllowDeviceManagement { get; set; } = true;
 
     /// <summary>
+    /// Executar os reparos da aba Diagnóstico (reiniciar, verificar disco, limpar, redefinir rede etc.).
+    /// Desligado por padrão: perfis criados antes desta opção não ganham a permissão sozinhos.
+    /// </summary>
+    public bool AllowRepairs { get; set; }
+
+    /// <summary>
     /// Quando ligado, os usuários do perfil passam a enxergar só os grupos em <see cref="DeviceGroupIds"/>.
     /// </summary>
     public bool RestrictToGroups { get; set; }
@@ -45,14 +51,16 @@ public record UserPermissions(
     bool RemoteControl,
     bool Scripts,
     bool ManageDevices,
+    bool Repairs,
     string? ProfileName)
 {
-    public static UserPermissions Full { get; } = new(true, true, true, null);
+    public static UserPermissions Full { get; } = new(true, true, true, true, null);
 }
 
 public enum AccessPermission
 {
     RemoteControl,
     Scripts,
-    ManageDevices
+    ManageDevices,
+    Repairs
 }

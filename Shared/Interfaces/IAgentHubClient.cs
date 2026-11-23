@@ -89,5 +89,8 @@ public interface IAgentHubClient
     /// <summary>Executa os testes da aba Diagnóstico e envia o resultado com ReportDiagnostics.</summary>
     Task RunDiagnostics(string runId, string[] tests);
 
+    /// <summary>Executa um reparo da lista fechada <c>DiagnosticRepairs</c> e envia o resultado com ReportDiagnostics.</summary>
+    Task RunRepair(string runId, string repairId, string? target);
+
     Task WakeDevice(string macAddress);
 }

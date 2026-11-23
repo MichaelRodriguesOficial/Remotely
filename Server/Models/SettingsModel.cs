@@ -23,6 +23,15 @@ public class SettingsModel
     public bool RemoteControlRequiresAuthentication { get; set; } = true;
     public bool Require2FA { get; set; }
     public string ServerUrl { get; set; } = string.Empty;
+
+    /// <summary>Roda os testes rápidos de diagnóstico sozinho nos dispositivos online.</summary>
+    public bool ScheduledDiagnosticsEnabled { get; set; }
+
+    /// <summary>Intervalo entre os diagnósticos automáticos de cada dispositivo (1 a 30 dias).</summary>
+    public int ScheduledDiagnosticsIntervalDays { get; set; } = 7;
+
+    /// <summary>Só dispara de segunda a sexta, das 8h às 18h (horário do servidor).</summary>
+    public bool ScheduledDiagnosticsBusinessHoursOnly { get; set; } = true;
     public bool SmtpCheckCertificateRevocation { get; set; } = true;
     public string SmtpDisplayName { get; set; } = string.Empty;
     public string SmtpEmail { get; set; } = string.Empty;

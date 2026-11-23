@@ -170,9 +170,14 @@ internal static class LinuxDiagnostics
     public static void SystemHealth(DiagnosticTestResult test)
     {
         var rebootRequired = File.Exists("/var/run/reboot-required");
-        test.Items.Add(Item("Reinício pendente", rebootRequired ? "Sim" : "Não",
+        var rebootItem = Item("Reinício pendente", rebootRequired ? "Sim" : "Não",
             rebootRequired ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-            rebootRequired ? "Reinicie para concluir atualizações do kernel ou bibliotecas." : null));
+            rebootRequired ? "Reinicie para concluir atualizações do kernel ou bibliotecas." : null);
+        if (rebootRequired)
+        {
+            rebootItem.WithRepair(DiagnosticRepairs.Reboot);
+        }
+        test.Items.Add(rebootItem);
 
         var updates = Read("/var/lib/update-notifier", "updates-available");
         if (!string.IsNullOrWhiteSpace(updates))

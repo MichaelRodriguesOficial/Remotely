@@ -24,6 +24,9 @@ public interface IDiagnosticsRunner
     /// (para o painel mostrar o andamento).
     /// </summary>
     Task Run(string runId, IReadOnlyList<string> tests, string? serverHost, Func<DiagnosticReport, Task> report, CancellationToken cancellationToken);
+
+    /// <summary>Executa um reparo da lista fechada <see cref="DiagnosticRepairs"/>.</summary>
+    Task RunRepair(string runId, string repairId, string? target, Func<DiagnosticReport, Task> report, CancellationToken cancellationToken);
 }
 
 public class DiagnosticsRunner : IDiagnosticsRunner
@@ -94,6 +97,69 @@ public class DiagnosticsRunner : IDiagnosticsRunner
             await report(diagnostic);
         }
 
+        diagnostic.Completed = true;
+        diagnostic.FinishedAt = DateTimeOffset.Now;
+        await report(diagnostic);
+    }
+
+    public async Task RunRepair(
+        string runId,
+        string repairId,
+        string? target,
+        Func<DiagnosticReport, Task> report,
+        CancellationToken cancellationToken)
+    {
+        var diagnostic = new DiagnosticReport { RunId = runId, StartedAt = DateTimeOffset.Now };
+        var repair = DiagnosticRepairs.Get(repairId);
+        var test = new DiagnosticTestResult
+        {
+            Id = DiagnosticRepairs.ToTestId(repairId),
+            Name = repair?.Name ?? repairId,
+            Status = DiagnosticStatus.Running,
+            StartedAt = DateTimeOffset.Now
+        };
+        diagnostic.Tests.Add(test);
+
+        // O servidor já validou; valida de novo para não depender só dele.
+        var normalized = repair is null ? null : DiagnosticRepairs.NormalizeTarget(repair, target);
+        if (repair is null || normalized is null)
+        {
+            test.Status = DiagnosticStatus.Error;
+            test.Summary = "Reparo ou alvo inválido.";
+        }
+        else
+        {
+            await report(diagnostic);
+            _logger.LogInformation("Running repair {repair} ({target}). Run: {runId}", repair.Id, normalized, runId);
+            try
+            {
+                await RepairRunner.Run(test, repair, normalized, () => report(diagnostic), cancellationToken);
+                if (test.Status == DiagnosticStatus.Running)
+                {
+                    test.Status = test.Items.Count == 0 ? DiagnosticStatus.Skipped : Worst(test.Items);
+                }
+                test.Summary ??= test.Status switch
+                {
+                    DiagnosticStatus.Error => "O reparo não foi concluído. Veja os detalhes abaixo.",
+                    DiagnosticStatus.Warning => "Reparo concluído, com pontos de atenção.",
+                    DiagnosticStatus.Skipped => "Nada a fazer neste equipamento.",
+                    _ => "Reparo concluído."
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                test.Status = DiagnosticStatus.Error;
+                test.Summary = "Tempo limite esgotado ou agente encerrado durante o reparo.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Repair {repair} failed.", repair.Id);
+                test.Status = DiagnosticStatus.Error;
+                test.Summary = $"Falha ao executar o reparo: {ex.Message}";
+            }
+        }
+
+        test.FinishedAt = DateTimeOffset.Now;
         diagnostic.Completed = true;
         diagnostic.FinishedAt = DateTimeOffset.Now;
         await report(diagnostic);
@@ -209,12 +275,20 @@ public class DiagnosticsRunner : IDiagnosticsRunner
 
                 var freePercent = 100.0 * drive.AvailableFreeSpace / drive.TotalSize;
                 var freeGb = drive.AvailableFreeSpace / 1024.0 / 1024 / 1024;
-                test.Items.Add(Item(
+                var item = Item(
                     $"Espaço livre em {mount.TrimEnd('\\')}",
                     $"{freeGb:0.0} GB ({freePercent:0}%)".Replace(',', '.'),
                     freePercent < 5 ? DiagnosticStatus.Error : freePercent < 10 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
                     freePercent < 10 ? "Pouco espaço deixa o sistema lento e impede atualizações." : null,
-                    "Volumes"));
+                    "Volumes");
+                var isSystemVolume = OperatingSystem.IsWindows()
+                    ? string.Equals(Path.GetPathRoot(Environment.SystemDirectory), mount, StringComparison.OrdinalIgnoreCase)
+                    : mount == "/";
+                if (freePercent < 10 && isSystemVolume)
+                {
+                    item.WithRepair(DiagnosticRepairs.Cleanup);
+                }
+                test.Items.Add(item);
             }
             catch
             {
@@ -226,11 +300,16 @@ public class DiagnosticsRunner : IDiagnosticsRunner
     private static void Uptime(DiagnosticTestResult test)
     {
         var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
-        test.Items.Add(Item(
+        var item = Item(
             "Tempo ligado",
             FormatDuration(uptime),
             uptime.TotalDays > 30 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-            uptime.TotalDays > 30 ? "Muito tempo sem reiniciar: atualizações e memória podem ficar pendentes." : null));
+            uptime.TotalDays > 30 ? "Muito tempo sem reiniciar: atualizações e memória podem ficar pendentes." : null);
+        if (uptime.TotalDays > 30)
+        {
+            item.WithRepair(DiagnosticRepairs.Reboot);
+        }
+        test.Items.Add(item);
     }
 
     // -----------------------------------------------------------------
@@ -305,7 +384,8 @@ public class DiagnosticsRunner : IDiagnosticsRunner
         }
         catch
         {
-            test.Items.Add(Item("Resolução de nomes (DNS)", "Falhou", DiagnosticStatus.Error, "O computador não consegue resolver nomes. Verifique o DNS.", "Testes"));
+            test.Items.Add(Item("Resolução de nomes (DNS)", "Falhou", DiagnosticStatus.Error, "O computador não consegue resolver nomes. Verifique o DNS.", "Testes")
+                .WithRepair(DiagnosticRepairs.NetworkFlush));
         }
 
         // Servidor do Remotely (TCP, porque ICMP costuma ser bloqueado).

@@ -49,6 +49,9 @@ public interface ICircuitConnection
     /// <summary>Inicia os testes da aba Diagnóstico. Retorna o ID da execução.</summary>
     Task<Result<string>> RunDiagnostics(string deviceId, IReadOnlyCollection<string> tests);
 
+    /// <summary>Executa um reparo da lista fechada <c>DiagnosticRepairs</c> no dispositivo.</summary>
+    Task<Result<string>> RunRepair(string deviceId, string repairId, string? target);
+
     Task UninstallAgents(string[] deviceIDs);
     Task UpdateTags(string deviceID, string tags);
 
@@ -129,6 +132,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             AccessPermission.RemoteControl => (permissions.RemoteControl, "acesso remoto e chat"),
             AccessPermission.Scripts => (permissions.Scripts, "executar scripts e comandos"),
             AccessPermission.ManageDevices => (permissions.ManageDevices, "gerenciar dispositivos"),
+            AccessPermission.Repairs => (permissions.Repairs, "executar reparos"),
             _ => (false, "esta ação")
         };
 
@@ -538,6 +542,53 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             User?.UserName);
 
         await _agentHubContext.Clients.Client(connectionId).RunDiagnostics(run.ID, validTests);
+        return Result.Ok(run.ID);
+    }
+
+    public async Task<Result<string>> RunRepair(string deviceId, string repairId, string? target)
+    {
+        if (!HasPermission(AccessPermission.Repairs))
+        {
+            return Result.Fail<string>("Seu perfil não permite executar reparos.");
+        }
+
+        var repair = Remotely.Shared.Models.Diagnostics.DiagnosticRepairs.Get(repairId);
+        if (repair is null)
+        {
+            return Result.Fail<string>("Reparo desconhecido.");
+        }
+
+        var normalizedTarget = Remotely.Shared.Models.Diagnostics.DiagnosticRepairs.NormalizeTarget(repair, target);
+        if (normalizedTarget is null)
+        {
+            return Result.Fail<string>("Alvo do reparo inválido.");
+        }
+
+        var (canAccess, connectionId) = CanAccessDevice(deviceId);
+        if (!canAccess || !_agentSessionCache.TryGetByDeviceId(deviceId, out var device))
+        {
+            return Result.Fail<string>("Dispositivo offline ou sem acesso.");
+        }
+
+        if (!Remotely.Shared.Models.Diagnostics.DiagnosticRepairs.IsAvailable(repair, device.Platform))
+        {
+            return Result.Fail<string>("Este reparo não está disponível para o sistema do dispositivo.");
+        }
+
+        var run = await _dataService.CreateDiagnosticRun(
+            deviceId,
+            User?.UserName,
+            [Remotely.Shared.Models.Diagnostics.DiagnosticRepairs.ToTestId(repair.Id)]);
+
+        _logger.LogInformation(
+            "Repair requested. Device: {deviceId} ({deviceName}). Repair: {repair}. Target: {target}. User: {username}",
+            deviceId,
+            device.DeviceName,
+            repair.Id,
+            normalizedTarget,
+            User?.UserName);
+
+        await _agentHubContext.Clients.Client(connectionId).RunRepair(run.ID, repair.Id, normalizedTarget);
         return Result.Ok(run.ID);
     }
 

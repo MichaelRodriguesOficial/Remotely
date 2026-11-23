@@ -235,7 +235,22 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
 
     public Task RequestInventory() => SendInventory(force: true);
 
-    public Task RunDiagnostics(string runId, string[] tests)
+    public Task RunDiagnostics(string runId, string[] tests) =>
+        StartDiagnosticsJob(runId, TimeSpan.FromMinutes(15), (report, token) =>
+            _diagnosticsRunner.Run(runId, tests, _connectionInfo?.Host, report, token));
+
+    public Task RunRepair(string runId, string repairId, string? target) =>
+        StartDiagnosticsJob(runId, TimeSpan.FromMinutes(90), (report, token) =>
+            _diagnosticsRunner.RunRepair(runId, repairId, target, report, token));
+
+    /// <summary>
+    /// Roda um diagnóstico ou reparo em segundo plano (podem levar minutos) e envia
+    /// cada atualização ao servidor. Um por vez.
+    /// </summary>
+    private Task StartDiagnosticsJob(
+        string runId,
+        TimeSpan timeout,
+        Func<Func<DiagnosticReport, Task>, CancellationToken, Task> job)
     {
         if (_hubConnection is null || !_isServerVerified)
         {
@@ -243,10 +258,10 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             return Task.CompletedTask;
         }
 
-        // Os testes podem levar minutos; não segura a conexão com o servidor.
         _ = Task.Run(async () =>
         {
-            if (!await _diagnosticsLock.WaitAsync(0))
+            // O re-teste automático chega logo depois que um reparo termina.
+            if (!await _diagnosticsLock.WaitAsync(TimeSpan.FromSeconds(60)))
             {
                 _logger.LogWarning("Diagnostics already running. Request {runId} ignored.", runId);
                 return;
@@ -255,14 +270,19 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             try
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
-                cts.CancelAfter(TimeSpan.FromMinutes(15));
+                cts.CancelAfter(timeout);
 
-                await _diagnosticsRunner.Run(
-                    runId,
-                    tests,
-                    _connectionInfo?.Host,
+                await job(
                     async report =>
                     {
+                        // Reparos de rede derrubam a conexão por alguns segundos: espera reconectar
+                        // para não perder o resultado final.
+                        var waitUntil = DateTimeOffset.Now.AddSeconds(report.Completed ? 90 : 0);
+                        while (_hubConnection?.State != HubConnectionState.Connected && DateTimeOffset.Now < waitUntil)
+                        {
+                            await Task.Delay(2_000, cts.Token);
+                        }
+
                         if (_hubConnection?.State == HubConnectionState.Connected)
                         {
                             await _hubConnection.SendAsync("ReportDiagnostics", DiagnosticSerializer.Compress(report), cts.Token);
@@ -783,6 +803,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         _hubConnection.On(nameof(RequestInventory), RequestInventory);
 
         _hubConnection.On<string, string[]>(nameof(RunDiagnostics), RunDiagnostics);
+
+        _hubConnection.On<string, string, string?>(nameof(RunRepair), RunRepair);
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
     }

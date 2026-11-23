@@ -148,40 +148,60 @@
                     <i class="fa-regular fa-comment"></i> Chat
                 </button>
                 }
-                @if (_permissions.ManageDevices)
+                @if (!_permissions.ManageDevices)
+                {
+                    <button class="btn btn-secondary" @onclick="OpenDeviceDetails">
+                        <i class="fa-solid fa-up-right-from-square"></i> Detalhes
+                    </button>
+                }
+                @if (_permissions.ManageDevices || _permissions.Scripts)
                 {
                 <DropdownButton DropDownMenuClass="dropdown-menu-end" ButtonClass="btn-secondary">
                     <ButtonContent>
                         <i class="fa-solid fa-ellipsis"></i> Mais
                     </ButtonContent>
                     <ChildListItems>
-                        <li>
-                            <button class="dropdown-item" @onclick="() => WakeDevice()">
-                                <i class="fa-solid fa-power-off"></i> Ligar (Wake-on-LAN)
-                            </button>
-                        </li>
-                        <li>
-                            <FileInputButton ClassNames="dropdown-item"
-                                             OnChanged="OnFileInputChanged">
-                                <ButtonContent>
-                                    <i class="fa-solid fa-upload"></i> Enviar arquivo
-                                </ButtonContent>
-                            </FileInputButton>
-                        </li>
-                        <li><hr class="dropdown-divider" /></li>
-                        <li>
-                            <button class="dropdown-item text-danger" @onclick="UninstallAgent">
-                                <i class="fa-solid fa-trash-can"></i> Desinstalar agente
-                            </button>
-                        </li>
+                        @if (_permissions.Scripts)
+                        {
+                            <li>
+                                <button class="dropdown-item" disabled="@(!Device.IsOnline)" @onclick='() => _shellTab = "terminal"'>
+                                    <i class="fa-solid fa-terminal"></i> Terminal
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" disabled="@(!Device.IsOnline)" @onclick='() => _shellTab = "scripts"'>
+                                    <i class="fa-solid fa-bolt"></i> Scripts rápidos
+                                </button>
+                            </li>
+                        }
+                        @if (_permissions.ManageDevices)
+                        {
+                            @if (_permissions.Scripts)
+                            {
+                                <li><hr class="dropdown-divider" /></li>
+                            }
+                            <li>
+                                <button class="dropdown-item" @onclick="() => WakeDevice()">
+                                    <i class="fa-solid fa-power-off"></i> Ligar (Wake-on-LAN)
+                                </button>
+                            </li>
+                            <li>
+                                <FileInputButton ClassNames="dropdown-item"
+                                                 OnChanged="OnFileInputChanged">
+                                    <ButtonContent>
+                                        <i class="fa-solid fa-upload"></i> Enviar arquivo
+                                    </ButtonContent>
+                                </FileInputButton>
+                            </li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
+                                <button class="dropdown-item text-danger" @onclick="UninstallAgent">
+                                    <i class="fa-solid fa-trash-can"></i> Desinstalar agente
+                                </button>
+                            </li>
+                        }
                     </ChildListItems>
                 </DropdownButton>
-                }
-                else
-                {
-                    <button class="btn btn-secondary" @onclick="OpenDeviceDetails">
-                        <i class="fa-solid fa-up-right-from-square"></i> Detalhes
-                    </button>
                 }
                 @if (!string.IsNullOrWhiteSpace(_permissions.ProfileName))
                 {
@@ -265,5 +285,9 @@
                 </section>
             </div>
         </div>
+    }
+    @if (_shellTab is not null)
+    {
+        <DeviceShellDialog Device="Device" Tab="@_shellTab" OnClose="() => _shellTab = null" />
     }
 </div>

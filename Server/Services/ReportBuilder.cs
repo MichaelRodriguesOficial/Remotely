@@ -104,7 +104,10 @@ public static class ReportBuilder
     {
         var status = report.Completed ? report.OverallStatus : DiagnosticStatus.Running;
         var sb = new StringBuilder();
-        sb.Append($"<h1>Diagnóstico de {E(device.DeviceName)}</h1>");
+        var repair = DiagnosticRepairs.FromTestId(run.Tests);
+        sb.Append(repair is null
+            ? $"<h1>Diagnóstico de {E(device.DeviceName)}</h1>"
+            : $"<h1>Reparo em {E(device.DeviceName)}: {E(repair.Name)}</h1>");
         sb.Append($"<div class=\"meta\">Executado em {run.StartedAt.ToLocalTime():dd/MM/yyyy HH:mm}");
         if (!string.IsNullOrWhiteSpace(run.RequestedBy))
         {
@@ -143,7 +146,7 @@ public static class ReportBuilder
             }
         }
 
-        return Page($"Diagnóstico de {device.DeviceName}", sb.ToString());
+        return Page(repair is null ? $"Diagnóstico de {device.DeviceName}" : $"Reparo em {device.DeviceName}", sb.ToString());
     }
 
     public static string InventoryHtml(Device device, DeviceInventory? inventory, UserNameDisplayFormat nameFormat, bool showSensitive)

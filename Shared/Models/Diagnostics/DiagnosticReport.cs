@@ -87,6 +87,12 @@ public class DiagnosticItem
 
     /// <summary>Explicação ou recomendação quando há alerta.</summary>
     public string? Hint { get; set; }
+
+    /// <summary>Reparo sugerido para este item (ID de <see cref="DiagnosticRepairs"/>).</summary>
+    public string? Repair { get; set; }
+
+    /// <summary>Alvo do reparo (letra da unidade, ID do dispositivo...).</summary>
+    public string? RepairTarget { get; set; }
 }
 
 /// <summary>JSON compactado (gzip) para trafegar relatórios grandes pelo SignalR.</summary>

@@ -1,5 +1,34 @@
 # Changelog
 
+## v1.8.0 — 2026-11-23
+
+### Reparos remotos (novo)
+- Botão **Corrigir** nos itens do diagnóstico com aviso ou problema, e menu **Reparos** na aba Diagnóstico para rodar qualquer reparo à mão.
+- Lista fechada de reparos (nada de comando livre), cada um com explicação, duração, confirmação e registro de quem executou:
+  - **Reiniciar o computador** com aviso na tela do usuário, em 2 a 60 minutos ou num horário (ex.: 22:00), e **cancelar reinício agendado**;
+  - **Verificar o disco** (`chkdsk /scan`, sem reiniciar) e **reparar o disco no próximo reinício**;
+  - **Limpeza de disco**: temporários antigos, lixeira, cache do Windows Update e componentes substituídos, mostrando quanto liberou;
+  - **Reparar arquivos do Windows** (`DISM /RestoreHealth` + `sfc /scannow`);
+  - **Limpar DNS e renovar IP** e **redefinir a rede** (Winsock e TCP/IP);
+  - **Destravar o Windows Update** (serviços, cache e nova busca);
+  - **Ativar o firewall**, **atualizar o Microsoft Defender** e **sincronizar o relógio**;
+  - **Reiniciar o dispositivo com erro** e **procurar alterações de hardware**.
+- Depois do reparo, o teste relacionado roda de novo sozinho para mostrar se resolveu. Quando o reparo só vale após reiniciar, aparece o botão para agendar o reinício.
+- Nova permissão **Executar reparos** nos perfis de acesso (desligada nos perfis existentes; administradores sempre podem).
+- No Linux: reiniciar/cancelar, limpeza (apt/dnf e journal), limpar DNS e sincronizar o relógio.
+
+### Diagnóstico
+- **Erros de disco separados por unidade**: pen drive, HD externo ou cartão (inclusive os já removidos) aparecem à parte e não marcam mais "Problema". No disco interno, "Problema" só quando é o disco do sistema e os erros são recentes (últimos 7 dias); o resto vira atenção ou informação.
+- **Reinício pendente** mostra quais arquivos estão esperando. Quando são só temporários para apagar, deixa de ser alerta.
+- **Diagnóstico agendado** em Configuração do servidor: testes rápidos automáticos a cada N dias em cada computador online, opcionalmente só em horário comercial.
+
+### Inventário
+- **Painel de saúde** no topo da lista: quantos computadores estão com problema, com atenção, tudo certo e sem diagnóstico (clique para filtrar).
+- Coluna **Diagnóstico** com o resultado mais recente de cada teste e os testes com pendência; filtro por situação e busca `diagnostico:problema`. Também sai na exportação.
+
+### Dispositivos
+- Menu **Mais** do card com **Terminal** e **Scripts rápidos** do próprio computador, numa janela: comandos em Windows PowerShell, PowerShell 7, CMD ou Bash, com histórico, e scripts rápidos com um clique.
+
 ## v1.7.0 — 2026-11-23
 
 ### Exportar e enviar relatórios por e-mail (novo)

@@ -300,6 +300,26 @@ public class AgentHub : Hub<IAgentHubClient>
         {
             await _messenger.Send(new DiagnosticsUpdatedMessage(device.ID, report.RunId), connection.ConnectionId);
         }
+
+        // Reparo concluído: refaz os testes ligados a ele para mostrar se resolveu.
+        var run = result.Value;
+        var repair = DiagnosticRepairs.FromTestId(run.Tests);
+        if (report.Completed &&
+            repair is { Reboots: false, NeedsRebootAfter: false } &&
+            repair.RetestTests.Length > 0 &&
+            run.Status is nameof(DiagnosticStatus.Ok) or nameof(DiagnosticStatus.Warning))
+        {
+            var retest = await _dataService.CreateDiagnosticRun(
+                device.ID,
+                $"{run.RequestedBy} (re-teste após {repair.Name.ToLowerInvariant()})",
+                repair.RetestTests);
+            await Clients.Caller.RunDiagnostics(retest.ID, repair.RetestTests);
+
+            foreach (var connection in connections)
+            {
+                await _messenger.Send(new DiagnosticsUpdatedMessage(device.ID, retest.ID), connection.ConnectionId);
+            }
+        }
     }
 
     /// <summary>

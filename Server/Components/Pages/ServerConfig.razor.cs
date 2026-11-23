@@ -226,7 +226,7 @@ public partial class ServerConfig : AuthComponentBase
 
     private async Task Save()
     {
-        
+        Input.ScheduledDiagnosticsIntervalDays = Math.Clamp(Input.ScheduledDiagnosticsIntervalDays, 1, 30);
         await DataService.SaveSettings(Input);
 
         ToastService.ShowToast("Configuração salva.");

@@ -64,7 +64,7 @@ public class AccessProfileService : IAccessProfileService
     {
         if (user is null)
         {
-            return new UserPermissions(false, false, false, null);
+            return new UserPermissions(false, false, false, false, null);
         }
 
         if (user.IsAdministrator)
@@ -83,6 +83,7 @@ public class AccessProfileService : IAccessProfileService
             profile.AllowRemoteControl,
             profile.AllowScripts,
             profile.AllowDeviceManagement,
+            profile.AllowRepairs,
             profile.Name);
     }
 

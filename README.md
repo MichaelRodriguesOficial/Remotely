@@ -28,7 +28,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
   </tr>
   <tr>
     <td align="center">Diagnóstico: testes de componentes, histórico e exportação</td>
-    <td align="center">Inventário com busca inteligente</td>
+    <td align="center">Inventário com painel de saúde e busca inteligente</td>
   </tr>
   <tr>
     <td><img src=".github/media/inventario-softwares.png" alt="Softwares instalados com busca" /></td>
@@ -37,6 +37,22 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
   <tr>
     <td align="center">Softwares instalados, com busca e exportação</td>
     <td align="center">Card aberto: ações, equipamento e identificação</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/diagnostico-corrigir.png" alt="Diagnóstico com botão Corrigir nos itens com problema" /></td>
+    <td><img src=".github/media/reparo-reiniciar.png" alt="Confirmação do reparo de reinício com horário" /></td>
+  </tr>
+  <tr>
+    <td align="center">Diagnóstico com botão Corrigir</td>
+    <td align="center">Reparo com confirmação (reiniciar às 22:00)</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/terminal-dispositivo.png" alt="Terminal do dispositivo aberto pelo menu Mais" /></td>
+    <td><img src=".github/media/scripts-rapidos.png" alt="Scripts rápidos do dispositivo" /></td>
+  </tr>
+  <tr>
+    <td align="center">Terminal direto no dispositivo</td>
+    <td align="center">Scripts rápidos com um clique</td>
   </tr>
   <tr>
     <td><img src=".github/media/relatorio-diagnostico.png" alt="Relatório do diagnóstico exportado em PDF/HTML" /></td>
@@ -79,6 +95,9 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
 - **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores e memórias (pela tabela SMBIOS, como o dmidecode), discos, placas de rede, vídeo e som, monitores, todas as controladoras PCI (com os nomes da base pci.ids), bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
 - **Diagnóstico remoto** (aba ao lado do Inventário): saúde dos discos (SMART), bateria, dispositivos com erro e telas azuis, rede (ping, DNS, Wi-Fi), sistema (reinício pendente, atualizações, antivírus), velocidade do disco, estresse de CPU com temperatura e teste de memória do Windows, com histórico das execuções.
+- **Reparos remotos com um clique**: botão Corrigir nos itens do diagnóstico (reiniciar com aviso ou num horário, chkdsk, limpeza de disco, sfc/DISM, rede, Windows Update, firewall, Defender, relógio e dispositivos com erro), com re-teste automático e permissão própria nos perfis.
+- **Diagnóstico agendado e painel de saúde**: testes rápidos automáticos e, no Inventário, quantos computadores estão com problema ou atenção.
+- **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card.
 - **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
 - **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.

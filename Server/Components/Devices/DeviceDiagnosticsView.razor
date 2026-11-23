@@ -9,6 +9,27 @@
             <p class="panel-description mb-0">Escolha os testes. O agente roda na máquina e o resultado aparece abaixo, teste a teste.</p>
         </div>
         <div class="diag-launcher-actions">
+            @if (Permissions.Repairs)
+            {
+                <div class="dropdown">
+                    <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" disabled="@(!CanRepair)"
+                            title="@(CanRepair ? "Executar um reparo" : "Disponível com o dispositivo online")">
+                        <i class="fa-solid fa-wrench"></i> Reparos
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end diag-repair-menu">
+                        <li><h6 class="dropdown-header">Executar no dispositivo</h6></li>
+                        @foreach (var repair in DiagnosticRepairs.All.Where(x => x.Target != RepairTargetKind.Device && DiagnosticRepairs.IsAvailable(x, Device.Platform)))
+                        {
+                            <li>
+                                <button type="button" class="dropdown-item" @onclick="() => OpenRepair(repair, null)">
+                                    <i class="@repair.Icon"></i>
+                                    <span>@repair.Name</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
             <button type="button" class="btn btn-ghost btn-sm" @onclick="SelectQuick">Só os rápidos</button>
             <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _selected.Clear()">Limpar</button>
             <button type="button" class="btn btn-primary" disabled="@(!CanRun || _selected.Count == 0 || _isStarting)" @onclick="Start">
@@ -61,11 +82,19 @@
                 {
                     var status = GetRunStatus(run);
                     var count = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries).Length;
+                    var runRepair = DiagnosticRepairs.FromTestId(run.Tests);
                     <button type="button" class="diag-history-item @(run.ID == _selectedRunId ? "active" : "")" @onclick="() => SelectRun(run.ID)">
-                        <span class="diag-history-status diag-bg-@status.ToString().ToLowerInvariant()"><i class="@StatusIcon(status, colored: false)"></i></span>
+                        <span class="diag-history-status diag-bg-@status.ToString().ToLowerInvariant()"><i class="@(runRepair is null ? StatusIcon(status, colored: false) : "fa-solid fa-wrench")"></i></span>
                         <span class="diag-history-text">
                             <strong>@run.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</strong>
-                            <span>@RunTitle(status) · @count teste(s)</span>
+                            @if (runRepair is null)
+                            {
+                                <span>@RunTitle(status) · @count teste(s)</span>
+                            }
+                            else
+                            {
+                                <span>Reparo: @runRepair.Name · @RunTitle(status, isRepair: true).ToLowerInvariant()</span>
+                            }
                             @if (!string.IsNullOrWhiteSpace(run.RequestedBy))
                             {
                                 <span class="text-truncate">@run.RequestedBy</span>
@@ -89,10 +118,11 @@
         else
         {
             var runStatus = GetRunStatus(_selectedRun);
+            var isRepairRun = DiagnosticRepairs.IsRepairRun(_selectedRun.Tests);
             <section class="panel diag-summary diag-@runStatus.ToString().ToLowerInvariant()">
                 <span class="diag-summary-icon diag-bg-@runStatus.ToString().ToLowerInvariant()"><i class="@StatusIcon(runStatus, colored: false)"></i></span>
                 <div class="diag-summary-text">
-                    <h2>@RunTitle(runStatus)</h2>
+                    <h2>@(isRepairRun ? $"{DiagnosticRepairs.FromTestId(_selectedRun.Tests)?.Name}: {RunTitle(runStatus, isRepair: true).ToLowerInvariant()}" : RunTitle(runStatus))</h2>
                     <div class="small text-muted">
                         @_selectedRun.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                         @if (!string.IsNullOrWhiteSpace(_selectedRun.RequestedBy))
@@ -104,21 +134,27 @@
                             <span> · durou @FormatDuration(finished - _selectedRun.StartedAt)</span>
                         }
                     </div>
-                    <div class="diag-counts">
+                    @if (runStatus == DiagnosticStatus.Skipped && _selectedRun.Data is null)
+                    {
+                        <div class="small text-warning mt-1">
+                            <i class="fa-solid fa-circle-info"></i> O agente não respondeu. Ele pode estar desligado ou numa versão antiga: atualize o agente em Configuração do servidor.
+                        </div>
+                    }
+                    <div class="diag-counts @(isRepairRun ? "d-none" : "")">
                         <span class="pill success">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Ok) ok</span>
                         <span class="pill warning">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Warning) atenção</span>
                         <span class="pill danger">@_selectedReport.Tests.Count(x => x.Status == DiagnosticStatus.Error) problema(s)</span>
                     </div>
                 </div>
                 <ReportActions FileName="@($"diagnostico-{Device.DeviceName}-{_selectedRun.StartedAt.ToLocalTime():yyyy-MM-dd-HHmm}")"
-                               EmailSubject="@($"Diagnóstico de {Device.DeviceName} ({_selectedRun.StartedAt.ToLocalTime():dd/MM/yyyy HH:mm}): {RunTitle(runStatus)}")"
+                               EmailSubject="@($"{(isRepairRun ? "Reparo" : "Diagnóstico")} de {Device.DeviceName} ({_selectedRun.StartedAt.ToLocalTime():dd/MM/yyyy HH:mm}): {RunTitle(runStatus, isRepairRun)}")"
                                Html="BuildHtml"
                                Csv="BuildCsv"
                                Json="BuildJson"
                                Disabled="@(runStatus == DiagnosticStatus.Running)" />
             </section>
 
-            <div class="diag-overview">
+            <div class="diag-overview @(isRepairRun ? "d-none" : "")">
                 @foreach (var test in _selectedReport.Tests)
                 {
                     <a class="diag-overview-item diag-border-@test.Status.ToString().ToLowerInvariant()" href="@($"device-details/{Device.ID}/diagnostics#diag-{test.Id}")"
@@ -165,6 +201,19 @@
                                                 <small>@item.Hint</small>
                                             }
                                         </span>
+                                        <span class="diag-item-action">
+                                            @if (DiagnosticRepairs.Get(item.Repair) is { } itemRepair &&
+                                                 Permissions.Repairs &&
+                                                 DiagnosticRepairs.IsAvailable(itemRepair, Device.Platform) &&
+                                                 item.Status is DiagnosticStatus.Warning or DiagnosticStatus.Error)
+                                            {
+                                                <button type="button" class="btn btn-sm diag-fix-btn" disabled="@(!CanRepair)"
+                                                        title="@(CanRepair ? itemRepair.Name : "Disponível com o dispositivo online")"
+                                                        @onclick="() => OpenRepair(itemRepair, item.RepairTarget)">
+                                                    <i class="fa-solid fa-wrench"></i> Corrigir
+                                                </button>
+                                            }
+                                        </span>
                                     </div>
                                 }
                             </div>
@@ -176,6 +225,79 @@
     </div>
 </div>
 
+@if (_repair is { } dialogRepair)
+{
+    <div class="rm-dialog-backdrop" @onclick="CloseRepair"></div>
+    <div class="rm-dialog panel" role="dialog" aria-modal="true" aria-labelledby="repair-dialog-title">
+        <div class="rm-dialog-head">
+            <span class="diag-tile-icon"><i class="@dialogRepair.Icon"></i></span>
+            <div class="min-w-0">
+                <h2 id="repair-dialog-title">@dialogRepair.Name</h2>
+                <p>@dialogRepair.Description</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm ms-auto" title="Fechar" @onclick="CloseRepair"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <dl class="rm-dialog-facts">
+            <dt>Dispositivo</dt>
+            <dd>@Device.DeviceName</dd>
+            @if (dialogRepair.Target == RepairTargetKind.Drive)
+            {
+                <dt>Unidade</dt>
+                <dd>
+                    <input class="form-control form-control-sm rm-dialog-drive" maxlength="2" @bind="_repairTarget" @bind:event="oninput" aria-label="Unidade" />
+                </dd>
+            }
+            else if (dialogRepair.Target == RepairTargetKind.Device)
+            {
+                <dt>Dispositivo com erro</dt>
+                <dd class="mono small text-break">@_repairTarget</dd>
+            }
+            else if (dialogRepair.Target == RepairTargetKind.RebootTime)
+            {
+                <dt>Quando</dt>
+                <dd>
+                    <div class="rm-dialog-when">
+                        <select class="form-select form-select-sm" @bind="_rebootChoice" aria-label="Quando reiniciar">
+                            @foreach (var option in DiagnosticRepairs.RebootOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                            <option value="time">Num horário...</option>
+                        </select>
+                        @if (_rebootChoice == "time")
+                        {
+                            <input type="time" class="form-control form-control-sm" @bind="_rebootTime" aria-label="Horário" />
+                        }
+                    </div>
+                </dd>
+            }
+            <dt>Duração</dt>
+            <dd>@dialogRepair.Duration</dd>
+        </dl>
+
+        @if (dialogRepair.Reboots)
+        {
+            <div class="diag-notice"><i class="fa-solid fa-triangle-exclamation"></i> O usuário vê um aviso na tela e o computador reinicia no horário escolhido. Trabalho não salvo é perdido.</div>
+        }
+        else if (dialogRepair.NeedsRebootAfter)
+        {
+            <div class="diag-notice"><i class="fa-solid fa-circle-info"></i> Só tem efeito depois de reiniciar. Ao terminar, aparece o botão para agendar o reinício.</div>
+        }
+        else if (dialogRepair.RetestTests.Length > 0)
+        {
+            <div class="rm-dialog-note"><i class="fa-solid fa-rotate"></i> Ao terminar, o teste relacionado roda de novo para mostrar se resolveu.</div>
+        }
+
+        <div class="rm-dialog-actions">
+            <button type="button" class="btn btn-ghost" @onclick="CloseRepair">Cancelar</button>
+            <button type="button" class="btn btn-primary" disabled="@(_isStartingRepair || !CanRepair)" @onclick="ConfirmRepair">
+                <i class="fa-solid @(_isStartingRepair ? "fa-circle-notch fa-spin" : "fa-wrench")"></i> Executar reparo
+            </button>
+        </div>
+    </div>
+}
+
 @code {
     private readonly HashSet<string> _selected = [DiagnosticTests.Disks, DiagnosticTests.Battery, DiagnosticTests.Devices, DiagnosticTests.Network, DiagnosticTests.System];
     private List<DeviceDiagnosticRun> _runs = [];
@@ -183,6 +305,11 @@
     private DeviceDiagnosticRun? _selectedRun;
     private DiagnosticReport? _selectedReport;
     private bool _isStarting;
+    private DiagnosticRepairs.RepairInfo? _repair;
+    private string? _repairTarget;
+    private string _rebootChoice = "5";
+    private TimeOnly? _rebootTime = new(22, 0);
+    private bool _isStartingRepair;
 
     [Parameter, EditorRequired]
     public Device Device { get; set; } = null!;
@@ -206,6 +333,58 @@
 
     private bool CanRun => Device.IsOnline && Permissions.ManageDevices;
 
+    private bool CanRepair => Device.IsOnline && Permissions.Repairs;
+
+    private void OpenRepair(DiagnosticRepairs.RepairInfo repair, string? target)
+    {
+        _repair = repair;
+        _repairTarget = target ?? (repair.Target == RepairTargetKind.Drive ? "C:" : null);
+        _rebootChoice = "5";
+    }
+
+    private void CloseRepair() => _repair = null;
+
+    private async Task ConfirmRepair()
+    {
+        if (_repair is null || !CanRepair)
+        {
+            return;
+        }
+
+        var target = _repair.Target switch
+        {
+            RepairTargetKind.RebootTime => _rebootChoice == "time" ? _rebootTime?.ToString("HH:mm") : _rebootChoice,
+            RepairTargetKind.None => null,
+            _ => _repairTarget
+        };
+
+        if (DiagnosticRepairs.NormalizeTarget(_repair, target) is null)
+        {
+            ToastService.ShowToast2(_repair.Target == RepairTargetKind.Drive ? "Informe a unidade, por exemplo C:." : "Escolha quando reiniciar.", Enums.ToastType.Warning);
+            return;
+        }
+
+        _isStartingRepair = true;
+        try
+        {
+            var result = await CircuitConnection.RunRepair(Device.ID, _repair.Id, target);
+            if (!result.IsSuccess)
+            {
+                ToastService.ShowToast2(result.Reason, Enums.ToastType.Warning);
+                return;
+            }
+
+            ToastService.ShowToast2($"{_repair.Name}: iniciado.", Enums.ToastType.Info);
+            _repair = null;
+            await LoadRuns(selectLatest: false);
+            SelectRun(result.Value);
+        }
+        finally
+        {
+            _isStartingRepair = false;
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         await base.OnInitializedAsync();
@@ -228,8 +407,10 @@
         await InvokeAsync(async () =>
         {
             // Acompanha a execução nova automaticamente.
+            var isNew = _runs.All(x => x.ID != message.RunId);
             var follow = _selectedRunId is null || _selectedRunId == message.RunId ||
-                _runs.FirstOrDefault()?.ID == message.RunId;
+                _runs.FirstOrDefault()?.ID == message.RunId ||
+                (isNew && _selectedRunId == _runs.FirstOrDefault()?.ID);
             await LoadRuns(selectLatest: false);
             if (follow)
             {
@@ -269,7 +450,7 @@
                     .Select(id => new DiagnosticTestResult
                     {
                         Id = id,
-                        Name = DiagnosticTests.Get(id)?.Name ?? id,
+                        Name = DiagnosticTests.Get(id)?.Name ?? DiagnosticRepairs.FromTestId(id)?.Name ?? id,
                         Status = DiagnosticStatus.Pending
                     })
                     .ToList()
@@ -347,6 +528,15 @@
 
     private DiagnosticStatus GetRunStatus(DeviceDiagnosticRun run)
     {
+        if (run.Status == "Running" && DiagnosticRepairs.IsRepairRun(run.Tests))
+        {
+            // O agente responde na hora ao começar o reparo; sem resposta = agente antigo ou desligado.
+            var elapsed = DateTimeOffset.Now - run.StartedAt;
+            return (run.Data is null && elapsed > TimeSpan.FromMinutes(3)) || elapsed > TimeSpan.FromMinutes(100)
+                ? DiagnosticStatus.Skipped
+                : DiagnosticStatus.Running;
+        }
+
         if (run.Status == "Running")
         {
             // Agente antigo (sem diagnóstico), desligado no meio ou reiniciado pelo teste de memória.
@@ -358,6 +548,16 @@
 
         return Enum.TryParse<DiagnosticStatus>(run.Status, out var status) ? status : DiagnosticStatus.Info;
     }
+
+    private static string RunTitle(DiagnosticStatus status, bool isRepair) => !isRepair ? RunTitle(status) : status switch
+    {
+        DiagnosticStatus.Ok => "Concluído",
+        DiagnosticStatus.Warning => "Concluído com avisos",
+        DiagnosticStatus.Error => "Não concluído",
+        DiagnosticStatus.Running or DiagnosticStatus.Pending => "Executando...",
+        DiagnosticStatus.Skipped => "Não executado",
+        _ => "Reparo"
+    };
 
     private static string RunTitle(DiagnosticStatus status) => status switch
     {
@@ -410,7 +610,7 @@
         DiagnosticTests.DiskSpeed => "fa-solid fa-gauge-high",
         DiagnosticTests.CpuStress => "fa-solid fa-temperature-high",
         DiagnosticTests.MemoryTest => "fa-solid fa-memory",
-        _ => "fa-solid fa-vial"
+        _ => DiagnosticRepairs.FromTestId(id)?.Icon ?? "fa-solid fa-vial"
     };
 
     private async Task ScrollTo(string testId) =>

@@ -219,6 +219,15 @@ else if (User is not null)
                             <small>Editar apelido, grupo e observações, enviar arquivos, ligar (WoL) e desinstalar o agente.</small>
                         </span>
                     </label>
+                    <label class="permission-card">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input" type="checkbox" role="switch" @bind="_editingProfile.AllowRepairs" />
+                        </div>
+                        <span>
+                            <strong><i class="fa-solid fa-wrench"></i> Executar reparos</strong>
+                            <small>Botão Corrigir do Diagnóstico: reiniciar, verificar disco, limpeza, redefinir rede e Windows Update.</small>
+                        </span>
+                    </label>
                 </div>
 
                 <div class="row g-3 mt-1">
@@ -326,6 +335,7 @@ else if (User is not null)
                             <span class="pill @(profile.AllowRemoteControl ? "success" : "")"><i class="fa-solid @(profile.AllowRemoteControl ? "fa-check" : "fa-xmark")"></i> Acesso remoto</span>
                             <span class="pill @(profile.AllowScripts ? "success" : "")"><i class="fa-solid @(profile.AllowScripts ? "fa-check" : "fa-xmark")"></i> Scripts</span>
                             <span class="pill @(profile.AllowDeviceManagement ? "success" : "")"><i class="fa-solid @(profile.AllowDeviceManagement ? "fa-check" : "fa-xmark")"></i> Gerenciar</span>
+                            <span class="pill @(profile.AllowRepairs ? "success" : "")"><i class="fa-solid @(profile.AllowRepairs ? "fa-check" : "fa-xmark")"></i> Reparos</span>
                         </div>
                         <dl class="profile-meta">
                             <dt>Grupos</dt>
