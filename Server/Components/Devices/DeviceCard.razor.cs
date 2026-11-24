@@ -463,7 +463,10 @@ public partial class DeviceCard : AuthComponentBase
 
     private async Task UninstallAgent()
     {
-        var result = await JsInterop.Confirm("Tem certeza de que quer desinstalar este agente? Isso é permanente!");
+        var result = await JsInterop.Confirm(new ConfirmOptions(
+            "Desinstalar agente",
+            $"O agente será removido de {Device.DeviceName} e o computador sai da lista. Para voltar, é preciso instalar de novo.",
+            "Desinstalar", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (result)
         {
             await CircuitConnection.UninstallAgents(new[] { Device.ID });

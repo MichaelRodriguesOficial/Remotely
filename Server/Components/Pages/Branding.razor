@@ -142,7 +142,7 @@
     private async Task ResetBranding()
     {
         EnsureUserSet();
-        var result = await JsInterop.Confirm("Tem certeza de que quer voltar à personalização padrão?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Restaurar personalização", "O nome, as cores e o logotipo voltam ao padrão do Remotely.", "Restaurar", Icon: "fa-solid fa-rotate-left"));
         if (result)
         {
             await DataService.ResetBranding(User.OrganizationID);

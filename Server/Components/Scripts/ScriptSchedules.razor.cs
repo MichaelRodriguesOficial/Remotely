@@ -127,7 +127,7 @@ public partial class ScriptSchedules : AuthComponentBase
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Excluir o agendamento \"{_selectedSchedule.Name}\"?");
+            var result = await JsInterop.Confirm(new ConfirmOptions("Excluir agendamento", $"Excluir o agendamento \"{_selectedSchedule.Name}\"? Ele deixa de rodar.", "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
             if (!result)
             {
                 return;

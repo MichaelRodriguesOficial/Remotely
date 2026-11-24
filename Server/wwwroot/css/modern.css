@@ -2265,3 +2265,20 @@ label, .form-label {
 .diag-notice-danger { background: rgba(var(--rm-danger-rgb), 0.1); }
     .diag-notice-danger i { color: var(--rm-danger); }
 .rm-dialog .diag-tiles { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+
+/* Janela de confirmação */
+.rm-confirm { width: min(460px, calc(100vw - 2rem)); z-index: 1081; }
+.rm-dialog-backdrop:has(+ .rm-confirm) { z-index: 1080; }
+.rm-confirm-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    background: rgba(var(--rm-accent-rgb), 0.12);
+    color: var(--rm-accent);
+    font-size: 1.05rem;
+}
+.rm-confirm.danger .rm-confirm-icon { background: rgba(var(--rm-danger-rgb), 0.12); color: var(--rm-danger); }
+.rm-confirm .rm-dialog-head p { white-space: pre-line; }

@@ -488,9 +488,11 @@
 
         if (_selected.Contains(DiagnosticTests.MemoryTest))
         {
-            var confirmed = await JsInterop.Confirm(
+            var confirmed = await JsInterop.Confirm(new ConfirmOptions(
+                "O computador vai reiniciar",
                 $"O teste de memória reinicia {Device.DeviceName} em 2 minutos (o usuário recebe um aviso) " +
-                "e a máquina fica 10 a 20 minutos testando a memória antes de voltar ao Windows. Continuar?");
+                "e a máquina fica de 10 a 20 minutos testando a memória antes de voltar ao Windows. Trabalho não salvo é perdido.",
+                "Executar e reiniciar", Danger: true, Icon: "fa-solid fa-memory"));
             if (!confirmed)
             {
                 return;
@@ -498,8 +500,10 @@
         }
         else if (DiagnosticTests.All.Any(x => x.Heavy && _selected.Contains(x.Id)))
         {
-            var confirmed = await JsInterop.Confirm(
-                $"Os testes pesados deixam {Device.DeviceName} lento por cerca de 2 minutos. Continuar?");
+            var confirmed = await JsInterop.Confirm(new ConfirmOptions(
+                "Testes pesados",
+                $"Os testes pesados deixam {Device.DeviceName} lento por cerca de 2 minutos.",
+                "Executar", Icon: "fa-solid fa-weight-hanging"));
             if (!confirmed)
             {
                 return;

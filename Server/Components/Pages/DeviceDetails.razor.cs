@@ -232,7 +232,7 @@ public partial class DeviceDetails : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir os logs remotos?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir logs do agente", "Os logs guardados no computador serão apagados.", "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (result)
         {
             await CircuitConnection.DeleteRemoteLogs(_device.ID);

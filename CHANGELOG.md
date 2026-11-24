@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.9.2 — 2026-11-24
+
+### Interface
+- Fim das caixas de confirmação do navegador ("teste2.cavsul.com.br diz…"): todas as confirmações do painel usam agora uma janela no padrão visual do Remotely, com título, explicação, ícone e botão com o nome da ação. Ações perigosas (excluir, desinstalar agente, testes que reiniciam) ficam em vermelho.
+- Vale para: testes rápidos em lote, testes pesados e de memória, desinstalar agente, excluir logs, scripts, agendamentos, convites, grupos, usuários, perfis, chaves de API e restaurar a personalização. Renomear chave de API também usa a janela nova.
+- Esc cancela; o foco já fica no botão de confirmar.
+
 ## v1.9.1 — 2026-11-24
 
 ### Menu Diagnóstico

@@ -310,6 +310,7 @@ services.AddHostedService<ScheduledDiagnosticsService>();
 services.AddSingleton<IUpgradeService, UpgradeService>();
 services.AddScoped<IToastService, ToastService>();
 services.AddScoped<IModalService, ModalService>();
+services.AddScoped<IConfirmService, ConfirmService>();
 services.AddScoped<IJsInterop, JsInterop>();
 services.AddScoped<ICircuitConnection, CircuitConnection>();
 services.AddScoped<ILoaderService, LoaderService>();

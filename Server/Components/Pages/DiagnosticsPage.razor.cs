@@ -373,9 +373,12 @@ public partial class DiagnosticsPage : AuthComponentBase
             return;
         }
 
-        if (!await JsInterop.Confirm(
-            $"Executar os testes rápidos (discos, bateria, dispositivos, rede e sistema) em {online} computador(es)?" +
-            (offline > 0 ? $" {offline} offline ficam de fora." : "")))
+        if (!await JsInterop.Confirm(new ConfirmOptions(
+            "Executar testes rápidos",
+            $"Discos, bateria, dispositivos, rede e sistema em {online} computador(es). Levam segundos e não atrapalham o usuário." +
+            (offline == 1 ? " 1 computador offline fica de fora." : offline > 1 ? $" {offline} computadores offline ficam de fora." : ""),
+            $"Executar em {online}",
+            Icon: "fa-solid fa-bolt")))
         {
             return;
         }

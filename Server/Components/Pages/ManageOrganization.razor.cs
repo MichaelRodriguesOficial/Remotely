@@ -121,7 +121,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este convite?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir convite", "O link do convite deixa de funcionar.", "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (!result)
         {
             return;
@@ -152,7 +152,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este grupo de dispositivos?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir grupo", "Os dispositivos do grupo ficam sem grupo e os perfis de acesso deixam de considerá-lo.", "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (!result)
         {
             return;
@@ -178,7 +178,7 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir este usuário?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir usuário", "O usuário perde o acesso ao painel imediatamente. Esta ação não pode ser desfeita.", "Excluir", Danger: true, Icon: "fa-solid fa-user-xmark"));
         if (!result)
         {
             return;
@@ -378,8 +378,10 @@ public partial class ManageOrganization : AuthComponentBase
             return;
         }
 
-        var confirmed = await JsInterop.Confirm(
-            $"Excluir o perfil \"{profile.Name}\"? Os usuários dele voltam a ter acesso total aos grupos em que já estão.");
+        var confirmed = await JsInterop.Confirm(new ConfirmOptions(
+            "Excluir perfil de acesso",
+            $"Excluir o perfil \"{profile.Name}\"? Os usuários dele voltam a ter acesso total aos grupos em que já estão.",
+            "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (!confirmed)
         {
             return;

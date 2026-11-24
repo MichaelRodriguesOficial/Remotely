@@ -12,7 +12,11 @@ public interface IJsInterop
 
     void AutoHeight();
 
+    /// <summary>Confirmação simples (janela do painel; cai no confirm do navegador fora do layout).</summary>
     ValueTask<bool> Confirm(string message);
+
+    /// <summary>Confirmação com título, texto do botão e estilo de ação perigosa.</summary>
+    ValueTask<bool> Confirm(ConfirmOptions options);
 
     ValueTask<int> GetCursorIndex(ElementReference terminalInput);
 
@@ -42,10 +46,12 @@ public interface IJsInterop
 public class JsInterop : IJsInterop
 {
     private readonly IJSRuntime _jsRuntime;
+    private readonly IConfirmService _confirmService;
 
-    public JsInterop(IJSRuntime jSRuntime)
+    public JsInterop(IJSRuntime jSRuntime, IConfirmService confirmService)
     {
         _jsRuntime = jSRuntime;
+        _confirmService = confirmService;
     }
 
     public void AddBeforeUnloadHandler()
@@ -68,9 +74,17 @@ public class JsInterop : IJsInterop
         _jsRuntime.InvokeVoidAsync("autoHeight");
     }
 
-    public ValueTask<bool> Confirm(string message)
+    public ValueTask<bool> Confirm(string message) =>
+        Confirm(new ConfirmOptions("Confirmar", message));
+
+    public async ValueTask<bool> Confirm(ConfirmOptions options)
     {
-        return _jsRuntime.InvokeAsync<bool>("invokeConfirm", message);
+        if (_confirmService.HasHost)
+        {
+            return await _confirmService.Confirm(options);
+        }
+
+        return await _jsRuntime.InvokeAsync<bool>("invokeConfirm", $"{options.Title}\n\n{options.Message}");
     }
 
     public ValueTask<int> GetCursorIndex(ElementReference inputElement)
@@ -99,9 +113,18 @@ public class JsInterop : IJsInterop
         _jsRuntime.InvokeVoidAsync("preventTabOut", terminalInput);
     }
 
-    public ValueTask<string> Prompt(string message)
+    public async ValueTask<string> Prompt(string message)
     {
-        return _jsRuntime.InvokeAsync<string>("invokePrompt", message);
+        if (_confirmService.HasHost)
+        {
+            var result = await _confirmService.Ask(new ConfirmOptions(message, string.Empty, "Salvar", Icon: "fa-solid fa-pen")
+            {
+                InputLabel = string.Empty
+            });
+            return result.Confirmed ? result.Text ?? string.Empty : string.Empty;
+        }
+
+        return await _jsRuntime.InvokeAsync<string>("invokePrompt", message);
     }
 
     public void ScrollToElement(ElementReference element)

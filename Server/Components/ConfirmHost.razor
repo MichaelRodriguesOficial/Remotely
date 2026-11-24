@@ -1,0 +1,104 @@
+@implements IDisposable
+@inject IConfirmService ConfirmService
+
+@* Janela de confirmação do painel. Fica no layout e atende IConfirmService. *@
+@if (ConfirmService.Current is { } options)
+{
+    <div class="rm-dialog-backdrop" @onclick="() => ConfirmService.Resolve(false)"></div>
+    <div class="rm-dialog panel rm-confirm @(options.Danger ? "danger" : "")" role="alertdialog" aria-modal="true"
+         aria-labelledby="rm-confirm-title" aria-describedby="rm-confirm-message" @onkeydown="OnKeyDown">
+        <div class="rm-dialog-head">
+            <span class="rm-confirm-icon"><i class="@options.Icon"></i></span>
+            <div class="min-w-0">
+                <h2 id="rm-confirm-title">@options.Title</h2>
+                @if (!string.IsNullOrWhiteSpace(options.Message))
+                {
+                    <p id="rm-confirm-message">@options.Message</p>
+                }
+            </div>
+        </div>
+        @if (options.InputLabel is not null)
+        {
+            @if (!string.IsNullOrWhiteSpace(options.InputLabel))
+            {
+                <label class="form-label small" for="rm-confirm-input">@options.InputLabel</label>
+            }
+            <input id="rm-confirm-input" @ref="_input" class="form-control mb-3" @bind="_text" @bind:event="oninput" autocomplete="off" />
+        }
+        <div class="rm-dialog-actions">
+            <button type="button" class="btn btn-ghost" @onclick="() => ConfirmService.Resolve(false)">@options.CancelText</button>
+            <button type="button" @ref="_confirmButton" class="btn @(options.Danger ? "btn-danger" : "btn-primary")"
+                    disabled="@(options.InputLabel is not null && string.IsNullOrWhiteSpace(_text))"
+                    @onclick="() => ConfirmService.Resolve(true, _text)">
+                @options.ConfirmText
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private ElementReference _confirmButton;
+    private ElementReference _input;
+    private ConfirmOptions? _shown;
+    private string? _text;
+    private bool _focus;
+
+    protected override void OnInitialized()
+    {
+        ConfirmService.RegisterHost();
+        ConfirmService.Changed += OnChanged;
+    }
+
+    private void OnChanged(object? sender, EventArgs e)
+    {
+        if (!ReferenceEquals(_shown, ConfirmService.Current))
+        {
+            _shown = ConfirmService.Current;
+            _text = _shown?.InputValue;
+            _focus = _shown is not null;
+        }
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_focus)
+        {
+            return;
+        }
+        _focus = false;
+        try
+        {
+            if (_shown?.InputLabel is not null)
+            {
+                await _input.FocusAsync();
+            }
+            else
+            {
+                await _confirmButton.FocusAsync();
+            }
+        }
+        catch
+        {
+            // Elemento ainda não montado.
+        }
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            ConfirmService.Resolve(false);
+        }
+        else if (e.Key == "Enter" && _shown?.InputLabel is not null && !string.IsNullOrWhiteSpace(_text))
+        {
+            ConfirmService.Resolve(true, _text);
+        }
+    }
+
+    public void Dispose()
+    {
+        ConfirmService.Changed -= OnChanged;
+        ConfirmService.UnregisterHost();
+    }
+}

@@ -154,7 +154,10 @@ public partial class SavedScripts : AuthComponentBase
                 return;
             }
 
-            var result = await JsInterop.Confirm($"Excluir o script \"{_selectedScript.Name}\"? Agendamentos que usam este script deixarão de funcionar.");
+            var result = await JsInterop.Confirm(new ConfirmOptions(
+                "Excluir script",
+                $"Excluir o script \"{_selectedScript.Name}\"? Agendamentos que usam este script deixarão de funcionar.",
+                "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
             if (!result)
             {
                 return;

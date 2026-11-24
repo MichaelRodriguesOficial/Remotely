@@ -142,7 +142,7 @@ else if (User is not null)
     {
         EnsureUserSet();
 
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir esta chave?");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir chave de API", "Integrações que usam esta chave deixam de funcionar imediatamente.", "Excluir", Danger: true, Icon: "fa-solid fa-key"));
         if (!result)
         {
             return;

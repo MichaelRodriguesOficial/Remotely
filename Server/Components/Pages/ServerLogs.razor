@@ -130,7 +130,7 @@
 
     private async Task ClearAllLogs()
     {
-        var result = await JsInterop.Confirm("Tem certeza de que quer excluir os logs anteriores? Os de hoje serão mantidos.");
+        var result = await JsInterop.Confirm(new ConfirmOptions("Excluir logs antigos", "Os logs de dias anteriores serão apagados. Os de hoje são mantidos.", "Excluir", Danger: true, Icon: "fa-solid fa-trash-can"));
         if (result)
         {
             using (var _ = LoaderService.ShowLoader("Deleting logs"))
