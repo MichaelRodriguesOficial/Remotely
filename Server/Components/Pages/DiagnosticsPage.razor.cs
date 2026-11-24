@@ -529,7 +529,7 @@ public partial class DiagnosticsPage : AuthComponentBase
                 }
                 else
                 {
-                    failures.Add(row.Device.DeviceName);
+                    failures.Add(row.Device.DeviceName ?? row.Device.ID);
                 }
             }
 
