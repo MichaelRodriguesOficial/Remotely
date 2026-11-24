@@ -15,8 +15,16 @@ public sealed record DeviceDiagnosticSummary(
     string? LastRequestedBy,
     IReadOnlyDictionary<string, DiagnosticTestState> Tests,
     DiagnosticRepairState? LastRepair,
-    bool IsRunning)
+    IReadOnlySet<string> RunningTests,
+    string? RunningRepair,
+    int RunningTotal = 0)
 {
+    /// <summary>Diagnóstico ou reparo em andamento agora.</summary>
+    public bool IsRunning => RunningTests.Count > 0 || RunningRepair is not null;
+
+    /// <summary>Testes da execução em andamento que já terminaram.</summary>
+    public int RunningDone => Math.Max(0, RunningTotal - RunningTests.Count);
+
     /// <summary>Testes com atenção ou problema, os problemas primeiro.</summary>
     public IReadOnlyList<DiagnosticTestState> Issues { get; } = Tests.Values
         .Where(x => x.Status is DiagnosticStatus.Warning or DiagnosticStatus.Error)

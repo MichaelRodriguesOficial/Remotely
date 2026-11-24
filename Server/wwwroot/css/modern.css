@@ -2282,3 +2282,52 @@ label, .form-label {
 }
 .rm-confirm.danger .rm-confirm-icon { background: rgba(var(--rm-danger-rgb), 0.12); color: var(--rm-danger); }
 .rm-confirm .rm-dialog-head p { white-space: pre-line; }
+
+/* Diagnóstico / reparo em andamento */
+.diag-running-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 230px;
+    padding: 0.22rem 0.7rem 0.22rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(var(--rm-info-rgb), 0.12);
+    color: var(--rm-info);
+    font-size: 0.78rem;
+    font-weight: 600;
+    animation: diag-pulse 1.6s ease-in-out infinite;
+}
+    .diag-running-pill.repair { background: rgba(var(--rm-accent-rgb), 0.13); color: var(--rm-accent); }
+.diag-running-count {
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: rgba(var(--rm-info-rgb), 0.18);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+}
+.diag-running-spinner {
+    flex: 0 0 auto;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    animation: diag-spin 0.8s linear infinite;
+}
+.diag-loading-dot {
+    display: inline-block;
+    width: 1.05rem;
+    height: 1.05rem;
+    vertical-align: middle;
+    border-radius: 50%;
+    border: 2px solid rgba(var(--rm-info-rgb), 0.25);
+    border-top-color: var(--rm-info);
+    animation: diag-spin 0.8s linear infinite;
+}
+    .diag-loading-dot.small { width: 0.8rem; height: 0.8rem; }
+@keyframes diag-spin { to { transform: rotate(360deg); } }
+@keyframes diag-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--rm-info-rgb), 0.25); } 50% { box-shadow: 0 0 0 4px rgba(var(--rm-info-rgb), 0); } }
+@media (prefers-reduced-motion: reduce) {
+    .diag-running-pill, .diag-running-spinner, .diag-loading-dot { animation-duration: 2.4s; }
+    .diag-running-pill { animation: none; }
+}

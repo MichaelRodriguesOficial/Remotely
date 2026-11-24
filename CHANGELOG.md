@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.9.3 — 2026-11-24
+
+### Menu Diagnóstico
+- **Andamento ao vivo**: enquanto um diagnóstico roda, a coluna Situação mostra uma bolha animada "Executando diagnóstico" com o progresso (ex.: 2/5), e cada teste ainda em execução fica girando na sua coluna; os resultados aparecem um a um, conforme terminam.
+- Reparo em andamento aparece como "Reparando: <nome do reparo>" na Situação e "executando agora" em Último reparo.
+- O filtro "Executando agora" passa a incluir os reparos em andamento.
+
 ## v1.9.2 — 2026-11-24
 
 ### Interface

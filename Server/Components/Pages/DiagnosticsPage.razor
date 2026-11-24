@@ -457,7 +457,11 @@ else
         if (column.TestId is { } testId)
         {
             <td class="text-center diag-test-cell">
-                @if (summary?.Tests.TryGetValue(testId, out var state) == true)
+                @if (summary?.RunningTests.Contains(testId) == true)
+                {
+                    <span class="diag-loading-dot" title="Executando agora" role="status" aria-label="Executando"></span>
+                }
+                else if (summary?.Tests.TryGetValue(testId, out var state) == true)
                 {
                     <a href="@($"/device-details/{row.Device.ID}/diagnostics")"
                        title="@($"{state.Name}: {StatusText(state.Status)}{(string.IsNullOrWhiteSpace(state.Summary) ? "" : $" — {state.Summary}")}\n{state.At.ToLocalTime():dd/MM/yyyy HH:mm}")">
@@ -476,9 +480,20 @@ else
         {
             case "situation":
                 <td class="text-nowrap">
-                    @if (summary?.IsRunning == true)
+                    @if (summary?.RunningRepair is { } runningRepair)
                     {
-                        <span class="pill accent no-dot"><i class="fa-solid fa-circle-notch fa-spin"></i> Executando</span>
+                        <span class="diag-running-pill repair" role="status" title="@($"Reparo em andamento: {runningRepair}")">
+                            <span class="diag-running-spinner"></span>
+                            <span class="text-truncate">Reparando: @runningRepair</span>
+                        </span>
+                    }
+                    else if (summary?.RunningTests.Count > 0)
+                    {
+                        <span class="diag-running-pill" role="status" title="Diagnóstico em andamento">
+                            <span class="diag-running-spinner"></span>
+                            Executando diagnóstico
+                            <span class="diag-running-count">@summary.RunningDone/@summary.RunningTotal</span>
+                        </span>
                     }
                     else if (row.Rank == 3)
                     {
@@ -526,7 +541,12 @@ else
                 break;
             case "repair":
                 <td class="small">
-                    @if (summary?.LastRepair is { } repair)
+                    @if (summary?.RunningRepair is { } repairNow)
+                    {
+                        <span class="text-nowrap"><span class="diag-loading-dot small me-1"></span>@repairNow</span>
+                        <div class="text-muted text-nowrap">executando agora</div>
+                    }
+                    else if (summary?.LastRepair is { } repair)
                     {
                         <span class="text-nowrap"><i class="@StatusIcon(repair.Status) me-1"></i>@repair.Name</span>
                         <div class="text-muted text-nowrap">@repair.At.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @RepairStatusText(repair.Status)</div>

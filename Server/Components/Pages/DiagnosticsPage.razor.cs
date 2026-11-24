@@ -634,7 +634,7 @@ public partial class DiagnosticsPage : AuthComponentBase
         0 => "Problema",
         1 => "Atenção",
         2 => "Tudo certo",
-        _ => row.Summary?.IsRunning == true ? "Executando" : "Sem diagnóstico"
+        _ => row.Summary?.RunningRepair is not null ? "Reparando" : row.Summary?.IsRunning == true ? "Executando" : "Sem diagnóstico"
     };
 
     private static string StatusText(DiagnosticStatus status) => status switch

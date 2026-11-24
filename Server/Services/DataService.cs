@@ -573,7 +573,25 @@ public class DataService : IDataService
             var ordered = device.OrderByDescending(x => x.StartedAt).ToList();
 
             // Diagnóstico em andamento (o agente responde em segundos; depois de 20 min é abandonado).
-            var isRunning = ordered.Any(x => x.FinishedAt is null && now - x.StartedAt < TimeSpan.FromMinutes(20));
+            var runningRun = ordered.FirstOrDefault(x =>
+                x.FinishedAt is null &&
+                !DiagnosticRepairs.IsRepairRun(x.Tests) &&
+                now - x.StartedAt < TimeSpan.FromMinutes(20));
+
+            // Reparo em andamento: o agente responde na hora; sem resposta em 3 min, ficou para trás.
+            string? runningRepair = null;
+            if (ordered.FirstOrDefault(x => DiagnosticRepairs.IsRepairRun(x.Tests)) is { FinishedAt: null } openRepair)
+            {
+                var elapsed = now - openRepair.StartedAt;
+                var hasData = await dbContext.DeviceDiagnosticRuns.AsNoTracking()
+                    .Where(x => x.ID == openRepair.ID)
+                    .Select(x => x.Data != null)
+                    .FirstOrDefaultAsync();
+                if (elapsed < TimeSpan.FromMinutes(3) || (hasData && elapsed < TimeSpan.FromMinutes(100)))
+                {
+                    runningRepair = DiagnosticRepairs.FromTestId(openRepair.Tests)?.Name;
+                }
+            }
 
             DiagnosticRepairState? lastRepair = null;
             if (ordered.FirstOrDefault(x => DiagnosticRepairs.IsRepairRun(x.Tests)) is { } repairRun &&
@@ -632,6 +650,33 @@ public class DataService : IDataService
                 }
             }
 
+            // Execução em andamento: o que já terminou nela vale como resultado mais novo;
+            // o resto aparece "executando".
+            var runningTests = new HashSet<string>();
+            var runningTotal = 0;
+            if (runningRun is not null)
+            {
+                var requested = runningRun.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                runningTotal = requested.Length;
+                var data = await dbContext.DeviceDiagnosticRuns.AsNoTracking()
+                    .Where(x => x.ID == runningRun.ID)
+                    .Select(x => x.Data)
+                    .FirstOrDefaultAsync();
+                var partial = DiagnosticSerializer.FromJson(data)?.Tests.GroupBy(x => x.Id).ToDictionary(x => x.Key, x => x.First()) ?? [];
+                foreach (var testId in requested)
+                {
+                    if (partial.TryGetValue(testId, out var test) &&
+                        test.Status is not (DiagnosticStatus.Pending or DiagnosticStatus.Running))
+                    {
+                        tests[testId] = new DiagnosticTestState(testId, test.Name, test.Status, runningRun.StartedAt, test.Summary);
+                    }
+                    else
+                    {
+                        runningTests.Add(testId);
+                    }
+                }
+            }
+
             // Testes pesados (rodados à mão) só contam na situação geral por 30 dias.
             var counted = tests.Values
                 .Where(x => DiagnosticTests.Get(x.Id) is { Heavy: false } || now - x.At < TimeSpan.FromDays(30))
@@ -641,18 +686,20 @@ public class DataService : IDataService
                 : DiagnosticStatus.Ok;
             var lastRun = diagnosticRuns.FirstOrDefault();
 
-            if (tests.Count == 0 && lastRepair is null && !isRunning)
+            if (tests.Count == 0 && lastRepair is null && runningTests.Count == 0 && runningRepair is null)
             {
                 continue;
             }
 
             summaries[device.Key] = new DeviceDiagnosticSummary(
                 status,
-                lastRun?.StartedAt ?? default,
-                lastRun?.RequestedBy,
+                runningRun?.StartedAt ?? lastRun?.StartedAt ?? default,
+                runningRun?.RequestedBy ?? lastRun?.RequestedBy,
                 tests,
                 lastRepair,
-                isRunning);
+                runningTests,
+                runningRepair,
+                runningTotal);
         }
 
         return summaries;
