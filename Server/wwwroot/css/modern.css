@@ -2255,3 +2255,13 @@ label, .form-label {
 .theme-dark .diag-issue.warning { color: var(--rm-warning); }
 .diag-requested-by { max-width: 190px; }
 .inv-list-summary .ms-auto { margin-left: auto; }
+
+/* Executar / reparos em lote (menu Diagnóstico) */
+.diag-run-menu { min-width: 300px; }
+.diag-run-menu .dropdown-item { display: flex; align-items: flex-start; gap: 0.65rem; padding-top: 0.45rem; padding-bottom: 0.45rem; }
+    .diag-run-menu .dropdown-item i { width: 1.1rem; text-align: center; margin-top: 0.2rem; color: var(--rm-accent); }
+    .diag-run-menu .dropdown-item strong { display: block; font-weight: 600; }
+    .diag-run-menu .dropdown-item small { display: block; color: var(--rm-text-muted); font-size: 0.76rem; white-space: normal; }
+.diag-notice-danger { background: rgba(var(--rm-danger-rgb), 0.1); }
+    .diag-notice-danger i { color: var(--rm-danger); }
+.rm-dialog .diag-tiles { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }

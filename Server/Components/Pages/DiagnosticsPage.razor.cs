@@ -34,6 +34,12 @@ public partial class DiagnosticsPage : AuthComponentBase
     private List<string> _visibleColumns = DefaultColumns();
     private string? _dragKey;
     private CancellationTokenSource? _refreshCts;
+    private readonly HashSet<string> _dialogTests = [];
+    private bool _testsDialogOpen;
+    private DiagnosticRepairs.RepairInfo? _repair;
+    private string? _repairTarget;
+    private string _rebootChoice = "5";
+    private TimeOnly? _rebootTime = new(22, 0);
 
     [Inject]
     private IDataService DataService { get; init; } = null!;
@@ -352,7 +358,66 @@ public partial class DiagnosticsPage : AuthComponentBase
         }
     }
 
+    private List<Row> SelectedRows => _all.Where(x => _selected.Contains(x.Device.ID)).ToList();
+
+    private static string[] QuickTests => DiagnosticTests.All.Where(x => !x.Heavy).Select(x => x.Id).ToArray();
+
+    /// <summary>"Testes rápidos" no menu: roda direto, com uma confirmação simples.</summary>
     private async Task RunQuickTests()
+    {
+        var online = SelectedRows.Count(x => x.Device.IsOnline);
+        var offline = _selected.Count - online;
+        if (online == 0)
+        {
+            ToastService.ShowToast2("Nenhum dos computadores selecionados está online.", Enums.ToastType.Warning);
+            return;
+        }
+
+        if (!await JsInterop.Confirm(
+            $"Executar os testes rápidos (discos, bateria, dispositivos, rede e sistema) em {online} computador(es)?" +
+            (offline > 0 ? $" {offline} offline ficam de fora." : "")))
+        {
+            return;
+        }
+
+        await StartTests(QuickTests);
+    }
+
+    /// <summary>Abre a janela de escolha de testes ("Teste completo" já vem com todos marcados).</summary>
+    private void OpenTestsDialog(bool complete)
+    {
+        _dialogTests.Clear();
+        foreach (var test in DiagnosticTests.All.Where(x => complete || !x.Heavy))
+        {
+            _dialogTests.Add(test.Id);
+        }
+        _testsDialogOpen = true;
+    }
+
+    private void ToggleDialogTest(string id, bool value)
+    {
+        if (value)
+        {
+            _dialogTests.Add(id);
+        }
+        else
+        {
+            _dialogTests.Remove(id);
+        }
+    }
+
+    private async Task ConfirmTestsDialog()
+    {
+        if (_dialogTests.Count == 0)
+        {
+            return;
+        }
+
+        _testsDialogOpen = false;
+        await StartTests(DiagnosticTests.All.Where(x => _dialogTests.Contains(x.Id)).Select(x => x.Id).ToArray());
+    }
+
+    private async Task StartTests(string[] tests)
     {
         if (!Permissions.ManageDevices)
         {
@@ -360,25 +425,16 @@ public partial class DiagnosticsPage : AuthComponentBase
             return;
         }
 
-        var targets = _all.Where(x => _selected.Contains(x.Device.ID) && x.Device.IsOnline).ToList();
-        var offline = _all.Count(x => _selected.Contains(x.Device.ID) && !x.Device.IsOnline);
+        var targets = SelectedRows.Where(x => x.Device.IsOnline).ToList();
         if (targets.Count == 0)
         {
-            ToastService.ShowToast2("Nenhum dos dispositivos selecionados está online.", Enums.ToastType.Warning);
-            return;
-        }
-
-        if (!await JsInterop.Confirm(
-            $"Executar os testes rápidos (discos, bateria, dispositivos, rede e sistema) em {targets.Count} computador(es)?" +
-            (offline > 0 ? $" {offline} offline ficam de fora." : "")))
-        {
+            ToastService.ShowToast2("Nenhum dos computadores selecionados está online.", Enums.ToastType.Warning);
             return;
         }
 
         _isStarting = true;
         try
         {
-            var tests = DiagnosticTests.All.Where(x => !x.Heavy).Select(x => x.Id).ToArray();
             var started = 0;
             foreach (var row in targets)
             {
@@ -389,15 +445,100 @@ public partial class DiagnosticsPage : AuthComponentBase
                 }
             }
 
-            ToastService.ShowToast2($"Diagnóstico iniciado em {started} computador(es). A lista atualiza sozinha.", Enums.ToastType.Info);
+            ToastService.ShowToast2(
+                $"Diagnóstico ({tests.Length} teste(s)) iniciado em {started} computador(es). A lista atualiza sozinha.",
+                Enums.ToastType.Info);
             _selected.Clear();
+            await ReloadSummaries(targets);
+        }
+        finally
+        {
+            _isStarting = false;
+        }
+    }
 
-            var summaries = await DataService.GetDiagnosticSummaries(targets.Select(x => x.Device.ID).ToList());
+    private async Task ReloadSummaries(IReadOnlyCollection<Row> rows)
+    {
+        var summaries = await DataService.GetDiagnosticSummaries(rows.Select(x => x.Device.ID).ToList());
+        foreach (var row in rows)
+        {
+            row.Summary = summaries.GetValueOrDefault(row.Device.ID);
+        }
+        ApplyFilters(resetPage: false);
+    }
+
+    // -----------------------------------------------------------------
+    // Reparos em lote
+    // -----------------------------------------------------------------
+
+    private void OpenRepairDialog(DiagnosticRepairs.RepairInfo repair)
+    {
+        _repair = repair;
+        _repairTarget = repair.Target == RepairTargetKind.Drive ? "C:" : null;
+        _rebootChoice = "5";
+    }
+
+    /// <summary>Selecionados online e com o sistema que o reparo atende.</summary>
+    private List<Row> RepairTargets(DiagnosticRepairs.RepairInfo repair) =>
+        SelectedRows.Where(x => x.Device.IsOnline && DiagnosticRepairs.IsAvailable(repair, x.Device.Platform)).ToList();
+
+    private async Task ConfirmRepairDialog()
+    {
+        if (_repair is not { } repair)
+        {
+            return;
+        }
+
+        if (!Permissions.Repairs)
+        {
+            ToastService.ShowToast2("Seu perfil não permite executar reparos.", Enums.ToastType.Warning);
+            return;
+        }
+
+        var target = repair.Target switch
+        {
+            RepairTargetKind.RebootTime => _rebootChoice == "time" ? _rebootTime?.ToString("HH:mm") : _rebootChoice,
+            RepairTargetKind.None => null,
+            _ => _repairTarget
+        };
+        if (DiagnosticRepairs.NormalizeTarget(repair, target) is null)
+        {
+            ToastService.ShowToast2(repair.Target == RepairTargetKind.Drive ? "Informe a unidade, por exemplo C:." : "Escolha quando reiniciar.", Enums.ToastType.Warning);
+            return;
+        }
+
+        var targets = RepairTargets(repair);
+        if (targets.Count == 0)
+        {
+            ToastService.ShowToast2("Nenhum computador selecionado pode receber este reparo agora.", Enums.ToastType.Warning);
+            return;
+        }
+
+        _isStarting = true;
+        _repair = null;
+        try
+        {
+            var started = 0;
+            var failures = new List<string>();
             foreach (var row in targets)
             {
-                row.Summary = summaries.GetValueOrDefault(row.Device.ID);
+                var result = await CircuitConnection.RunRepair(row.Device.ID, repair.Id, target);
+                if (result.IsSuccess)
+                {
+                    started++;
+                }
+                else
+                {
+                    failures.Add(row.Device.DeviceName);
+                }
             }
-            ApplyFilters(resetPage: false);
+
+            ToastService.ShowToast2(
+                $"{repair.Name}: iniciado em {started} computador(es)." +
+                (failures.Count > 0 ? $" Não iniciou em: {string.Join(", ", failures.Take(5))}{(failures.Count > 5 ? "..." : "")}." : ""),
+                failures.Count > 0 ? Enums.ToastType.Warning : Enums.ToastType.Info);
+            _selected.Clear();
+            await ReloadSummaries(targets);
         }
         finally
         {

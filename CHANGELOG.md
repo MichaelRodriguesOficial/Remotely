@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.9.1 — 2026-11-24
+
+### Menu Diagnóstico
+- O botão de testes em lote virou **Executar**, com menu: **Testes rápidos** (roda direto), **Teste completo** (todos os testes, inclusive o de memória) e **Escolher testes…** (janela com os cards para marcar os testes individuais).
+- A janela mostra quantos computadores recebem os testes e quantos ficam de fora por estarem offline, e avisa em destaque quando o teste de memória vai reiniciar as máquinas.
+- Novo botão **Reparos** em lote: escolha o reparo, ajuste a unidade ou o horário do reinício e confirme. A janela mostra quais computadores recebem o reparo e quais ficam de fora (offline ou sistema não atendido). Exige a permissão "Executar reparos".
+
 ## v1.9.0 — 2026-11-23
 
 ### Menu Diagnóstico (novo)

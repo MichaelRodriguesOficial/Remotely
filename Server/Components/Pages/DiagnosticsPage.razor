@@ -130,11 +130,58 @@ else
         <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
             @if (Permissions.ManageDevices)
             {
-                <button type="button" class="btn btn-primary btn-sm" disabled="@(_selected.Count == 0 || _isStarting)" @onclick="RunQuickTests"
-                        title="Roda discos, bateria, dispositivos, rede e sistema nos selecionados que estiverem online">
-                    <i class="fa-solid @(_isStarting ? "fa-circle-notch fa-spin" : "fa-play")"></i>
-                    Executar testes rápidos@(_selected.Count > 0 ? $" ({_selected.Count})" : "")
-                </button>
+                <div class="dropdown">
+                    <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                            disabled="@(_selected.Count == 0 || _isStarting)"
+                            title="@(_selected.Count == 0 ? "Selecione os computadores na lista" : "Executar testes nos selecionados")">
+                        <i class="fa-solid @(_isStarting ? "fa-circle-notch fa-spin" : "fa-play")"></i>
+                        Executar@(_selected.Count > 0 ? $" ({_selected.Count})" : "")
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end diag-run-menu">
+                        <li><h6 class="dropdown-header">Testar @_selected.Count computador(es)</h6></li>
+                        <li>
+                            <button type="button" class="dropdown-item" @onclick="RunQuickTests">
+                                <i class="fa-solid fa-bolt"></i>
+                                <span><strong>Testes rápidos</strong><small>Discos, bateria, dispositivos, rede e sistema · segundos</small></span>
+                            </button>
+                        </li>
+                        <li>
+                            <button type="button" class="dropdown-item" @onclick="() => OpenTestsDialog(complete: true)">
+                                <i class="fa-solid fa-list-check"></i>
+                                <span><strong>Teste completo</strong><small>Rápidos + pesados, inclusive memória (reinicia)</small></span>
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li>
+                            <button type="button" class="dropdown-item" @onclick="() => OpenTestsDialog(complete: false)">
+                                <i class="fa-regular fa-square-check"></i>
+                                <span><strong>Escolher testes…</strong><small>Marque os testes individuais</small></span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            }
+            @if (Permissions.Repairs)
+            {
+                <div class="dropdown">
+                    <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                            disabled="@(_selected.Count == 0 || _isStarting)"
+                            title="@(_selected.Count == 0 ? "Selecione os computadores na lista" : "Executar um reparo nos selecionados")">
+                        <i class="fa-solid fa-wrench"></i> Reparos
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end diag-repair-menu">
+                        <li><h6 class="dropdown-header">Reparar @_selected.Count computador(es)</h6></li>
+                        @foreach (var repair in DiagnosticRepairs.All.Where(x => x.Target != RepairTargetKind.Device))
+                        {
+                            <li>
+                                <button type="button" class="dropdown-item" @onclick="() => OpenRepairDialog(repair)">
+                                    <i class="@repair.Icon"></i>
+                                    <span>@repair.Name</span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </div>
             }
             <ReportActions FileName="@($"diagnostico-computadores-{DateTime.Now:yyyy-MM-dd-HHmm}")"
                            EmailSubject="@($"Diagnóstico dos computadores: {Count(0)} com problema, {Count(1)} com atenção")"
@@ -209,7 +256,191 @@ else
     }
 }
 
+@if (_testsDialogOpen)
+{
+    var online = SelectedRows.Count(x => x.Device.IsOnline);
+    var offline = _selected.Count - online;
+    var heavySelected = DiagnosticTests.All.Where(x => x.Heavy && _dialogTests.Contains(x.Id)).ToList();
+    <div class="rm-dialog-backdrop" @onclick="() => _testsDialogOpen = false"></div>
+    <div class="rm-dialog rm-dialog-wide panel" role="dialog" aria-modal="true" aria-labelledby="bulk-tests-title">
+        <div class="rm-dialog-head">
+            <span class="diag-tile-icon"><i class="fa-solid fa-stethoscope"></i></span>
+            <div class="min-w-0">
+                <h2 id="bulk-tests-title">Executar diagnóstico</h2>
+                <p>@online computador(es) online recebem os testes@(offline > 0 ? $"; {offline} offline ficam de fora" : "").</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm ms-auto" title="Fechar" @onclick="() => _testsDialogOpen = false"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="diag-launcher-actions mb-2">
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="() => OpenTestsDialog(complete: false)">Só os rápidos</button>
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="() => OpenTestsDialog(complete: true)">Todos</button>
+            <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _dialogTests.Clear()">Limpar</button>
+        </div>
+
+        <div class="diag-section-label"><i class="fa-solid fa-bolt"></i> Rápidos <span>segundos, o usuário nem percebe</span></div>
+        <div class="diag-tiles">
+            @foreach (var test in DiagnosticTests.All.Where(x => !x.Heavy))
+            {
+                @DialogTile(test)
+            }
+        </div>
+        <div class="diag-section-label"><i class="fa-solid fa-weight-hanging"></i> Pesados <span>deixam a máquina lenta por alguns minutos ou reiniciam</span></div>
+        <div class="diag-tiles">
+            @foreach (var test in DiagnosticTests.All.Where(x => x.Heavy))
+            {
+                @DialogTile(test)
+            }
+        </div>
+
+        @if (_dialogTests.Contains(DiagnosticTests.MemoryTest))
+        {
+            <div class="diag-notice diag-notice-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span><strong>O teste de memória reinicia os @online computador(es)</strong> 2 minutos depois de começar (o usuário recebe um aviso) e cada um fica de 10 a 20 minutos testando antes de voltar ao Windows. Trabalho não salvo é perdido.</span>
+            </div>
+        }
+        else if (heavySelected.Count > 0)
+        {
+            <div class="diag-notice">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>@string.Join(" e ", heavySelected.Select(x => x.Name.ToLowerInvariant())) deixa(m) os computadores lentos por cerca de 2 minutos.</span>
+            </div>
+        }
+
+        <div class="rm-dialog-actions">
+            <button type="button" class="btn btn-ghost" @onclick="() => _testsDialogOpen = false">Cancelar</button>
+            <button type="button" class="btn @(_dialogTests.Contains(DiagnosticTests.MemoryTest) ? "btn-danger" : "btn-primary")"
+                    disabled="@(_dialogTests.Count == 0 || online == 0)" @onclick="ConfirmTestsDialog">
+                <i class="fa-solid fa-play"></i> Executar @_dialogTests.Count teste(s) em @online computador(es)
+            </button>
+        </div>
+    </div>
+}
+
+@if (_repair is { } dialogRepair)
+{
+    var repairTargets = RepairTargets(dialogRepair);
+    var offlineCount = SelectedRows.Count(x => !x.Device.IsOnline);
+    var unsupported = SelectedRows.Count(x => x.Device.IsOnline && !DiagnosticRepairs.IsAvailable(dialogRepair, x.Device.Platform));
+    <div class="rm-dialog-backdrop" @onclick="() => _repair = null"></div>
+    <div class="rm-dialog panel" role="dialog" aria-modal="true" aria-labelledby="bulk-repair-title">
+        <div class="rm-dialog-head">
+            <span class="diag-tile-icon"><i class="@dialogRepair.Icon"></i></span>
+            <div class="min-w-0">
+                <h2 id="bulk-repair-title">@dialogRepair.Name</h2>
+                <p>@dialogRepair.Description</p>
+            </div>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm ms-auto" title="Fechar" @onclick="() => _repair = null"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <dl class="rm-dialog-facts">
+            <dt>Computadores</dt>
+            <dd>
+                <strong>@repairTargets.Count</strong> recebem o reparo
+                @if (offlineCount > 0 || unsupported > 0)
+                {
+                    <div class="small text-muted">
+                        Ficam de fora: @(offlineCount > 0 ? $"{offlineCount} offline" : "")@(offlineCount > 0 && unsupported > 0 ? " e " : "")@(unsupported > 0 ? $"{unsupported} com sistema não atendido" : "").
+                    </div>
+                }
+                @if (repairTargets.Count > 0)
+                {
+                    <div class="small text-muted text-truncate" title="@string.Join(", ", repairTargets.Select(x => x.Device.DeviceName))">
+                        @string.Join(", ", repairTargets.Take(6).Select(x => x.Device.DeviceName))@(repairTargets.Count > 6 ? $" e mais {repairTargets.Count - 6}" : "")
+                    </div>
+                }
+            </dd>
+            @if (dialogRepair.Target == RepairTargetKind.Drive)
+            {
+                <dt>Unidade</dt>
+                <dd><input class="form-control form-control-sm rm-dialog-drive" maxlength="2" @bind="_repairTarget" @bind:event="oninput" aria-label="Unidade" /></dd>
+            }
+            else if (dialogRepair.Target == RepairTargetKind.RebootTime)
+            {
+                <dt>Quando</dt>
+                <dd>
+                    <div class="rm-dialog-when">
+                        <select class="form-select form-select-sm" @bind="_rebootChoice" aria-label="Quando reiniciar">
+                            @foreach (var option in DiagnosticRepairs.RebootOptions)
+                            {
+                                <option value="@option.Value">@option.Label</option>
+                            }
+                            <option value="time">Num horário...</option>
+                        </select>
+                        @if (_rebootChoice == "time")
+                        {
+                            <input type="time" class="form-control form-control-sm" @bind="_rebootTime" aria-label="Horário" />
+                        }
+                    </div>
+                </dd>
+            }
+            <dt>Duração</dt>
+            <dd>@dialogRepair.Duration (em cada computador, ao mesmo tempo)</dd>
+        </dl>
+
+        @if (dialogRepair.Reboots)
+        {
+            <div class="diag-notice diag-notice-danger"><i class="fa-solid fa-triangle-exclamation"></i> <span><strong>Os @repairTargets.Count computador(es) vão reiniciar</strong> no horário escolhido. Os usuários veem um aviso na tela; trabalho não salvo é perdido.</span></div>
+        }
+        else if (dialogRepair.NeedsRebootAfter)
+        {
+            <div class="diag-notice"><i class="fa-solid fa-circle-info"></i> <span>Só tem efeito depois que cada computador reiniciar.</span></div>
+        }
+        else if (dialogRepair.RetestTests.Length > 0)
+        {
+            <div class="rm-dialog-note"><i class="fa-solid fa-rotate"></i> Em cada computador, o teste relacionado roda de novo ao terminar.</div>
+        }
+
+        <div class="rm-dialog-actions">
+            <button type="button" class="btn btn-ghost" @onclick="() => _repair = null">Cancelar</button>
+            <button type="button" class="btn @(dialogRepair.Reboots ? "btn-danger" : "btn-primary")" disabled="@(repairTargets.Count == 0 || _isStarting)" @onclick="ConfirmRepairDialog">
+                <i class="fa-solid fa-wrench"></i> Executar em @repairTargets.Count computador(es)
+            </button>
+        </div>
+    </div>
+}
+
 @code {
+    private static string TestIcon(string id) => id switch
+    {
+        DiagnosticTests.Disks => "fa-solid fa-hard-drive",
+        DiagnosticTests.Battery => "fa-solid fa-battery-three-quarters",
+        DiagnosticTests.Devices => "fa-solid fa-microchip",
+        DiagnosticTests.Network => "fa-solid fa-wifi",
+        DiagnosticTests.System => "fa-solid fa-shield-halved",
+        DiagnosticTests.DiskSpeed => "fa-solid fa-gauge-high",
+        DiagnosticTests.CpuStress => "fa-solid fa-temperature-high",
+        DiagnosticTests.MemoryTest => "fa-solid fa-memory",
+        _ => "fa-solid fa-vial"
+    };
+
+    private RenderFragment DialogTile(DiagnosticTests.TestInfo test) => __builder =>
+    {
+        var id = $"bulk-test-{test.Id}";
+        var selected = _dialogTests.Contains(test.Id);
+        <label class="diag-tile @(selected ? "selected" : "") @(test.Heavy ? "heavy" : "")" for="@id">
+            <input id="@id" type="checkbox" class="visually-hidden" checked="@selected"
+                   @onchange="e => ToggleDialogTest(test.Id, e.Value is true)" />
+            <span class="diag-tile-icon"><i class="@TestIcon(test.Id)"></i></span>
+            <span class="diag-tile-body">
+                <span class="diag-tile-name">
+                    @test.Name
+                    @if (test.RequiresRestart)
+                    {
+                        <span class="pill danger no-dot">reinicia</span>
+                    }
+                    else if (test.Heavy)
+                    {
+                        <span class="pill warning no-dot">pesado</span>
+                    }
+                </span>
+                <span class="diag-tile-desc">@test.Description</span>
+            </span>
+            <span class="diag-tile-check"><i class="fa-solid @(selected ? "fa-square-check" : "fa-square")"></i></span>
+        </label>
+    };
+
     private static string StatusIcon(DiagnosticStatus status) => status switch
     {
         DiagnosticStatus.Ok => "fa-solid fa-circle-check text-success",
