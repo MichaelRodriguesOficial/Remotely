@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Components;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
-using Remotely.Shared.Models.Diagnostics;
 using System.Text;
 
 namespace Remotely.Server.Components.Devices;
@@ -25,7 +24,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
     private string _query = string.Empty;
     private string _status = string.Empty;
     private string _groupId = string.Empty;
-    private string _diagnostic = string.Empty;
     private string _sortKey = "name";
     private bool _sortDescending;
     private bool _isLoading = true;
@@ -45,25 +43,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         public required string OsName { get; init; }
         public required string GroupName { get; init; }
         public required string LastSeen { get; init; }
-        public DeviceDiagnosticSummary? Diagnostic { get; set; }
-
-        /// <summary>Palavras para a busca diagnostico:valor.</summary>
-        public IEnumerable<string?> DiagnosticWords => Diagnostic?.Status switch
-        {
-            DiagnosticStatus.Error => ["problema", "erro"],
-            DiagnosticStatus.Warning => ["atenção", "atencao", "alerta"],
-            DiagnosticStatus.Ok => ["ok", "tudo certo"],
-            _ => ["nunca", "sem diagnóstico", "sem diagnostico"]
-        };
-
-        /// <summary>Ordenação: problema, atenção, ok, sem diagnóstico.</summary>
-        public int DiagnosticRank => Diagnostic?.Status switch
-        {
-            DiagnosticStatus.Error => 0,
-            DiagnosticStatus.Warning => 1,
-            DiagnosticStatus.Ok => 2,
-            _ => 3
-        };
     }
 
     private sealed record FieldInfo(
@@ -97,14 +76,12 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         new(["mac"], "Endereço MAC", r => r.Device.MacAddresses ?? [], SearchInventory: true),
         new(["antivirus"], "Antivírus", _ => [], SearchInventory: true),
         new(["agente", "versao"], "Versão do agente", r => [r.Device.AgentVersion]),
-        new(["diagnostico"], "Diagnóstico (problema, atenção, ok, nunca)", r => r.DiagnosticWords),
         new(["id"], "ID do dispositivo", r => [r.Device.ID], ShowInMenu: false),
     ];
 
     private static readonly ColumnInfo[] Columns =
     [
         new("name", "Nome", r => r.Device.DeviceName),
-        new("diagnostic", "Diagnóstico", r => r.DiagnosticRank),
         new("user", "Usuário", r => r.UserDisplay),
         new("location", "Localização", r => r.Device.Location),
         new("status", "Status", r => r.Device.IsOnline ? 0 : 1),
@@ -216,7 +193,7 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
 
     private static readonly string[] ExportColumns =
     [
-        "Nome", "Apelido", "Diagnóstico", "Usuário", "Localização", "Status", "Última conexão", "Número de série", "Tipo",
+        "Nome", "Apelido", "Usuário", "Localização", "Status", "Última conexão", "Número de série", "Tipo",
         "Fabricante", "Modelo", "Sistema operacional", "Processador", "Memória", "Disco", "Nº de inventário",
         "Grupo", "Tags", "IP público", "Versão do agente", "Último inventário"
     ];
@@ -226,9 +203,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         [
             r.Device.DeviceName,
             r.Device.Alias,
-            r.Diagnostic is null ? "Sem diagnóstico"
-                : (r.Diagnostic.Status switch { DiagnosticStatus.Error => "Problema", DiagnosticStatus.Warning => "Atenção", _ => "Ok" }) +
-                  (r.Diagnostic.Issues.Count == 0 ? "" : $" ({string.Join(", ", r.Diagnostic.Issues.Select(x => x.Name))})"),
             r.UserDisplay,
             r.Device.Location,
             r.Device.IsOnline ? "Online" : "Offline",
@@ -260,19 +234,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
                   !string.IsNullOrEmpty(_groupId) && _groups.TryGetValue(_groupId, out var group) ? $"grupo {group}" : null
               }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
-    private int CountDiagnostic(DiagnosticStatus status) => _all.Count(x => x.Diagnostic?.Status == status);
-
-    private async Task FilterDiagnostic(string value)
-    {
-        _diagnostic = _diagnostic == value ? string.Empty : value;
-        await ApplyFilters();
-    }
-
-    private static string DiagnosticTitle(DeviceDiagnosticSummary summary) =>
-        $"Último diagnóstico: {summary.LastRunAt.ToLocalTime():dd/MM/yyyy HH:mm}" +
-        (summary.Issues.Count == 0 ? "" : "\n" + string.Join("\n", summary.Issues.Select(x =>
-            $"{(x.Status == DiagnosticStatus.Error ? "Problema" : "Atenção")}: {x.Name}")));
-
     private string BuildListHtml() =>
         ReportBuilder.TableHtml("Inventário de computadores", ExportSubtitle, ExportColumns, ExportRows());
 
@@ -300,12 +261,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
                 GroupName = device.DeviceGroupID is { } groupId && _groups.TryGetValue(groupId, out var name) ? name : string.Empty,
                 LastSeen = device.LastOnline == default ? "Offline" : device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy")
             });
-        }
-
-        var summaries = await DataService.GetDiagnosticSummaries(_all.Select(x => x.Device.ID).ToList());
-        foreach (var row in _all)
-        {
-            row.Diagnostic = summaries.GetValueOrDefault(row.Device.ID);
         }
 
         await ApplyFilters();
@@ -412,16 +367,6 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
         {
             rows = rows.Where(x => x.Device.DeviceGroupID == _groupId);
         }
-
-        rows = _diagnostic switch
-        {
-            "error" => rows.Where(x => x.Diagnostic?.Status == DiagnosticStatus.Error),
-            "warning" => rows.Where(x => x.Diagnostic?.Status == DiagnosticStatus.Warning),
-            "issues" => rows.Where(x => x.Diagnostic?.Status is DiagnosticStatus.Error or DiagnosticStatus.Warning),
-            "ok" => rows.Where(x => x.Diagnostic?.Status == DiagnosticStatus.Ok),
-            "never" => rows.Where(x => x.Diagnostic is null),
-            _ => rows
-        };
 
         foreach (var criterion in _criteria)
         {

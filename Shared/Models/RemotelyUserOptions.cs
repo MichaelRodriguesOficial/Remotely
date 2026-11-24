@@ -27,4 +27,7 @@ public class RemotelyUserOptions
 
     /// <summary>Colunas visíveis da lista do Inventário, na ordem escolhida (null = padrão). "Nome" é fixa.</summary>
     public List<string>? InventoryColumns { get; set; }
+
+    /// <summary>Colunas visíveis da lista do menu Diagnóstico, na ordem escolhida (null = padrão).</summary>
+    public List<string>? DiagnosticColumns { get; set; }
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.9.0 — 2026-11-23
+
+### Menu Diagnóstico (novo)
+- Novo item **Diagnóstico** no menu lateral, separado do Inventário. A aba Diagnóstico dentro do dispositivo continua igual.
+- Cards de saúde no topo (com problema, com atenção, tudo certo, sem diagnóstico), clicáveis para filtrar.
+- Filtros logo abaixo dos cards: busca (nome, usuário, grupo, local ou pendência), situação (inclusive "Executando agora"), status online/offline e grupo.
+- Lista no modelo do Inventário com **Situação**, o resultado de **cada teste** (discos, bateria, dispositivos, rede, sistema e, opcionalmente, os testes pesados), **Pendências**, **Último diagnóstico** (quando e por quem) e **Último reparo**. Clique em qualquer resultado para abrir o diagnóstico do computador.
+- **Execução em lote**: selecione computadores (ou "selecionar todos da lista") e rode os testes rápidos em todos de uma vez. A lista se atualiza sozinha conforme os resultados chegam.
+- Colunas configuráveis (mostrar/ocultar e reordenar), salvas por usuário, e exportar/enviar por e-mail a lista filtrada.
+- Testes pesados antigos (mais de 30 dias) não contam mais na situação geral do computador.
+
+### Inventário
+- Saem a coluna Diagnóstico, os cards de saúde e o filtro de diagnóstico: o Inventário volta a mostrar só hardware, software e patrimônio.
+
 ## v1.8.1 — 2026-11-23
 
 ### Interface

@@ -547,7 +547,7 @@ public class DataService : IDataService
     }
 
     // Execuções concluídas não mudam: o resultado de cada teste pode ficar em memória.
-    private static readonly ConcurrentDictionary<string, Dictionary<string, (string Name, DiagnosticStatus Status)>> _diagnosticTestCache = new();
+    private static readonly ConcurrentDictionary<string, Dictionary<string, (string Name, DiagnosticStatus Status, string? Summary)>> _diagnosticTestCache = new();
 
     public async Task<Dictionary<string, DeviceDiagnosticSummary>> GetDiagnosticSummaries(IReadOnlyCollection<string> deviceIds)
     {
@@ -560,77 +560,99 @@ public class DataService : IDataService
         using var dbContext = _appDbFactory.GetContext();
         var rows = await dbContext.DeviceDiagnosticRuns
             .AsNoTracking()
-            .Where(x => deviceIds.Contains(x.DeviceID) &&
-                        x.FinishedAt != null &&
-                        !x.Tests.StartsWith(DiagnosticRepairs.Prefix))
-            .Select(x => new { x.ID, x.DeviceID, x.StartedAt, x.Status, x.Tests })
+            .Where(x => deviceIds.Contains(x.DeviceID))
+            .Select(x => new { x.ID, x.DeviceID, x.StartedAt, x.FinishedAt, x.Status, x.Tests, x.RequestedBy })
             .ToListAsync();
 
         var since = DateTimeOffset.Now.AddDays(-60);
-        var quickTests = DiagnosticTests.All.Where(x => !x.Heavy).Select(x => x.Id).ToHashSet();
+        var now = DateTimeOffset.Now;
+        var allTests = DiagnosticTests.All.Select(x => x.Id).ToHashSet();
 
-        foreach (var device in rows.Where(x => x.StartedAt >= since).GroupBy(x => x.DeviceID))
+        foreach (var device in rows.GroupBy(x => x.DeviceID))
         {
-            var covered = new HashSet<string>();
-            var issues = new List<(string Name, DiagnosticStatus Status)>();
+            var ordered = device.OrderByDescending(x => x.StartedAt).ToList();
 
-            foreach (var run in device.OrderByDescending(x => x.StartedAt).Take(10))
+            // Diagnóstico em andamento (o agente responde em segundos; depois de 20 min é abandonado).
+            var isRunning = ordered.Any(x => x.FinishedAt is null && now - x.StartedAt < TimeSpan.FromMinutes(20));
+
+            DiagnosticRepairState? lastRepair = null;
+            if (ordered.FirstOrDefault(x => DiagnosticRepairs.IsRepairRun(x.Tests)) is { } repairRun &&
+                DiagnosticRepairs.FromTestId(repairRun.Tests) is { } repair)
             {
-                var tests = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries);
-                var uncovered = tests.Where(x => !covered.Contains(x)).ToList();
-                if (uncovered.Count == 0)
+                var repairStatus = Enum.TryParse<DiagnosticStatus>(repairRun.Status, out var parsed) ? parsed : DiagnosticStatus.Running;
+                if (repairRun.FinishedAt is null && now - repairRun.StartedAt > TimeSpan.FromMinutes(100))
+                {
+                    repairStatus = DiagnosticStatus.Skipped;
+                }
+                lastRepair = new DiagnosticRepairState(repair.Name, repairStatus, repairRun.StartedAt, repairRun.RequestedBy);
+            }
+
+            var tests = new Dictionary<string, DiagnosticTestState>();
+            var diagnosticRuns = ordered
+                .Where(x => x.FinishedAt is not null && !DiagnosticRepairs.IsRepairRun(x.Tests) && x.StartedAt >= since)
+                .Take(10)
+                .ToList();
+
+            foreach (var run in diagnosticRuns)
+            {
+                var runTests = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                if (runTests.All(tests.ContainsKey))
                 {
                     continue;
                 }
 
-                // Execução toda ok: nada a buscar no JSON.
-                if (run.Status == nameof(DiagnosticStatus.Ok))
+                if (!_diagnosticTestCache.TryGetValue(run.ID, out var perTest))
                 {
-                    covered.UnionWith(uncovered);
-                }
-                else
-                {
-                    if (!_diagnosticTestCache.TryGetValue(run.ID, out var perTest))
+                    var data = await dbContext.DeviceDiagnosticRuns
+                        .AsNoTracking()
+                        .Where(x => x.ID == run.ID)
+                        .Select(x => x.Data)
+                        .FirstOrDefaultAsync();
+                    perTest = DiagnosticSerializer.FromJson(data)?.Tests
+                        .GroupBy(x => x.Id)
+                        .ToDictionary(x => x.Key, x => (x.First().Name, x.First().Status, x.First().Summary)) ?? [];
+                    if (_diagnosticTestCache.Count > 5000)
                     {
-                        var data = await dbContext.DeviceDiagnosticRuns
-                            .AsNoTracking()
-                            .Where(x => x.ID == run.ID)
-                            .Select(x => x.Data)
-                            .FirstOrDefaultAsync();
-                        perTest = DiagnosticSerializer.FromJson(data)?.Tests
-                            .GroupBy(x => x.Id)
-                            .ToDictionary(x => x.Key, x => (x.First().Name, x.First().Status)) ?? [];
-                        if (_diagnosticTestCache.Count > 5000)
-                        {
-                            _diagnosticTestCache.Clear();
-                        }
-                        _diagnosticTestCache[run.ID] = perTest;
+                        _diagnosticTestCache.Clear();
                     }
+                    _diagnosticTestCache[run.ID] = perTest;
+                }
 
-                    foreach (var testId in uncovered)
+                foreach (var testId in runTests.Where(x => !tests.ContainsKey(x)))
+                {
+                    if (perTest.TryGetValue(testId, out var result))
                     {
-                        covered.Add(testId);
-                        if (perTest.TryGetValue(testId, out var result) &&
-                            result.Status is DiagnosticStatus.Warning or DiagnosticStatus.Error)
-                        {
-                            issues.Add(result);
-                        }
+                        tests[testId] = new DiagnosticTestState(testId, result.Name, result.Status, run.StartedAt, result.Summary);
                     }
                 }
 
-                if (quickTests.IsSubsetOf(covered))
+                if (allTests.IsSubsetOf(tests.Keys))
                 {
                     break;
                 }
             }
 
-            var status = issues.Any(x => x.Status == DiagnosticStatus.Error) ? DiagnosticStatus.Error
-                : issues.Count > 0 ? DiagnosticStatus.Warning
+            // Testes pesados (rodados à mão) só contam na situação geral por 30 dias.
+            var counted = tests.Values
+                .Where(x => DiagnosticTests.Get(x.Id) is { Heavy: false } || now - x.At < TimeSpan.FromDays(30))
+                .ToList();
+            var status = counted.Any(x => x.Status == DiagnosticStatus.Error) ? DiagnosticStatus.Error
+                : counted.Any(x => x.Status == DiagnosticStatus.Warning) ? DiagnosticStatus.Warning
                 : DiagnosticStatus.Ok;
+            var lastRun = diagnosticRuns.FirstOrDefault();
+
+            if (tests.Count == 0 && lastRepair is null && !isRunning)
+            {
+                continue;
+            }
+
             summaries[device.Key] = new DeviceDiagnosticSummary(
                 status,
-                device.Max(x => x.StartedAt),
-                issues.OrderByDescending(x => x.Status == DiagnosticStatus.Error).ToList());
+                lastRun?.StartedAt ?? default,
+                lastRun?.RequestedBy,
+                tests,
+                lastRepair,
+                isRunning);
         }
 
         return summaries;

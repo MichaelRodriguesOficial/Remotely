@@ -1,0 +1,326 @@
+@page "/diagnostics"
+@attribute [Authorize]
+@using Remotely.Shared.Models.Diagnostics
+@inherits AuthComponentBase
+
+<PageHeader Title="Diagnóstico"
+            Subtitle="Situação de cada computador pelos testes mais recentes. Clique em um para ver os detalhes e corrigir."
+            Icon="fa-solid fa-stethoscope" />
+
+@if (_isLoading)
+{
+    <LoadingSignal StatusMessage="Carregando" />
+}
+else
+{
+    <div class="diag-health">
+        <button type="button" class="diag-health-item diag-health-error @(_diagnostic == "error" ? "active" : "")" @onclick='() => FilterDiagnostic("error")'>
+            <span class="diag-health-icon"><i class="fa-solid fa-circle-xmark"></i></span>
+            <span><strong>@Count(0)</strong> com problema</span>
+        </button>
+        <button type="button" class="diag-health-item diag-health-warning @(_diagnostic == "warning" ? "active" : "")" @onclick='() => FilterDiagnostic("warning")'>
+            <span class="diag-health-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+            <span><strong>@Count(1)</strong> com atenção</span>
+        </button>
+        <button type="button" class="diag-health-item diag-health-ok @(_diagnostic == "ok" ? "active" : "")" @onclick='() => FilterDiagnostic("ok")'>
+            <span class="diag-health-icon"><i class="fa-solid fa-circle-check"></i></span>
+            <span><strong>@Count(2)</strong> tudo certo</span>
+        </button>
+        <button type="button" class="diag-health-item @(_diagnostic == "never" ? "active" : "")" @onclick='() => FilterDiagnostic("never")'>
+            <span class="diag-health-icon"><i class="fa-solid fa-stethoscope"></i></span>
+            <span><strong>@Count(3)</strong> sem diagnóstico</span>
+        </button>
+    </div>
+
+    <div class="panel inv-list-toolbar">
+        <div class="input-icon inv-list-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control"
+                   placeholder="Buscar por nome, usuário, grupo, local ou pendência (ex.: Sistema)"
+                   value="@_query"
+                   @oninput="OnQueryInput"
+                   aria-label="Buscar" />
+        </div>
+
+        <select class="form-select inv-list-select" @bind="_diagnostic" @bind:after="ApplyFilters" aria-label="Situação">
+            <option value="">Todas as situações</option>
+            <option value="issues">Com problema ou atenção</option>
+            <option value="error">Com problema</option>
+            <option value="warning">Com atenção</option>
+            <option value="ok">Tudo certo</option>
+            <option value="never">Sem diagnóstico</option>
+            <option value="running">Executando agora</option>
+        </select>
+
+        <select class="form-select inv-list-select" @bind="_status" @bind:after="ApplyFilters" aria-label="Status">
+            <option value="">Todos os status</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+        </select>
+
+        <select class="form-select inv-list-select" @bind="_groupId" @bind:after="ApplyFilters" aria-label="Grupo">
+            <option value="">Todos os grupos</option>
+            @foreach (var group in _groups.OrderBy(x => x.Value))
+            {
+                <option @key="group.Key" value="@group.Key">@group.Value</option>
+            }
+        </select>
+
+        <div class="dropdown">
+            <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="fa-solid fa-table-columns"></i> Colunas
+            </button>
+            <div class="dropdown-menu dropdown-menu-end inv-columns">
+                <div class="inv-columns-head">
+                    <strong>Colunas da lista</strong>
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="ResetColumns">Restaurar padrão</button>
+                </div>
+                <p class="inv-columns-hint">Arraste ou use as setas para mudar a ordem. "Nome" fica sempre na primeira posição.</p>
+                <div class="inv-column inv-column-fixed">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Nome</span>
+                </div>
+                @foreach (var (column, visible) in ColumnChoices)
+                {
+                    var key = column.Key;
+                    var index = _visibleColumns.IndexOf(key);
+                    <div @key="key"
+                         class="inv-column @(visible ? "" : "hidden-col") @(_dragKey == key ? "dragging" : "")"
+                         draggable="@(visible ? "true" : "false")"
+                         @ondragstart="() => _dragKey = key"
+                         @ondragend="() => _dragKey = null"
+                         @ondragover:preventDefault
+                         @ondrop="() => DropColumn(key)">
+                        <i class="fa-solid fa-grip-vertical inv-column-grip"></i>
+                        <label class="form-check m-0 flex-grow-1">
+                            <input type="checkbox" class="form-check-input" checked="@visible"
+                                   @onchange="e => ToggleColumn(key, e.Value is true)" />
+                            <span class="form-check-label">@column.Label</span>
+                        </label>
+                        @if (visible)
+                        {
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Subir" disabled="@(index <= 0)" @onclick="() => MoveColumn(key, -1)">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </button>
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Descer" disabled="@(index >= _visibleColumns.Count - 1)" @onclick="() => MoveColumn(key, 1)">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </button>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="inv-list-summary">
+        <span>
+            <strong>@_filtered.Count</strong> de @_all.Count dispositivo(s)
+            @if (_selected.Count > 0)
+            {
+                <span class="diag-selection">
+                    · <strong>@_selected.Count</strong> selecionado(s)
+                    <button type="button" class="btn btn-link btn-sm p-0 ms-1" @onclick="() => _selected.Clear()">limpar</button>
+                </span>
+            }
+            else if (_filtered.Count > 0)
+            {
+                <button type="button" class="btn btn-link btn-sm p-0 ms-2" @onclick="SelectFiltered">selecionar todos da lista</button>
+            }
+        </span>
+        <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+            @if (Permissions.ManageDevices)
+            {
+                <button type="button" class="btn btn-primary btn-sm" disabled="@(_selected.Count == 0 || _isStarting)" @onclick="RunQuickTests"
+                        title="Roda discos, bateria, dispositivos, rede e sistema nos selecionados que estiverem online">
+                    <i class="fa-solid @(_isStarting ? "fa-circle-notch fa-spin" : "fa-play")"></i>
+                    Executar testes rápidos@(_selected.Count > 0 ? $" ({_selected.Count})" : "")
+                </button>
+            }
+            <ReportActions FileName="@($"diagnostico-computadores-{DateTime.Now:yyyy-MM-dd-HHmm}")"
+                           EmailSubject="@($"Diagnóstico dos computadores: {Count(0)} com problema, {Count(1)} com atenção")"
+                           Html="BuildHtml"
+                           Csv="BuildCsv"
+                           Disabled="@(_filtered.Count == 0)" />
+        </div>
+        @if (TotalPages > 1)
+        {
+            <div class="pager">
+                <button class="btn btn-ghost btn-icon btn-sm" disabled="@(_page <= 1)" @onclick="() => _page--" title="Página anterior"><i class="fa-solid fa-chevron-left"></i></button>
+                <span class="small">Página @_page de @TotalPages</span>
+                <button class="btn btn-ghost btn-icon btn-sm" disabled="@(_page >= TotalPages)" @onclick="() => _page++" title="Próxima página"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+        }
+    </div>
+
+    @if (_filtered.Count == 0)
+    {
+        <div class="empty-state mt-3">
+            <div class="empty-icon"><i class="fa-solid fa-stethoscope"></i></div>
+            <h3>Nenhum computador encontrado</h3>
+            <p>@(_all.Count == 0 ? "Instale o agente em um computador para ele aparecer aqui." : "Ajuste a busca ou os filtros.")</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap inv-list-table diag-list-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="diag-select-col">
+                            <input type="checkbox" class="form-check-input" aria-label="Selecionar a página"
+                                   checked="@AllPageSelected" @onchange="e => TogglePage(e.Value is true)" />
+                        </th>
+                        @foreach (var column in VisibleColumns)
+                        {
+                            <th class="@(column.Key == _sortKey ? "sorted" : "") @(column.TestId is not null ? "text-center" : "")" @onclick="() => SortBy(column.Key)" role="button" title="Ordenar por @column.Label">
+                                @column.Label
+                                @if (column.Key == _sortKey)
+                                {
+                                    <i class="fa-solid @(_sortDescending ? "fa-arrow-down-wide-short" : "fa-arrow-up-short-wide") ms-1"></i>
+                                }
+                            </th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in PageRows)
+                    {
+                        <tr @key="row.Device.ID" class="@(_selected.Contains(row.Device.ID) ? "selected" : "")">
+                            <td class="diag-select-col">
+                                <input type="checkbox" class="form-check-input" aria-label="@($"Selecionar {row.Device.DeviceName}")"
+                                       checked="@_selected.Contains(row.Device.ID)" @onchange="e => ToggleSelected(row.Device.ID, e.Value is true)" />
+                            </td>
+                            <td class="text-nowrap">
+                                <a href="@($"/device-details/{row.Device.ID}/diagnostics")" class="fw-semibold">@row.Device.DeviceName</a>
+                                @if (!string.IsNullOrWhiteSpace(row.Device.Alias))
+                                {
+                                    <div class="small text-muted">@row.Device.Alias</div>
+                                }
+                            </td>
+                            @foreach (var column in VisibleColumns.Skip(1))
+                            {
+                                @Cell(row, column)
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private static string StatusIcon(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Ok => "fa-solid fa-circle-check text-success",
+        DiagnosticStatus.Warning => "fa-solid fa-triangle-exclamation text-warning",
+        DiagnosticStatus.Error => "fa-solid fa-circle-xmark text-danger",
+        DiagnosticStatus.Running or DiagnosticStatus.Pending => "fa-solid fa-circle-notch fa-spin text-info",
+        DiagnosticStatus.Skipped => "fa-solid fa-circle-minus text-muted",
+        _ => "fa-solid fa-circle-info text-muted"
+    };
+
+    private RenderFragment Cell(Row row, ColumnInfo column) => __builder =>
+    {
+        var summary = row.Summary;
+        if (column.TestId is { } testId)
+        {
+            <td class="text-center diag-test-cell">
+                @if (summary?.Tests.TryGetValue(testId, out var state) == true)
+                {
+                    <a href="@($"/device-details/{row.Device.ID}/diagnostics")"
+                       title="@($"{state.Name}: {StatusText(state.Status)}{(string.IsNullOrWhiteSpace(state.Summary) ? "" : $" — {state.Summary}")}\n{state.At.ToLocalTime():dd/MM/yyyy HH:mm}")">
+                        <i class="@StatusIcon(state.Status)"></i>
+                    </a>
+                }
+                else
+                {
+                    <span class="text-muted" title="Ainda não testado">—</span>
+                }
+            </td>
+            return;
+        }
+
+        switch (column.Key)
+        {
+            case "situation":
+                <td class="text-nowrap">
+                    @if (summary?.IsRunning == true)
+                    {
+                        <span class="pill accent no-dot"><i class="fa-solid fa-circle-notch fa-spin"></i> Executando</span>
+                    }
+                    else if (row.Rank == 3)
+                    {
+                        <span class="text-muted small">Sem diagnóstico</span>
+                    }
+                    else
+                    {
+                        <span class="pill no-dot @(row.Rank switch { 0 => "danger", 1 => "warning", _ => "success" })">
+                            <i class="fa-solid @(row.Rank switch { 0 => "fa-circle-xmark", 1 => "fa-triangle-exclamation", _ => "fa-circle-check" })"></i>
+                            @SituationText(row)
+                        </span>
+                    }
+                </td>
+                break;
+            case "issues":
+                <td class="diag-issues-cell">
+                    @if (summary is not null && summary.Issues.Count > 0)
+                    {
+                        @foreach (var issue in summary.Issues)
+                        {
+                            <span class="diag-issue @(issue.Status == DiagnosticStatus.Error ? "error" : "warning")" title="@issue.Summary">@issue.Name</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted small">—</span>
+                    }
+                </td>
+                break;
+            case "lastrun":
+                <td class="small text-nowrap">
+                    @if (summary is { HasResults: true })
+                    {
+                        <span>@summary.LastRunAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        @if (!string.IsNullOrWhiteSpace(summary.LastRequestedBy))
+                        {
+                            <div class="text-muted text-truncate diag-requested-by" title="@summary.LastRequestedBy">@summary.LastRequestedBy</div>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted">—</span>
+                    }
+                </td>
+                break;
+            case "repair":
+                <td class="small">
+                    @if (summary?.LastRepair is { } repair)
+                    {
+                        <span class="text-nowrap"><i class="@StatusIcon(repair.Status) me-1"></i>@repair.Name</span>
+                        <div class="text-muted text-nowrap">@repair.At.ToLocalTime().ToString("dd/MM/yyyy HH:mm") · @RepairStatusText(repair.Status)</div>
+                    }
+                    else
+                    {
+                        <span class="text-muted">—</span>
+                    }
+                </td>
+                break;
+            case "status":
+                <td>
+                    @if (row.Device.IsOnline)
+                    {
+                        <span class="pill success">Online</span>
+                    }
+                    else
+                    {
+                        <span class="pill" title="Última conexão">@(row.Device.LastOnline == default ? "Offline" : row.Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy"))</span>
+                    }
+                </td>
+                break;
+            default:
+                <td>@CellText(row, column.Key)</td>
+                break;
+        }
+    };
+}

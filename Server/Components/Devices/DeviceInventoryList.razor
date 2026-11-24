@@ -1,4 +1,3 @@
-@using Remotely.Shared.Models.Diagnostics
 @using System.Globalization
 @using System.Text
 @inherits AuthComponentBase
@@ -27,15 +26,6 @@
         <option value="">Todos os status</option>
         <option value="online">Online</option>
         <option value="offline">Offline</option>
-    </select>
-
-    <select class="form-select inv-list-select" @bind="_diagnostic" @bind:after="ApplyFilters" aria-label="Diagnóstico">
-        <option value="">Todos os diagnósticos</option>
-        <option value="issues">Com problema ou atenção</option>
-        <option value="error">Com problema</option>
-        <option value="warning">Com atenção</option>
-        <option value="ok">Tudo certo</option>
-        <option value="never">Sem diagnóstico</option>
     </select>
 
     <select class="form-select inv-list-select" @bind="_groupId" @bind:after="ApplyFilters" aria-label="Grupo">
@@ -125,28 +115,6 @@
     </div>
 }
 
-@if (!_isLoading)
-{
-    <div class="diag-health">
-        <button type="button" class="diag-health-item diag-health-error @(_diagnostic == "error" ? "active" : "")" @onclick='() => FilterDiagnostic("error")'>
-            <span class="diag-health-icon"><i class="fa-solid fa-circle-xmark"></i></span>
-            <span><strong>@CountDiagnostic(DiagnosticStatus.Error)</strong> com problema</span>
-        </button>
-        <button type="button" class="diag-health-item diag-health-warning @(_diagnostic == "warning" ? "active" : "")" @onclick='() => FilterDiagnostic("warning")'>
-            <span class="diag-health-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
-            <span><strong>@CountDiagnostic(DiagnosticStatus.Warning)</strong> com atenção</span>
-        </button>
-        <button type="button" class="diag-health-item diag-health-ok @(_diagnostic == "ok" ? "active" : "")" @onclick='() => FilterDiagnostic("ok")'>
-            <span class="diag-health-icon"><i class="fa-solid fa-circle-check"></i></span>
-            <span><strong>@CountDiagnostic(DiagnosticStatus.Ok)</strong> tudo certo</span>
-        </button>
-        <button type="button" class="diag-health-item @(_diagnostic == "never" ? "active" : "")" @onclick='() => FilterDiagnostic("never")'>
-            <span class="diag-health-icon"><i class="fa-solid fa-stethoscope"></i></span>
-            <span><strong>@_all.Count(x => x.Diagnostic is null)</strong> sem diagnóstico</span>
-        </button>
-    </div>
-}
-
 <div class="inv-list-summary">
     <span>
         @if (_isSearching)
@@ -227,26 +195,6 @@ else
     {
         switch (key)
         {
-            case "diagnostic":
-                <td class="text-nowrap">
-                    @if (row.Diagnostic is { } diag)
-                    {
-                        <a href="@($"/device-details/{row.Device.ID}/diagnostics")" title="@DiagnosticTitle(diag)"
-                           class="pill no-dot @(diag.Status switch { DiagnosticStatus.Error => "danger", DiagnosticStatus.Warning => "warning", _ => "success" })">
-                            <i class="fa-solid @(diag.Status switch { DiagnosticStatus.Error => "fa-circle-xmark", DiagnosticStatus.Warning => "fa-triangle-exclamation", _ => "fa-circle-check" })"></i>
-                            @(diag.Status switch { DiagnosticStatus.Error => "Problema", DiagnosticStatus.Warning => "Atenção", _ => "Ok" })
-                        </a>
-                        @if (diag.Issues.Count > 0)
-                        {
-                            <div class="small text-muted inv-diag-issues">@string.Join(", ", diag.Issues.Select(x => x.Name))</div>
-                        }
-                    }
-                    else
-                    {
-                        <span class="text-muted small">—</span>
-                    }
-                </td>
-                break;
             case "user":
                 <td>@row.UserDisplay</td>
                 break;

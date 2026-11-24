@@ -2234,3 +2234,24 @@ label, .form-label {
 .inv-column.hidden-col .inv-column-grip { visibility: hidden; }
 .inv-column-fixed { color: var(--rm-text-muted); padding-left: 0.55rem; }
     .inv-column-fixed i { width: 0.9rem; font-size: 0.75rem; }
+
+/* Menu Diagnóstico */
+.diag-select-col { width: 2.2rem; }
+    .diag-select-col .form-check-input { margin: 0; cursor: pointer; }
+.diag-list-table tr.selected td { background: rgba(var(--rm-accent-rgb), 0.06); }
+.diag-test-cell { font-size: 1.02rem; }
+    .diag-test-cell a { text-decoration: none; }
+.diag-issues-cell { min-width: 180px; }
+.diag-issue {
+    display: inline-block;
+    margin: 0 0.25rem 0.25rem 0;
+    padding: 0.08rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+    .diag-issue.error { background: rgba(var(--rm-danger-rgb), 0.13); color: var(--rm-danger); }
+    .diag-issue.warning { background: rgba(var(--rm-warning-rgb), 0.15); color: #b45309; }
+.theme-dark .diag-issue.warning { color: var(--rm-warning); }
+.diag-requested-by { max-width: 190px; }
+.inv-list-summary .ms-auto { margin-left: auto; }
