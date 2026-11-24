@@ -573,10 +573,11 @@ public class DataService : IDataService
             var ordered = device.OrderByDescending(x => x.StartedAt).ToList();
 
             // Diagnóstico em andamento (o agente responde em segundos; depois de 20 min é abandonado).
+            // Com teste de memória, a execução atravessa o reinício: o agente conclui quando o computador volta.
             var runningRun = ordered.FirstOrDefault(x =>
                 x.FinishedAt is null &&
                 !DiagnosticRepairs.IsRepairRun(x.Tests) &&
-                now - x.StartedAt < TimeSpan.FromMinutes(20));
+                now - x.StartedAt < (x.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromHours(14) : TimeSpan.FromMinutes(20)));
 
             // Reparo em andamento: o agente responde na hora; sem resposta em 3 min, ficou para trás.
             string? runningRepair = null;

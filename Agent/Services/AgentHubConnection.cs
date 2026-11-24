@@ -202,6 +202,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
                     await SendInventory(force: false);
                 });
 
+                ResumePendingMemoryTest();
+
                 await _hubConnection.SendAsync("CheckForPendingScriptRuns");
                 await _hubConnection.SendAsync("CheckForPendingRemoteControlSessions");
 
@@ -244,6 +246,61 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             _diagnosticsRunner.RunRepair(runId, repairId, target, report, token));
 
     /// <summary>
+    /// Envia o andamento de um diagnóstico. O resultado final espera a conexão voltar
+    /// (reparos de rede derrubam a conexão por alguns segundos).
+    /// </summary>
+    private async Task SendDiagnosticReport(DiagnosticReport report, CancellationToken cancellationToken)
+    {
+        var waitUntil = DateTimeOffset.Now.AddSeconds(report.Completed ? 90 : 0);
+        while (_hubConnection?.State != HubConnectionState.Connected && DateTimeOffset.Now < waitUntil)
+        {
+            await Task.Delay(2_000, cancellationToken);
+        }
+
+        if (_hubConnection?.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.SendAsync("ReportDiagnostics", DiagnosticSerializer.Compress(report), cancellationToken);
+        }
+    }
+
+    private int _memoryResumeRunning;
+
+    /// <summary>Completa o teste de memória que reiniciou o computador (uma vez por conexão).</summary>
+    private void ResumePendingMemoryTest()
+    {
+        if (Interlocked.Exchange(ref _memoryResumeRunning, 1) == 1)
+        {
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Dá tempo do servidor registrar o dispositivo online.
+                await Task.Delay(TimeSpan.FromSeconds(10), _appLifetime.ApplicationStopping);
+                await _diagnosticsRunner.ResumeMemoryTest(
+                    _connectionInfo?.Host,
+                    report => SendDiagnosticReport(report, _appLifetime.ApplicationStopping),
+                    _diagnosticsLock,
+                    _appLifetime.ApplicationStopping);
+            }
+            catch (OperationCanceledException)
+            {
+                // Agente encerrando.
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while resuming memory test.");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _memoryResumeRunning, 0);
+            }
+        });
+    }
+
+    /// <summary>
     /// Roda um diagnóstico ou reparo em segundo plano (podem levar minutos) e envia
     /// cada atualização ao servidor. Um por vez.
     /// </summary>
@@ -272,23 +329,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
                 cts.CancelAfter(timeout);
 
-                await job(
-                    async report =>
-                    {
-                        // Reparos de rede derrubam a conexão por alguns segundos: espera reconectar
-                        // para não perder o resultado final.
-                        var waitUntil = DateTimeOffset.Now.AddSeconds(report.Completed ? 90 : 0);
-                        while (_hubConnection?.State != HubConnectionState.Connected && DateTimeOffset.Now < waitUntil)
-                        {
-                            await Task.Delay(2_000, cts.Token);
-                        }
-
-                        if (_hubConnection?.State == HubConnectionState.Connected)
-                        {
-                            await _hubConnection.SendAsync("ReportDiagnostics", DiagnosticSerializer.Compress(report), cts.Token);
-                        }
-                    },
-                    cts.Token);
+                await job(report => SendDiagnosticReport(report, cts.Token), cts.Token);
             }
             catch (Exception ex)
             {

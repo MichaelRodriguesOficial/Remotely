@@ -449,14 +449,14 @@ internal static class WindowsDiagnostics
                     sources.Add((source, destination.Length == 0));
                 }
 
-                onlyTempCleanup = sources.Count > 0 && sources.All(x => x.Delete &&
-                    (x.Path.Contains(@"\Temp\", StringComparison.OrdinalIgnoreCase) ||
-                     x.Path.Contains(@"\AppData\Local\Temp", StringComparison.OrdinalIgnoreCase)));
+                // Só arquivos para apagar no próximo início (sobras de instaladores e agentes):
+                // não muda nada no sistema, então não é motivo para reiniciar.
+                onlyTempCleanup = sources.Count > 0 && sources.All(x => x.Delete);
                 var names = sources.Select(x => Path.GetFileName(x.Path.TrimEnd('\\')))
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
-                fileDetails = $"{sources.Count} arquivo(s){(onlyTempCleanup ? ", só temporários para apagar" : "")}: " +
+                fileDetails = $"{sources.Count} arquivo(s){(onlyTempCleanup ? " só para apagar" : "")}: " +
                     string.Join(", ", names.Take(5)) + (names.Count > 5 ? $" e mais {names.Count - 5}" : "");
             }
         }
@@ -467,10 +467,12 @@ internal static class WindowsDiagnostics
             : DiagnosticStatus.Warning;
         var rebootItem = Item(
             "Reinício pendente",
-            pending.Count == 0 ? "Não" : $"Sim ({string.Join(", ", pending)})",
+            pending.Count == 0 ? "Não"
+                : rebootStatus == DiagnosticStatus.Info ? "Não (só arquivos para apagar no próximo início)"
+                : $"Sim ({string.Join(", ", pending)})",
             rebootStatus,
             pending.Count == 0 ? null
-                : rebootStatus == DiagnosticStatus.Info ? $"Pode esperar o próximo reinício normal. {fileDetails}"
+                : rebootStatus == DiagnosticStatus.Info ? $"Sobras de instaladores ou agentes; o Windows apaga sozinho no próximo reinício normal. {fileDetails}"
                 : $"Reinicie para concluir atualizações e instalações.{(fileDetails is null ? "" : $" {fileDetails}")}");
         if (rebootStatus == DiagnosticStatus.Warning)
         {
@@ -679,7 +681,8 @@ internal static class WindowsDiagnostics
     // Teste de memória
     // -----------------------------------------------------------------
 
-    public static void ScheduleMemoryTest(DiagnosticTestResult test)
+    /// <summary>Agenda o teste e reinicia em 2 minutos. Devolve true se o reinício foi agendado.</summary>
+    public static bool ScheduleMemoryTest(DiagnosticTestResult test)
     {
         var system32 = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.Windows),
@@ -691,7 +694,7 @@ internal static class WindowsDiagnostics
             test.Status = DiagnosticStatus.Error;
             test.Summary = "Não foi possível agendar o teste de memória.";
             test.Items.Add(Item("bcdedit", bcdOutput.Trim(), DiagnosticStatus.Error));
-            return;
+            return false;
         }
 
         var (shutdownExit, shutdownOutput) = Run(
@@ -702,15 +705,36 @@ internal static class WindowsDiagnostics
         if (shutdownExit != 0)
         {
             test.Status = DiagnosticStatus.Warning;
-            test.Summary = "Teste agendado, mas não foi possível reiniciar. Ele roda no próximo reinício.";
+            test.Summary = "Teste agendado, mas não foi possível reiniciar. Ele roda no próximo reinício e o resultado aparece aqui.";
             test.Items.Add(Item("Reinício", shutdownOutput.Trim(), DiagnosticStatus.Warning));
-            return;
+            return true;
         }
 
-        test.Status = DiagnosticStatus.Info;
-        test.Summary = "Agendado. O computador reinicia em 2 minutos e testa a memória (10 a 20 minutos).";
+        test.Status = DiagnosticStatus.Running;
+        test.Summary = "Agendado. O computador reinicia em 2 minutos e testa a memória (10 a 20 minutos). O resultado aparece aqui quando ele voltar.";
         test.Items.Add(Item("Agendamento", "Diagnóstico de Memória do Windows no próximo início"));
         test.Items.Add(Item("Reinício", "Em 2 minutos (o usuário foi avisado)"));
-        test.Items.Add(Item("Resultado", "Depois que a máquina voltar, rode o teste \"Sistema\" e veja \"Último teste de memória\"."));
+        return true;
+    }
+
+    /// <summary>Resultado do Diagnóstico de Memória do Windows registrado depois de <paramref name="after"/>.</summary>
+    public static (bool HasErrors, DateTime Time)? ReadMemoryResult(DateTime after)
+    {
+        try
+        {
+            var query = new EventLogQuery("System", PathType.LogName,
+                "*[System[Provider[@Name='Microsoft-Windows-MemoryDiagnostics-Results']]]") { ReverseDirection = true };
+            using var reader = new EventLogReader(query);
+            using var record = reader.ReadEvent();
+            if (record?.TimeCreated is { } time && time > after)
+            {
+                return (record.Id is 1102 or 1202, time);
+            }
+        }
+        catch
+        {
+            // Sem acesso ao log.
+        }
+        return null;
     }
 }

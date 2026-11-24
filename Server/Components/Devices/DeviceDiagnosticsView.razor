@@ -122,7 +122,10 @@
             <section class="panel diag-summary diag-@runStatus.ToString().ToLowerInvariant()">
                 <span class="diag-summary-icon diag-bg-@runStatus.ToString().ToLowerInvariant()"><i class="@StatusIcon(runStatus, colored: false)"></i></span>
                 <div class="diag-summary-text">
-                    <h2>@(isRepairRun ? $"{DiagnosticRepairs.FromTestId(_selectedRun.Tests)?.Name}: {RunTitle(runStatus, isRepair: true).ToLowerInvariant()}" : RunTitle(runStatus))</h2>
+                    <h2>@(isRepairRun ? $"{DiagnosticRepairs.FromTestId(_selectedRun.Tests)?.Name}: {RunTitle(runStatus, isRepair: true).ToLowerInvariant()}"
+                          : runStatus == DiagnosticStatus.Running && _selectedReport.Tests.Any(x => x.Id == DiagnosticTests.MemoryTest && x.Status == DiagnosticStatus.Running)
+                              ? "Aguardando o reinício e o teste de memória"
+                              : RunTitle(runStatus))</h2>
                     <div class="small text-muted">
                         @_selectedRun.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
                         @if (!string.IsNullOrWhiteSpace(_selectedRun.RequestedBy))
@@ -544,10 +547,12 @@
         if (run.Status == "Running")
         {
             // Agente antigo (sem diagnóstico), desligado no meio ou reiniciado pelo teste de memória.
-            var limit = run.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromMinutes(5) : TimeSpan.FromMinutes(20);
-            return DateTimeOffset.Now - run.StartedAt > limit && run.Data is null
-                ? DiagnosticStatus.Skipped
-                : DiagnosticStatus.Running;
+            // Com teste de memória a execução atravessa o reinício (o agente conclui quando o computador volta).
+            var elapsed = DateTimeOffset.Now - run.StartedAt;
+            var limit = run.Data is null ? TimeSpan.FromMinutes(5)
+                : run.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromHours(14)
+                : TimeSpan.FromMinutes(20);
+            return elapsed > limit ? DiagnosticStatus.Skipped : DiagnosticStatus.Running;
         }
 
         return Enum.TryParse<DiagnosticStatus>(run.Status, out var status) ? status : DiagnosticStatus.Info;

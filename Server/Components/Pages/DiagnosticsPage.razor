@@ -487,6 +487,13 @@ else
                             <span class="text-truncate">Reparando: @runningRepair</span>
                         </span>
                     }
+                    else if (summary?.RunningTests.Count == 1 && summary.RunningTests.Contains(DiagnosticTests.MemoryTest))
+                    {
+                        <span class="diag-running-pill" role="status" title="O computador reinicia, testa a memória e o resultado chega quando ele voltar">
+                            <span class="diag-running-spinner"></span>
+                            Testando a memória (reinício)
+                        </span>
+                    }
                     else if (summary?.RunningTests.Count > 0)
                     {
                         <span class="diag-running-pill" role="status" title="Diagnóstico em andamento">

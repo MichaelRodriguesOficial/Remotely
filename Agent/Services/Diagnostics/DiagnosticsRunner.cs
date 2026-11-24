@@ -25,6 +25,12 @@ public interface IDiagnosticsRunner
     /// </summary>
     Task Run(string runId, IReadOnlyList<string> tests, string? serverHost, Func<DiagnosticReport, Task> report, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Se o computador reiniciou para o teste de memória, espera o resultado do Windows,
+    /// refaz o teste Sistema e conclui a mesma execução.
+    /// </summary>
+    Task<bool> ResumeMemoryTest(string? serverHost, Func<DiagnosticReport, Task> report, SemaphoreSlim runLock, CancellationToken cancellationToken);
+
     /// <summary>Executa um reparo da lista fechada <see cref="DiagnosticRepairs"/>.</summary>
     Task RunRepair(string runId, string repairId, string? target, Func<DiagnosticReport, Task> report, CancellationToken cancellationToken);
 }
@@ -68,6 +74,25 @@ public class DiagnosticsRunner : IDiagnosticsRunner
             test.StartedAt = DateTimeOffset.Now;
             await report(diagnostic);
 
+            // Teste de memória (sempre o último): o computador reinicia e o agente completa
+            // esta mesma execução com o resultado quando voltar (ResumeMemoryTest).
+            if (test.Id == DiagnosticTests.MemoryTest && OperatingSystem.IsWindows())
+            {
+                var scheduledAt = DateTimeOffset.Now;
+                MemoryTestMarker.Save(diagnostic, scheduledAt);
+                if (WindowsDiagnostics.ScheduleMemoryTest(test))
+                {
+                    MemoryTestMarker.Save(diagnostic, scheduledAt);
+                    await report(diagnostic);
+                    return;
+                }
+
+                MemoryTestMarker.Delete();
+                test.FinishedAt = DateTimeOffset.Now;
+                await report(diagnostic);
+                continue;
+            }
+
             try
             {
                 await RunTest(test, serverHost, cancellationToken);
@@ -100,6 +125,109 @@ public class DiagnosticsRunner : IDiagnosticsRunner
         diagnostic.Completed = true;
         diagnostic.FinishedAt = DateTimeOffset.Now;
         await report(diagnostic);
+    }
+
+    public async Task<bool> ResumeMemoryTest(string? serverHost, Func<DiagnosticReport, Task> report, SemaphoreSlim runLock, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows() || MemoryTestMarker.Load() is not { } pending)
+        {
+            return false;
+        }
+
+        var (diagnostic, scheduledAt) = pending;
+
+        // Ainda não reiniciou (ex.: o agente só reconectou): espera o próximo início.
+        var bootTime = DateTimeOffset.Now - TimeSpan.FromMilliseconds(Environment.TickCount64);
+        if (bootTime < scheduledAt && DateTimeOffset.Now - scheduledAt < TimeSpan.FromHours(12))
+        {
+            return false;
+        }
+
+        var memory = diagnostic.Tests.FirstOrDefault(x => x.Id == DiagnosticTests.MemoryTest);
+        if (memory is null)
+        {
+            MemoryTestMarker.Delete();
+            return false;
+        }
+
+        _logger.LogInformation("Resuming memory test of run {runId}.", diagnostic.RunId);
+
+        // Mostra que o computador voltou enquanto o Windows registra o resultado.
+        memory.Summary = "O computador voltou. Aguardando o resultado do Diagnóstico de Memória do Windows...";
+        await report(diagnostic);
+
+        // O Windows grava o resultado alguns minutos depois de iniciar (às vezes só após o logon).
+        (bool HasErrors, DateTime Time)? result = null;
+        var tooOld = DateTimeOffset.Now - scheduledAt > TimeSpan.FromHours(12);
+        var deadline = DateTimeOffset.Now.AddMinutes(45);
+        while (!tooOld && DateTimeOffset.Now < deadline)
+        {
+            result = WindowsDiagnostics.ReadMemoryResult(scheduledAt.LocalDateTime);
+            if (result is not null)
+            {
+                break;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+        }
+
+        await runLock.WaitAsync(cancellationToken);
+        try
+        {
+            memory.Items.Clear();
+            if (result is { } found)
+            {
+                memory.Status = found.HasErrors ? DiagnosticStatus.Error : DiagnosticStatus.Ok;
+                memory.Summary = found.HasErrors
+                    ? "O Windows encontrou erros na memória RAM."
+                    : "Nenhum erro encontrado na memória RAM.";
+                memory.Items.Add(Item("Resultado", found.HasErrors ? "Encontrou erros" : "Sem erros",
+                    memory.Status, found.HasErrors ? "Memória RAM com defeito: troque o módulo (teste um pente por vez para achar qual)." : null));
+                memory.Items.Add(Item("Concluído em", found.Time.ToString("dd/MM/yyyy HH:mm")));
+            }
+            else
+            {
+                memory.Status = DiagnosticStatus.Warning;
+                memory.Summary = "O computador voltou, mas o Windows não registrou o resultado.";
+                memory.Items.Add(Item("Resultado", "Não registrado", DiagnosticStatus.Warning,
+                    "O teste pode ter sido cancelado na tela (Esc) ou pulado no início do Windows. Rode de novo se precisar."));
+            }
+            memory.Items.Add(Item("Reiniciado em", (DateTimeOffset.Now - TimeSpan.FromMilliseconds(Environment.TickCount64)).ToString("dd/MM/yyyy HH:mm")));
+            memory.FinishedAt = DateTimeOffset.Now;
+
+            // O teste Sistema rodou antes do reinício: refaz agora (reinício pendente e último teste de memória).
+            if (diagnostic.Tests.FirstOrDefault(x => x.Id == DiagnosticTests.System) is { } system)
+            {
+                system.Items.Clear();
+                system.Summary = null;
+                system.Status = DiagnosticStatus.Running;
+                try
+                {
+                    await RunTest(system, serverHost, cancellationToken);
+                    if (system.Status == DiagnosticStatus.Running)
+                    {
+                        system.Status = system.Items.Count == 0 ? DiagnosticStatus.Skipped : Worst(system.Items);
+                    }
+                    system.Summary = $"{DefaultSummary(system)} (refeito depois do reinício)";
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "System test failed after memory test.");
+                    system.Status = DiagnosticStatus.Error;
+                    system.Summary = $"Falha ao executar o teste: {ex.Message}";
+                }
+                system.FinishedAt = DateTimeOffset.Now;
+            }
+
+            diagnostic.Completed = true;
+            diagnostic.FinishedAt = DateTimeOffset.Now;
+            await report(diagnostic);
+            MemoryTestMarker.Delete();
+            return true;
+        }
+        finally
+        {
+            runLock.Release();
+        }
     }
 
     public async Task RunRepair(

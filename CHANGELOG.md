@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.9.4 — 2026-11-24
+
+### Diagnóstico
+- **Teste de memória com resultado automático**: o diagnóstico fica "em andamento" durante o reinício ("Aguardando o reinício e o teste de memória" / "Testando a memória (reinício)") e, quando o computador volta, o agente espera o Windows registrar o resultado e conclui a mesma execução sozinho, com "Sem erros" ou "Encontrou erros". Não precisa mais rodar outro teste.
+- Na volta, o agente também **refaz o teste Sistema**, que tinha rodado antes do reinício. Assim "Reinício pendente" e "Último teste de memória" saem atualizados.
+- Se o Windows não registrar o resultado em até 45 minutos (teste cancelado com Esc, por exemplo), o teste fica como atenção, com a explicação.
+- **Reinício pendente**: arquivos marcados só para apagar no próximo início (sobras de instaladores e agentes, como as do CrowdStrike ou de ferramentas de patch) não geram mais alerta. Continua avisando quando há atualização do Windows, componentes do sistema ou arquivos a substituir.
+- Execuções sem nenhuma resposta do agente passam a "Sem resposta" em 5 minutos; com o teste de memória, a espera vai até 14 horas.
+
 ## v1.9.3 — 2026-11-24
 
 ### Menu Diagnóstico
