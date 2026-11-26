@@ -122,7 +122,54 @@
             <i class="fa-solid fa-circle-notch fa-spin me-1"></i>
         }
         <strong>@_filtered.Count</strong> de @_all.Count dispositivo(s)
+        @if (_selected.Count > 0)
+        {
+            <span>· <strong>@_selected.Count</strong> selecionado(s) <button type="button" class="btn btn-link btn-sm p-0 ms-1" @onclick="() => _selected.Clear()">limpar</button></span>
+        }
+        else if (_filtered.Count > 0)
+        {
+            <button type="button" class="btn btn-link btn-sm p-0 ms-2" @onclick="SelectFiltered">selecionar todos da lista</button>
+        }
     </span>
+    <div class="dropdown ms-auto">
+        <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"
+                disabled="@(_selected.Count == 0 || _isActing)"
+                title="@(_selected.Count == 0 ? "Selecione os computadores na lista" : "Ações nos selecionados")">
+            <i class="fa-solid @(_isActing ? "fa-circle-notch fa-spin" : "fa-bolt")"></i>
+            Ações@(_selected.Count > 0 ? $" ({_selected.Count})" : "")
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end diag-run-menu">
+            <li><h6 class="dropdown-header">@_selected.Count computador(es)</h6></li>
+            <li>
+                <button type="button" class="dropdown-item" @onclick="RefreshSelected">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span><strong>Atualizar inventário</strong><small>Coleta hardware e software de novo nos que estão online</small></span>
+                </button>
+            </li>
+            @if (Permissions.ManageDevices)
+            {
+                <li><hr class="dropdown-divider" /></li>
+                <li>
+                    <button type="button" class="dropdown-item" @onclick="WakeSelected">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span><strong>Ligar (Wake-on-LAN)</strong><small>Para os offline, pela rede de outro computador online</small></span>
+                    </button>
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item" @onclick="() => PowerSelected(restart: true)">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span><strong>Reiniciar</strong><small>Com aviso ao usuário, em 1 minuto</small></span>
+                    </button>
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item text-danger" @onclick="() => PowerSelected(restart: false)">
+                        <i class="fa-solid fa-power-off text-danger"></i>
+                        <span><strong>Desligar</strong><small>Com aviso ao usuário, em 1 minuto</small></span>
+                    </button>
+                </li>
+            }
+        </ul>
+    </div>
     <ReportActions FileName="@($"inventario-{DateTime.Now:yyyy-MM-dd-HHmm}")"
                    EmailSubject="@($"Inventário de computadores ({_filtered.Count} dispositivo(s))")"
                    Html="BuildListHtml"
@@ -152,10 +199,14 @@ else if (_filtered.Count == 0)
 }
 else
 {
-    <div class="table-wrap inv-list-table">
+    <div class="table-wrap inv-list-table diag-list-table">
         <table class="table table-hover">
             <thead>
                 <tr>
+                    <th class="diag-select-col">
+                        <input type="checkbox" class="form-check-input" aria-label="Selecionar a página"
+                               checked="@AllPageSelected" @onchange="e => TogglePage(e.Value is true)" />
+                    </th>
                     @foreach (var column in VisibleColumns)
                     {
                         <th class="@(column.Key == _sortKey ? "sorted" : "")" @onclick="() => SortBy(column.Key)" role="button" title="Ordenar por @column.Label">
@@ -171,7 +222,11 @@ else
             <tbody>
                 @foreach (var row in _filtered.Skip((_page - 1) * PageSize).Take(PageSize))
                 {
-                    <tr @key="row.Device.ID">
+                    <tr @key="row.Device.ID" class="@(_selected.Contains(row.Device.ID) ? "selected" : "")">
+                        <td class="diag-select-col">
+                            <input type="checkbox" class="form-check-input" aria-label="@($"Selecionar {row.Device.DeviceName}")"
+                                   checked="@_selected.Contains(row.Device.ID)" @onchange="e => ToggleSelected(row.Device.ID, e.Value is true)" />
+                        </td>
                         <td class="text-nowrap">
                             <a href="@($"/device-details/{row.Device.ID}")" class="fw-semibold">@row.Device.DeviceName</a>
                             @if (!string.IsNullOrWhiteSpace(row.Device.Alias))

@@ -37,6 +37,12 @@ public interface IDataService
 
     Task<List<DeviceDiagnosticRun>> GetDiagnosticRuns(string deviceId, int take = 20);
 
+    /// <summary>Diagnóstico ou reparo ainda em andamento no dispositivo (null se nenhum).</summary>
+    Task<DeviceDiagnosticRun?> GetActiveDiagnosticRun(string deviceId);
+
+    /// <summary>Encerra as execuções abertas do dispositivo como canceladas. Devolve quantas foram canceladas.</summary>
+    Task<int> CancelDiagnosticRuns(string deviceId, string? canceledBy);
+
     /// <summary>Início do último diagnóstico (não reparo) de cada dispositivo.</summary>
     Task<Dictionary<string, DateTimeOffset>> GetLastDiagnosticTimes(IReadOnlyCollection<string> deviceIds);
 
@@ -527,6 +533,68 @@ public class DataService : IDataService
             .ToListAsync();
     }
 
+    public async Task<DeviceDiagnosticRun?> GetActiveDiagnosticRun(string deviceId)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        var latest = await dbContext.DeviceDiagnosticRuns
+            .AsNoTracking()
+            .Where(x => x.DeviceID == deviceId)
+            .OrderByDescending(x => x.StartedAt)
+            .Select(x => new { x.ID, x.Tests, x.StartedAt, x.FinishedAt, HasData = x.Data != null })
+            .FirstOrDefaultAsync();
+
+        if (latest is null ||
+            !DiagnosticRunRules.IsActive(latest.Tests, latest.HasData, latest.StartedAt, latest.FinishedAt, superseded: false, DateTimeOffset.Now))
+        {
+            return null;
+        }
+
+        return await dbContext.DeviceDiagnosticRuns.AsNoTracking().FirstOrDefaultAsync(x => x.ID == latest.ID);
+    }
+
+    public async Task<int> CancelDiagnosticRuns(string deviceId, string? canceledBy)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        var open = await dbContext.DeviceDiagnosticRuns
+            .Where(x => x.DeviceID == deviceId && x.FinishedAt == null)
+            .ToListAsync();
+
+        var now = DateTimeOffset.Now;
+        var reason = string.IsNullOrWhiteSpace(canceledBy) ? "Cancelado." : $"Cancelado por {canceledBy}.";
+        foreach (var run in open)
+        {
+            var report = DiagnosticSerializer.FromJson(run.Data) ?? new DiagnosticReport
+            {
+                RunId = run.ID,
+                StartedAt = run.StartedAt,
+                Tests = run.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(id => new DiagnosticTestResult
+                    {
+                        Id = id,
+                        Name = DiagnosticTests.Get(id)?.Name ?? DiagnosticRepairs.FromTestId(id)?.Name ?? id,
+                        Status = DiagnosticStatus.Pending
+                    })
+                    .ToList()
+            };
+
+            foreach (var test in report.Tests.Where(x => x.Status is DiagnosticStatus.Pending or DiagnosticStatus.Running))
+            {
+                test.Status = DiagnosticStatus.Canceled;
+                test.Summary = reason;
+                test.FinishedAt = now;
+            }
+
+            report.Completed = true;
+            report.FinishedAt = now;
+            run.FinishedAt = now;
+            run.Status = nameof(DiagnosticStatus.Canceled);
+            run.Data = DiagnosticSerializer.ToJson(report);
+        }
+
+        await dbContext.SaveChangesAsync();
+        return open.Count;
+    }
+
     public async Task<Dictionary<string, DateTimeOffset>> GetLastDiagnosticTimes(IReadOnlyCollection<string> deviceIds)
     {
         if (deviceIds.Count == 0)
@@ -561,7 +629,7 @@ public class DataService : IDataService
         var rows = await dbContext.DeviceDiagnosticRuns
             .AsNoTracking()
             .Where(x => deviceIds.Contains(x.DeviceID))
-            .Select(x => new { x.ID, x.DeviceID, x.StartedAt, x.FinishedAt, x.Status, x.Tests, x.RequestedBy })
+            .Select(x => new { x.ID, x.DeviceID, x.StartedAt, x.FinishedAt, x.Status, x.Tests, x.RequestedBy, HasData = x.Data != null })
             .ToListAsync();
 
         var since = DateTimeOffset.Now.AddDays(-60);
@@ -573,33 +641,22 @@ public class DataService : IDataService
             var ordered = device.OrderByDescending(x => x.StartedAt).ToList();
 
             // Diagnóstico em andamento (o agente responde em segundos; depois de 20 min é abandonado).
-            // Com teste de memória, a execução atravessa o reinício: o agente conclui quando o computador volta.
-            var runningRun = ordered.FirstOrDefault(x =>
-                x.FinishedAt is null &&
-                !DiagnosticRepairs.IsRepairRun(x.Tests) &&
-                now - x.StartedAt < (x.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromHours(14) : TimeSpan.FromMinutes(20)));
+            // Só a execução mais recente pode estar em andamento (uma mais nova encerra as antigas).
+            var latest = ordered[0];
+            var latestActive = DiagnosticRunRules.IsActive(latest.Tests, latest.HasData, latest.StartedAt, latest.FinishedAt, superseded: false, now);
+            var runningRun = latestActive && !DiagnosticRepairs.IsRepairRun(latest.Tests) ? latest : null;
 
             // Reparo em andamento: o agente responde na hora; sem resposta em 3 min, ficou para trás.
-            string? runningRepair = null;
-            if (ordered.FirstOrDefault(x => DiagnosticRepairs.IsRepairRun(x.Tests)) is { FinishedAt: null } openRepair)
-            {
-                var elapsed = now - openRepair.StartedAt;
-                var hasData = await dbContext.DeviceDiagnosticRuns.AsNoTracking()
-                    .Where(x => x.ID == openRepair.ID)
-                    .Select(x => x.Data != null)
-                    .FirstOrDefaultAsync();
-                if (elapsed < TimeSpan.FromMinutes(3) || (hasData && elapsed < TimeSpan.FromMinutes(100)))
-                {
-                    runningRepair = DiagnosticRepairs.FromTestId(openRepair.Tests)?.Name;
-                }
-            }
+            string? runningRepair = latestActive && DiagnosticRepairs.IsRepairRun(latest.Tests)
+                ? DiagnosticRepairs.FromTestId(latest.Tests)?.Name
+                : null;
 
             DiagnosticRepairState? lastRepair = null;
             if (ordered.FirstOrDefault(x => DiagnosticRepairs.IsRepairRun(x.Tests)) is { } repairRun &&
                 DiagnosticRepairs.FromTestId(repairRun.Tests) is { } repair)
             {
                 var repairStatus = Enum.TryParse<DiagnosticStatus>(repairRun.Status, out var parsed) ? parsed : DiagnosticStatus.Running;
-                if (repairRun.FinishedAt is null && now - repairRun.StartedAt > TimeSpan.FromMinutes(100))
+                if (repairRun.FinishedAt is null && !(latestActive && ReferenceEquals(repairRun, latest)))
                 {
                     repairStatus = DiagnosticStatus.Skipped;
                 }
@@ -639,7 +696,8 @@ public class DataService : IDataService
 
                 foreach (var testId in runTests.Where(x => !tests.ContainsKey(x)))
                 {
-                    if (perTest.TryGetValue(testId, out var result))
+                    // Teste cancelado não substitui o resultado anterior.
+                    if (perTest.TryGetValue(testId, out var result) && result.Status != DiagnosticStatus.Canceled)
                     {
                         tests[testId] = new DiagnosticTestState(testId, result.Name, result.Status, run.StartedAt, result.Summary);
                     }
@@ -667,7 +725,7 @@ public class DataService : IDataService
                 foreach (var testId in requested)
                 {
                     if (partial.TryGetValue(testId, out var test) &&
-                        test.Status is not (DiagnosticStatus.Pending or DiagnosticStatus.Running))
+                        test.Status is not (DiagnosticStatus.Pending or DiagnosticStatus.Running or DiagnosticStatus.Canceled))
                     {
                         tests[testId] = new DiagnosticTestState(testId, test.Name, test.Status, runningRun.StartedAt, test.Summary);
                     }

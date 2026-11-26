@@ -39,7 +39,33 @@
         </div>
     </div>
 
-    @if (!Device.IsOnline)
+    @if (ActiveRun is { } activeRun)
+    {
+        var activeIsRepair = DiagnosticRepairs.IsRepairRun(activeRun.Tests);
+        <div class="diag-active-run">
+            <span class="diag-running-spinner"></span>
+            <span class="flex-grow-1">
+                <strong>@(activeIsRepair ? $"Reparo em andamento: {DiagnosticRepairs.FromTestId(activeRun.Tests)?.Name}" : "Diagnóstico em andamento")</strong>
+                <span class="d-block small">
+                    Desde @activeRun.StartedAt.ToLocalTime().ToString("dd/MM HH:mm")@(string.IsNullOrWhiteSpace(activeRun.RequestedBy) ? "" : $", por {activeRun.RequestedBy}").
+                    Novos testes e reparos ficam bloqueados até terminar.
+                </span>
+            </span>
+            @if (Permissions.ManageDevices || Permissions.Repairs)
+            {
+                @if (!activeIsRepair && Permissions.ManageDevices)
+                {
+                    <button type="button" class="btn btn-secondary btn-sm" disabled="@_isCanceling" @onclick="() => CancelActive(restart: true)">
+                        <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                    </button>
+                }
+                <button type="button" class="btn btn-ghost btn-sm text-danger" disabled="@_isCanceling" @onclick="() => CancelActive(restart: false)">
+                    <i class="fa-solid fa-ban"></i> Cancelar
+                </button>
+            }
+        </div>
+    }
+    else if (!Device.IsOnline)
     {
         <div class="diag-notice"><i class="fa-solid fa-plug-circle-xmark"></i> O dispositivo está offline. Os testes ficam disponíveis quando ele conectar.</div>
     }
@@ -334,9 +360,9 @@
 
     private Remotely.Server.Models.UserNameDisplayFormat _nameFormat;
 
-    private bool CanRun => Device.IsOnline && Permissions.ManageDevices;
+    private bool CanRun => Device.IsOnline && Permissions.ManageDevices && ActiveRun is null;
 
-    private bool CanRepair => Device.IsOnline && Permissions.Repairs;
+    private bool CanRepair => Device.IsOnline && Permissions.Repairs && ActiveRun is null;
 
     private void OpenRepair(DiagnosticRepairs.RepairInfo repair, string? target)
     {
@@ -404,6 +430,17 @@
     {
         if (message.DeviceId != Device.ID)
         {
+            return;
+        }
+
+        // Cancelamento: só recarrega mantendo a seleção.
+        if (string.IsNullOrEmpty(message.RunId))
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadRuns(selectLatest: false);
+                StateHasChanged();
+            });
             return;
         }
 
@@ -535,27 +572,81 @@
 
     private DiagnosticStatus GetRunStatus(DeviceDiagnosticRun run)
     {
-        if (run.Status == "Running" && DiagnosticRepairs.IsRepairRun(run.Tests))
-        {
-            // O agente responde na hora ao começar o reparo; sem resposta = agente antigo ou desligado.
-            var elapsed = DateTimeOffset.Now - run.StartedAt;
-            return (run.Data is null && elapsed > TimeSpan.FromMinutes(3)) || elapsed > TimeSpan.FromMinutes(100)
-                ? DiagnosticStatus.Skipped
-                : DiagnosticStatus.Running;
-        }
-
         if (run.Status == "Running")
         {
-            // Agente antigo (sem diagnóstico), desligado no meio ou reiniciado pelo teste de memória.
-            // Com teste de memória a execução atravessa o reinício (o agente conclui quando o computador volta).
-            var elapsed = DateTimeOffset.Now - run.StartedAt;
-            var limit = run.Data is null ? TimeSpan.FromMinutes(5)
-                : run.Tests.Contains(DiagnosticTests.MemoryTest) ? TimeSpan.FromHours(14)
-                : TimeSpan.FromMinutes(20);
-            return elapsed > limit ? DiagnosticStatus.Skipped : DiagnosticStatus.Running;
+            // Só a execução mais recente pode estar em andamento; sem resposta do agente por muito
+            // tempo (desligado, antigo ou reiniciado sem voltar) vira "Sem resposta".
+            var superseded = _runs.FirstOrDefault()?.ID is { } latestId && latestId != run.ID;
+            return DiagnosticRunRules.IsActive(run.Tests, run.Data is not null, run.StartedAt, run.FinishedAt, superseded, DateTimeOffset.Now)
+                ? DiagnosticStatus.Running
+                : DiagnosticStatus.Skipped;
         }
 
         return Enum.TryParse<DiagnosticStatus>(run.Status, out var status) ? status : DiagnosticStatus.Info;
+    }
+
+    /// <summary>Execução em andamento agora (bloqueia novas até terminar ou ser cancelada).</summary>
+    private DeviceDiagnosticRun? ActiveRun =>
+        _runs.FirstOrDefault() is { } latest && GetRunStatus(latest) == DiagnosticStatus.Running ? latest : null;
+
+    private bool _isCanceling;
+
+    private async Task CancelActive(bool restart)
+    {
+        if (ActiveRun is not { } active)
+        {
+            return;
+        }
+
+        var isRepair = DiagnosticRepairs.IsRepairRun(active.Tests);
+        var confirmed = await JsInterop.Confirm(new ConfirmOptions(
+            restart ? "Reiniciar diagnóstico" : (isRepair ? "Cancelar reparo" : "Cancelar diagnóstico"),
+            restart
+                ? "O diagnóstico em andamento é cancelado e os mesmos testes começam de novo."
+                : isRepair
+                    ? "O reparo é interrompido. O que já foi feito no computador não é desfeito."
+                    : "Os testes que ainda não terminaram são cancelados. Um teste de memória agendado é desfeito (o computador não reinicia).",
+            restart ? "Reiniciar" : "Cancelar execução",
+            CancelText: "Voltar",
+            Danger: !restart,
+            Icon: restart ? "fa-solid fa-rotate-right" : "fa-solid fa-ban"));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _isCanceling = true;
+        try
+        {
+            var tests = active.Tests.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            var result = await CircuitConnection.CancelDiagnostics(Device.ID);
+            if (!result.IsSuccess)
+            {
+                ToastService.ShowToast2(result.Reason, Enums.ToastType.Warning);
+                return;
+            }
+
+            await LoadRuns(selectLatest: true);
+            if (!restart || isRepair)
+            {
+                ToastService.ShowToast2(isRepair ? "Reparo cancelado." : "Diagnóstico cancelado.", Enums.ToastType.Info);
+                return;
+            }
+
+            var run = await CircuitConnection.RunDiagnostics(Device.ID, tests);
+            if (!run.IsSuccess)
+            {
+                ToastService.ShowToast2(run.Reason, Enums.ToastType.Warning);
+                return;
+            }
+            ToastService.ShowToast2("Diagnóstico reiniciado.", Enums.ToastType.Info);
+            await LoadRuns(selectLatest: false);
+            SelectRun(run.Value);
+        }
+        finally
+        {
+            _isCanceling = false;
+        }
     }
 
     private static string RunTitle(DiagnosticStatus status, bool isRepair) => !isRepair ? RunTitle(status) : status switch
@@ -565,6 +656,7 @@
         DiagnosticStatus.Error => "Não concluído",
         DiagnosticStatus.Running or DiagnosticStatus.Pending => "Executando...",
         DiagnosticStatus.Skipped => "Não executado",
+        DiagnosticStatus.Canceled => "Cancelado",
         _ => "Reparo"
     };
 
@@ -575,6 +667,7 @@
         DiagnosticStatus.Error => "Problemas encontrados",
         DiagnosticStatus.Running => "Executando...",
         DiagnosticStatus.Skipped => "Sem resposta do agente",
+        DiagnosticStatus.Canceled => "Cancelado",
         _ => "Diagnóstico"
     };
 
@@ -586,6 +679,7 @@
         DiagnosticStatus.Warning => "Atenção",
         DiagnosticStatus.Error => "Problema",
         DiagnosticStatus.Skipped => "Não se aplica",
+        DiagnosticStatus.Canceled => "Cancelado",
         _ => "Informação"
     };
 
@@ -597,6 +691,7 @@
         DiagnosticStatus.Warning => "fa-solid fa-triangle-exclamation" + (colored ? " text-warning" : ""),
         DiagnosticStatus.Error => "fa-solid fa-circle-xmark" + (colored ? " text-danger" : ""),
         DiagnosticStatus.Skipped => "fa-solid fa-circle-minus" + (colored ? " text-muted" : ""),
+        DiagnosticStatus.Canceled => "fa-solid fa-ban" + (colored ? " text-muted" : ""),
         _ => "fa-solid fa-circle-info" + (colored ? " text-muted" : "")
     };
 

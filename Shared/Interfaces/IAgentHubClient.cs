@@ -81,6 +81,17 @@ public interface IAgentHubClient
         string requesterId, 
         string expiringToken);
 
+    /// <summary>
+    /// Baixa os arquivos enviados pelo painel e salva no destino escolhido
+    /// (ver <see cref="Remotely.Shared.Models.FileTransferDestinations"/>). Responde com FileTransferResult.
+    /// </summary>
+    Task ReceiveFiles(
+        string transferId,
+        string[] fileIds,
+        string requesterId,
+        string expiringToken,
+        string destination);
+
     Task TriggerHeartbeat();
 
     /// <summary>Coleta o inventário de hardware e software e envia ao servidor.</summary>
@@ -91,6 +102,12 @@ public interface IAgentHubClient
 
     /// <summary>Executa um reparo da lista fechada <c>DiagnosticRepairs</c> e envia o resultado com ReportDiagnostics.</summary>
     Task RunRepair(string runId, string repairId, string? target);
+
+    /// <summary>Interrompe o diagnóstico/reparo em andamento e desfaz um teste de memória agendado.</summary>
+    Task CancelDiagnostics();
+
+    /// <summary>Reinicia ("restart") ou desliga ("shutdown") o computador com aviso ao usuário.</summary>
+    Task PowerAction(string action, int delaySeconds);
 
     Task WakeDevice(string macAddress);
 }

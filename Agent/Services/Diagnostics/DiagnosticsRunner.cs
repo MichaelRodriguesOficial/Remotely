@@ -127,6 +127,25 @@ public class DiagnosticsRunner : IDiagnosticsRunner
         await report(diagnostic);
     }
 
+    /// <summary>Desfaz um teste de memória agendado (reinício e inicialização no teste) e esquece o pendente.</summary>
+    public static void CancelPendingMemoryTest()
+    {
+        if (MemoryTestMarker.Load() is null)
+        {
+            return;
+        }
+
+        MemoryTestMarker.Delete();
+        if (OperatingSystem.IsWindows())
+        {
+            var system32 = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? "Sysnative" : "System32");
+            DiagnosticHelpers.Run(System.IO.Path.Combine(system32, "shutdown.exe"), "/a", 15);
+            DiagnosticHelpers.Run(System.IO.Path.Combine(system32, "bcdedit.exe"), "/bootsequence {memdiag} /remove", 15);
+        }
+    }
+
     public async Task<bool> ResumeMemoryTest(string? serverHost, Func<DiagnosticReport, Task> report, SemaphoreSlim runLock, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows() || MemoryTestMarker.Load() is not { } pending)
@@ -307,6 +326,13 @@ public class DiagnosticsRunner : IDiagnosticsRunner
                     LinuxDiagnostics.Disks(test);
                 }
                 FreeSpace(test);
+                if (DiskHealth.Summarize(test.Items) is { } diskSummary)
+                {
+                    var diskGroups = test.Items.Where(x => x.Label == DiskHealth.VerdictLabel).Select(x => x.Group).ToHashSet();
+                    var volumeAlerts = test.Items.Count(x => !diskGroups.Contains(x.Group) &&
+                        x.Status is DiagnosticStatus.Warning or DiagnosticStatus.Error);
+                    test.Summary = volumeAlerts > 0 ? $"{diskSummary} {volumeAlerts} alerta(s) de espaço." : diskSummary;
+                }
                 break;
 
             case DiagnosticTests.Battery:

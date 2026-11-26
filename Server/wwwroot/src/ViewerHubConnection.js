@@ -12,6 +12,8 @@ var signalR = window["signalR"];
 export class ViewerHubConnection {
     constructor() {
         this.PartialCaptureFrames = [];
+        this.CloseToken = "";
+        this._closingSent = false;
     }
     Connect() {
         if (this.Connection) {
@@ -20,10 +22,19 @@ export class ViewerHubConnection {
         this.Connection = new signalR.HubConnectionBuilder()
             .withUrl("/hubs/viewer")
             .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+            .withKeepAliveInterval(5000)
             .configureLogging(signalR.LogLevel.Information)
             .build();
+        this.CloseToken = "";
+        this._closingSent = false;
         this.ApplyMessageHandlers(this.Connection);
         this.Connection.start().then(async () => {
+            try {
+                this.CloseToken = await this.Connection.invoke("GetCloseToken");
+            }
+            catch (e) {
+                console.warn("Could not get close token.", e);
+            }
             this.SendScreenCastRequestToDevice();
         }).catch(err => {
             console.error(err.toString());
@@ -38,6 +49,29 @@ export class ViewerHubConnection {
             UI.ToggleConnectUI(true);
         });
         ViewerApp.ClipboardWatcher.WatchClipboard();
+    }
+    /**
+     * Chamado quando a aba ou o navegador fecha sem clicar no X: avisa o servidor
+     * pelo hub e por sendBeacon, para a sessão terminar na hora no computador do usuário.
+     */
+    NotifyClosing() {
+        var _a;
+        if (this._closingSent) {
+            return;
+        }
+        this._closingSent = true;
+        try {
+            if (((_a = this.Connection) === null || _a === void 0 ? void 0 : _a.state) == HubConnectionState.Connected) {
+                this.Connection.send("ViewerClosing");
+            }
+        }
+        catch (_b) { }
+        try {
+            if (this.CloseToken && navigator.sendBeacon) {
+                navigator.sendBeacon("/api/viewer/closed", new Blob([this.CloseToken], { type: "text/plain" }));
+            }
+        }
+        catch (_c) { }
     }
     async ChangeWindowsSession(sessionID) {
         if (ViewerApp.Mode == RemoteControlMode.Unattended) {

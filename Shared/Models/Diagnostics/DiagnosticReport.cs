@@ -20,8 +20,8 @@ public static class DiagnosticTests
 
     public static IReadOnlyList<TestInfo> All { get; } =
     [
-        new(Disks, "Saúde dos discos", "SMART: temperatura, desgaste, erros de leitura e escrita, horas ligado e espaço livre.", false),
-        new(Battery, "Bateria", "Capacidade real em relação à de fábrica, ciclos e carga.", false),
+        new(Disks, "Saúde dos discos", "SMART lido direto do disco (NVMe e SATA): veredito Bom/Atenção/Ruim, setores ruins, vida útil, temperatura e espaço livre.", false),
+        new(Battery, "Bateria", "Capacidade real x de fábrica, ciclos, ritmo de desgaste e autonomia estimada, com veredito.", false),
         new(Devices, "Dispositivos com erro", "Drivers com problema, telas azuis, desligamentos inesperados e erros críticos recentes.", false),
         new(Network, "Rede", "Ping do gateway, DNS, internet e servidor, perda de pacotes, latência e sinal do Wi-Fi.", false),
         new(System, "Sistema", "Reinício pendente, tempo ligado, atualizações, antivírus, BitLocker e último teste de memória.", false),
@@ -41,7 +41,10 @@ public enum DiagnosticStatus
     Warning = 3,
     Error = 4,
     Skipped = 5,
-    Info = 6
+    Info = 6,
+
+    /// <summary>Cancelado pelo painel.</summary>
+    Canceled = 7
 }
 
 /// <summary>Resultado de uma execução de diagnóstico (vários testes).</summary>

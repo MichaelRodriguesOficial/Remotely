@@ -51,6 +51,28 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td colspan="2" align="center">Executar e Reparos em vários computadores de uma vez</td>
   </tr>
   <tr>
+    <td><img src=".github/media/diagnostico-discos.png" alt="Saúde dos discos com veredito Bom ou Atenção lido direto do SMART" /></td>
+    <td><img src=".github/media/diagnostico-andamento.png" alt="Diagnóstico em andamento com opções de reiniciar e cancelar" /></td>
+  </tr>
+  <tr>
+    <td align="center">Discos com veredito (SMART direto do NVMe e do SATA)</td>
+    <td align="center">Um diagnóstico por vez, com Reiniciar e Cancelar</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src=".github/media/inventario-acoes.png" alt="Inventário com seleção de computadores e menu Ações" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Inventário: atualizar, ligar, reiniciar ou desligar vários computadores de uma vez</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/enviar-arquivo.png" alt="Janela Enviar arquivo com escolha da pasta de destino" /></td>
+    <td><img src=".github/media/enviar-arquivo-salvo.png" alt="Confirmação com o caminho onde o arquivo foi salvo" /></td>
+  </tr>
+  <tr>
+    <td align="center">Enviar arquivo escolhendo a pasta de destino</td>
+    <td align="center">O caminho exato onde cada arquivo foi salvo</td>
+  </tr>
+  <tr>
     <td><img src=".github/media/diagnostico-corrigir.png" alt="Diagnóstico com botão Corrigir nos itens com problema" /></td>
     <td><img src=".github/media/reparo-reiniciar.png" alt="Confirmação do reparo de reinício com horário" /></td>
   </tr>
@@ -115,7 +137,10 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Diagnóstico remoto** (aba ao lado do Inventário): saúde dos discos (SMART), bateria, dispositivos com erro e telas azuis, rede (ping, DNS, Wi-Fi), sistema (reinício pendente, atualizações, antivírus), velocidade do disco, estresse de CPU com temperatura e teste de memória do Windows, com histórico das execuções.
 - **Reparos remotos com um clique**: botão Corrigir nos itens do diagnóstico (reiniciar com aviso ou num horário, chkdsk, limpeza de disco, sfc/DISM, rede, Windows Update, firewall, Defender, relógio e dispositivos com erro), com re-teste automático e permissão própria nos perfis.
 - **Menu Diagnóstico**: cards de saúde, filtros e uma lista com o resultado de cada teste, pendências e último reparo de todos os computadores, com execução em lote (testes rápidos, completo ou escolhidos um a um, e reparos) e diagnóstico agendado.
-- **Inventário com colunas que você escolhe e reordena** (salvas por usuário).
+- **Inventário com colunas que você escolhe e reordena** (salvas por usuário) e **ações em lote**: atualizar o inventário, ligar (Wake-on-LAN), reiniciar ou desligar vários computadores de uma vez.
+- **Discos e bateria com veredito** (Bom / Atenção / Ruim): SMART lido direto do NVMe e do SATA (setores realocados e pendentes, vida útil, reserva, erros de mídia, limites do fabricante) e bateria pelo relatório do Windows (capacidade, ciclos, ritmo de desgaste e autonomia estimada).
+- **Enviar arquivo escolhendo o destino**: Downloads ou Área de Trabalho do usuário logado, Área de Trabalho pública, pasta temporária ou qualquer pasta, com o caminho exato de volta no painel.
+- **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
 - **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").
 - **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.
 - **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.

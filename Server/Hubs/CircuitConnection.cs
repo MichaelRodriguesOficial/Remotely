@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.SignalR;
 using Remotely.Server.Models;
 using Remotely.Server.Enums;
 using Remotely.Server.Models.Messages;
+using Remotely.Shared.Models;
 using Remotely.Server.Services.Stores;
 using Remotely.Shared;
 using Remotely.Shared.Entities;
@@ -41,6 +42,12 @@ public interface ICircuitConnection
     Task SendChat(string message, string deviceId, bool isDisconnecting = false);
     Task<bool> TransferFileFromBrowserToAgent(string deviceId, string transferId, string[] fileIds);
 
+    /// <summary>
+    /// Manda o agente baixar arquivos já enviados ao servidor e salvar no destino escolhido.
+    /// O agente responde com <see cref="FileTransferResultMessage"/>.
+    /// </summary>
+    Task<Result> SendFilesToDevice(string deviceId, string transferId, string[] fileIds, string destination);
+
     Task TriggerHeartbeat(string deviceId);
 
     /// <summary>Pede ao agente uma nova coleta de inventário.</summary>
@@ -51,6 +58,12 @@ public interface ICircuitConnection
 
     /// <summary>Executa um reparo da lista fechada <c>DiagnosticRepairs</c> no dispositivo.</summary>
     Task<Result<string>> RunRepair(string deviceId, string repairId, string? target);
+
+    /// <summary>Cancela o diagnóstico ou reparo em andamento no dispositivo.</summary>
+    Task<Result> CancelDiagnostics(string deviceId);
+
+    /// <summary>Reinicia ou desliga os dispositivos online (ação "restart" ou "shutdown"). Devolve quantos receberam o comando.</summary>
+    Task<Result<int>> PowerAction(string[] deviceIds, string action, int delaySeconds);
 
     Task UninstallAgents(string[] deviceIDs);
     Task UpdateTags(string deviceID, string tags);
@@ -452,6 +465,64 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             ConnectionId);
     }
 
+    public async Task<Result> SendFilesToDevice(string deviceId, string transferId, string[] fileIds, string destination)
+    {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Result.Fail("Você não tem permissão para enviar arquivos.");
+        }
+
+        if (fileIds.Length == 0 || fileIds.Length > 20)
+        {
+            return Result.Fail("Envie de 1 a 20 arquivos por vez.");
+        }
+
+        if (!_dataService.DoesUserHaveAccessToDevice(deviceId, User))
+        {
+            _logger.LogWarning("User {username} does not have access to device ID {deviceId} and attempted file upload.",
+                User.UserName,
+                deviceId);
+            return Result.Fail("Dispositivo não encontrado.");
+        }
+
+        var deviceResult = await _dataService.GetDevice(deviceId);
+        if (!deviceResult.IsSuccess)
+        {
+            return Result.Fail("Dispositivo não encontrado.");
+        }
+
+        var isWindows = deviceResult.Value.Platform?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
+        if (!FileTransferDestinations.TryParse(destination, isWindows, out _, out _, out var error))
+        {
+            return Result.Fail(error);
+        }
+
+        if (!_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId))
+        {
+            return Result.Fail("O dispositivo está offline.");
+        }
+
+        var authToken = _expiringTokenService.GetToken(Time.Now.AddMinutes(5));
+
+        _logger.LogInformation(
+            "User {username} sent {count} file(s) to device {deviceId} ({destination}).",
+            User.UserName,
+            fileIds.Length,
+            deviceId,
+            destination);
+
+        await _agentHubContext.Clients
+            .Client(connectionId)
+            .ReceiveFiles(
+                transferId,
+                fileIds,
+                ConnectionId,
+                authToken,
+                destination);
+
+        return Result.Ok();
+    }
+
     public async Task<bool> TransferFileFromBrowserToAgent(string deviceId, string transferId, string[] fileIds)
     {
         if (!HasPermission(AccessPermission.ManageDevices))
@@ -533,6 +604,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             return Result.Fail<string>("Dispositivo offline ou sem acesso.");
         }
 
+        if (await _dataService.GetActiveDiagnosticRun(deviceId) is { } active)
+        {
+            return Result.Fail<string>(ActiveRunMessage(active));
+        }
+
         var run = await _dataService.CreateDiagnosticRun(deviceId, User?.UserName, validTests);
 
         _logger.LogInformation(
@@ -575,6 +651,11 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             return Result.Fail<string>("Este reparo não está disponível para o sistema do dispositivo.");
         }
 
+        if (await _dataService.GetActiveDiagnosticRun(deviceId) is { } active)
+        {
+            return Result.Fail<string>(ActiveRunMessage(active));
+        }
+
         var run = await _dataService.CreateDiagnosticRun(
             deviceId,
             User?.UserName,
@@ -590,6 +671,75 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
 
         await _agentHubContext.Clients.Client(connectionId).RunRepair(run.ID, repair.Id, normalizedTarget);
         return Result.Ok(run.ID);
+    }
+
+    public async Task<Result<int>> PowerAction(string[] deviceIds, string action, int delaySeconds)
+    {
+        if (!HasPermission(AccessPermission.ManageDevices))
+        {
+            return Result.Fail<int>("Seu perfil não permite reiniciar ou desligar computadores.");
+        }
+
+        if (action is not ("restart" or "shutdown"))
+        {
+            return Result.Fail<int>("Ação inválida.");
+        }
+
+        delaySeconds = Math.Clamp(delaySeconds, 0, 3600);
+        var allowed = _dataService.FilterDeviceIdsByUserPermission(deviceIds, User);
+        var sent = new List<string>();
+        foreach (var deviceId in allowed)
+        {
+            if (_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId))
+            {
+                await _agentHubContext.Clients.Client(connectionId).PowerAction(action, delaySeconds);
+                sent.Add(deviceId);
+            }
+        }
+
+        _logger.LogInformation(
+            "Power action {action} (delay {delay}s) sent to {count} device(s): {devices}. User: {username}",
+            action,
+            delaySeconds,
+            sent.Count,
+            string.Join(", ", sent),
+            User?.UserName);
+
+        return Result.Ok(sent.Count);
+    }
+
+    private static string ActiveRunMessage(DeviceDiagnosticRun active) =>
+        (Remotely.Shared.Models.Diagnostics.DiagnosticRepairs.IsRepairRun(active.Tests) ? "Já há um reparo" : "Já há um diagnóstico") +
+        $" em andamento neste computador (desde {active.StartedAt.ToLocalTime():HH:mm}). Aguarde terminar ou cancele.";
+
+    public async Task<Result> CancelDiagnostics(string deviceId)
+    {
+        if (!HasPermission(AccessPermission.ManageDevices) && !HasPermission(AccessPermission.Repairs))
+        {
+            return Result.Fail("Seu perfil não permite cancelar diagnósticos.");
+        }
+
+        if (!_dataService.DoesUserHaveAccessToDevice(deviceId, User))
+        {
+            return Result.Fail("Sem acesso a este dispositivo.");
+        }
+
+        var canceled = await _dataService.CancelDiagnosticRuns(deviceId, User?.UserName);
+
+        // Se o agente estiver online, interrompe o que estiver rodando (e desfaz o teste de memória agendado).
+        if (_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId))
+        {
+            await _agentHubContext.Clients.Client(connectionId).CancelDiagnostics();
+        }
+
+        _logger.LogInformation(
+            "Diagnostics canceled. Device: {deviceId}. Runs: {count}. User: {username}",
+            deviceId,
+            canceled,
+            User?.UserName);
+
+        await _messenger.Send(new DiagnosticsUpdatedMessage(deviceId, string.Empty), ConnectionId);
+        return Result.Ok();
     }
 
     public async Task UninstallAgents(string[] deviceIDs)

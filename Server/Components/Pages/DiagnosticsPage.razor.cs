@@ -439,18 +439,30 @@ public partial class DiagnosticsPage : AuthComponentBase
         try
         {
             var started = 0;
+            var busy = 0;
             foreach (var row in targets)
             {
+                if (row.Summary?.IsRunning == true)
+                {
+                    busy++;
+                    continue;
+                }
+
                 var result = await CircuitConnection.RunDiagnostics(row.Device.ID, tests);
                 if (result.IsSuccess)
                 {
                     started++;
                 }
+                else if (result.Reason?.Contains("em andamento") == true)
+                {
+                    busy++;
+                }
             }
 
             ToastService.ShowToast2(
-                $"Diagnóstico ({tests.Length} teste(s)) iniciado em {started} computador(es). A lista atualiza sozinha.",
-                Enums.ToastType.Info);
+                $"Diagnóstico ({tests.Length} teste(s)) iniciado em {started} computador(es)." +
+                (busy > 0 ? $" {busy} já tinha(m) diagnóstico ou reparo em andamento e ficou(aram) de fora." : " A lista atualiza sozinha."),
+                busy > 0 ? Enums.ToastType.Warning : Enums.ToastType.Info);
             _selected.Clear();
             await ReloadSummaries(targets);
         }
@@ -468,6 +480,35 @@ public partial class DiagnosticsPage : AuthComponentBase
             row.Summary = summaries.GetValueOrDefault(row.Device.ID);
         }
         ApplyFilters(resetPage: false);
+    }
+
+    private int SelectedRunningCount => SelectedRows.Count(x => x.Summary?.IsRunning == true);
+
+    private async Task CancelSelectedRunning()
+    {
+        var running = SelectedRows.Where(x => x.Summary?.IsRunning == true).ToList();
+        if (running.Count == 0)
+        {
+            return;
+        }
+
+        if (!await JsInterop.Confirm(new ConfirmOptions(
+            "Cancelar execuções em andamento",
+            $"Diagnósticos e reparos em andamento em {running.Count} computador(es) são cancelados. Testes de memória agendados são desfeitos.",
+            $"Cancelar em {running.Count}",
+            CancelText: "Voltar",
+            Danger: true,
+            Icon: "fa-solid fa-ban")))
+        {
+            return;
+        }
+
+        foreach (var row in running)
+        {
+            await CircuitConnection.CancelDiagnostics(row.Device.ID);
+        }
+        ToastService.ShowToast2($"Execuções canceladas em {running.Count} computador(es).", Enums.ToastType.Info);
+        await ReloadSummaries(running);
     }
 
     // -----------------------------------------------------------------
@@ -525,6 +566,12 @@ public partial class DiagnosticsPage : AuthComponentBase
             var failures = new List<string>();
             foreach (var row in targets)
             {
+                if (row.Summary?.IsRunning == true)
+                {
+                    failures.Add($"{row.Device.DeviceName ?? row.Device.ID} (em andamento)");
+                    continue;
+                }
+
                 var result = await CircuitConnection.RunRepair(row.Device.ID, repair.Id, target);
                 if (result.IsSuccess)
                 {
@@ -643,6 +690,7 @@ public partial class DiagnosticsPage : AuthComponentBase
         DiagnosticStatus.Warning => "Atenção",
         DiagnosticStatus.Error => "Problema",
         DiagnosticStatus.Skipped => "Não se aplica",
+        DiagnosticStatus.Canceled => "Cancelado",
         DiagnosticStatus.Running or DiagnosticStatus.Pending => "Executando",
         _ => "Informação"
     };
@@ -653,6 +701,7 @@ public partial class DiagnosticsPage : AuthComponentBase
         DiagnosticStatus.Warning => "com avisos",
         DiagnosticStatus.Error => "não concluído",
         DiagnosticStatus.Running or DiagnosticStatus.Pending => "executando",
+        DiagnosticStatus.Canceled => "cancelado",
         _ => "sem resposta"
     };
 

@@ -1,5 +1,31 @@
 # Changelog
 
+## v1.10.0 — 2026-11-26
+
+### Inventário
+- **Ações em lote**: marque computadores na lista (ou "selecionar todos da lista") e use o menu **Ações** para **atualizar o inventário**, **ligar** (Wake-on-LAN, para os offline), **reiniciar** ou **desligar**. Reiniciar e desligar avisam o usuário e acontecem em 1 minuto; computadores offline ficam de fora.
+
+### Dispositivos
+- Menu **Mais** do card ganhou **Reiniciar** e **Desligar** (com aviso ao usuário), ao lado de "Ligar (Wake-on-LAN)".
+- **Enviar arquivo** agora abre uma janela para escolher os arquivos (até 20, arrastando ou clicando) e **onde salvar**: Downloads ou Área de Trabalho do usuário logado (inclusive a do OneDrive), Área de Trabalho pública, pasta temporária do agente ou outra pasta digitada (criada se não existir). No fim, o painel mostra **o caminho exato** de cada arquivo, com botão para copiar. Nada é sobrescrito: se o nome já existir, o novo vira "nome (2)".
+- Se a janela for fechada antes do fim, um aviso aparece quando o computador terminar de salvar.
+
+### Diagnóstico
+- **Um diagnóstico por vez**: enquanto um diagnóstico ou reparo roda, novos testes e reparos ficam bloqueados, com o aviso "Diagnóstico em andamento" e os botões **Reiniciar** (cancela e roda os mesmos testes de novo) e **Cancelar**. Também dá para cancelar em lote pelo menu Executar.
+- Cancelar um teste de memória agendado desfaz o agendamento e o reinício no computador.
+- Corrigido: diagnósticos antigos presos (ex.: teste de memória de antes de uma atualização) deixavam a lista em "Executando diagnóstico 0/8". Agora só a execução mais recente pode aparecer como em andamento.
+- **Saúde dos discos com veredito** (Bom / Atenção / Ruim) por disco, dizendo o motivo:
+  - NVMe: log SMART lido direto do SSD (aviso crítico, vida útil, reserva disponível, erros de mídia, temperatura e tempo acima do limite, desligamentos inesperados, TB gravados);
+  - SATA: atributos SMART com os limites do fabricante (setores realocados, pendentes e incorrigíveis, erros incorrigíveis, tentativas de girar, comandos expirados, erros de cabo);
+  - Linux: o mesmo veredito a partir do smartctl.
+  - Erros de cabo (CRC) e desligamentos inesperados são informativos; não condenam o disco.
+- **Bateria com veredito**: além do WMI, usa o relatório do Windows (powercfg) para fabricante, química, data de fabricação, **ritmo de desgaste** nos últimos meses e **autonomia estimada** com a carga atual e com a bateria nova.
+
+### Controle remoto
+- Fechar a aba ou o navegador sem clicar no X agora encerra a sessão no computador do usuário na hora (o viewer avisa o servidor ao sair). Conexões que somem sem aviso (queda de rede, notebook fechado) caem em até 20 segundos.
+- Se a última pessoa sair com o bloqueio ligado, o teclado e o mouse do usuário são liberados automaticamente.
+- **Bloquear teclado e mouse** passa a segurar também **touchpad, tela de toque** e teclados/mouses HID de notebooks, que o bloqueio do Windows deixava passar. Só a entrada enviada pelo técnico continua funcionando.
+
 ## v1.9.4 — 2026-11-24
 
 ### Diagnóstico

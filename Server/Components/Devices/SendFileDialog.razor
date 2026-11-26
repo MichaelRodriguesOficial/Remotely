@@ -1,0 +1,424 @@
+@inherits AuthComponentBase
+@using Remotely.Server.Models.Messages
+@using Remotely.Shared.Models
+@using Remotely.Shared
+@using Microsoft.AspNetCore.Components.Forms
+@inject IDataService DataService
+@inject ICircuitConnection CircuitConnection
+@inject IJsInterop JsInterop
+@inject ILogger<SendFileDialog> Logger
+
+@* Enviar arquivos para um computador escolhendo a pasta de destino. *@
+<div class="rm-dialog-backdrop" @onclick="TryClose"></div>
+<div class="rm-dialog rm-dialog-send panel" role="dialog" aria-modal="true" aria-labelledby="send-file-title-@Device.ID">
+    <div class="rm-dialog-head">
+        <span class="diag-tile-icon"><i class="fa-solid fa-file-arrow-up"></i></span>
+        <div class="min-w-0">
+            <h2 id="send-file-title-@Device.ID">Enviar arquivo</h2>
+            <p>Para <strong>@Device.DeviceName</strong>@(string.IsNullOrWhiteSpace(Device.CurrentUser) ? "" : $" · usuário logado: {Device.CurrentUser}")</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-icon btn-sm ms-auto" title="Fechar" disabled="@(_phase == Phase.Uploading)" @onclick="TryClose"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    @* O InputFile fica sempre na página: o upload lê os arquivos por ele, mesmo depois de sair da escolha. *@
+    <label class="send-drop @(_files.Count > 0 ? "has-files" : "")" for="send-file-input-@Device.ID" hidden="@(_phase != Phase.Choose)">
+        <InputFile @key="_inputKey" id="@($"send-file-input-{Device.ID}")" class="send-drop-input" multiple OnChange="OnFilesChosen" title="" />
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span><strong>Escolher arquivos</strong> ou arraste aqui</span>
+        <small>Até @MaxFiles arquivos de no máximo @(AppConstants.MaxUploadFileSize / 1000 / 1000) MB cada.</small>
+    </label>
+
+    @if (_phase == Phase.Choose)
+    {
+
+        @if (_files.Count > 0)
+        {
+            <ul class="send-file-list">
+                @foreach (var file in _files)
+                {
+                    <li>
+                        <i class="fa-regular fa-file"></i>
+                        <span class="text-truncate">@file.Name</span>
+                        <span class="send-file-size">@FormatSize(file.Size)</span>
+                        <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Remover" @onclick="() => _files.Remove(file)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_fileError))
+        {
+            <div class="diag-notice diag-notice-danger mb-3"><i class="fa-solid fa-triangle-exclamation"></i><span>@_fileError</span></div>
+        }
+
+        <div class="diag-section-label"><i class="fa-solid fa-folder-open"></i> Salvar em</div>
+        <div class="send-dest-grid">
+            @foreach (var option in Options)
+            {
+                var id = $"send-dest-{Device.ID}-{option.Kind}";
+                <label class="diag-tile @(_kind == option.Kind ? "selected" : "")" for="@id">
+                    <input id="@id" type="radio" name="send-dest-@Device.ID" class="visually-hidden"
+                           checked="@(_kind == option.Kind)" @onchange="() => _kind = option.Kind" />
+                    <span class="diag-tile-icon"><i class="@option.Icon"></i></span>
+                    <span class="diag-tile-body">
+                        <span class="diag-tile-name">@option.Name</span>
+                        <span class="diag-tile-desc">@option.Description</span>
+                    </span>
+                </label>
+            }
+        </div>
+
+        @if (_kind == FileTransferDestinations.PathPrefix)
+        {
+            <label class="form-label small mt-2" for="send-path-@Device.ID">Pasta no computador (é criada se não existir)</label>
+            <input id="send-path-@Device.ID" class="form-control" placeholder="@(IsWindows ? @"C:\Suporte" : "/opt/suporte")"
+                   @bind="_customPath" @bind:event="oninput" autocomplete="off" spellcheck="false" />
+            <div class="send-path-suggestions">
+                @foreach (var suggestion in PathSuggestions)
+                {
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _customPath = suggestion">@suggestion</button>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_customPath) && !FileTransferDestinations.IsValidCustomPath(_customPath, IsWindows, out var pathError))
+            {
+                <div class="small text-danger mt-1">@pathError</div>
+            }
+        }
+
+        <div class="rm-dialog-note mt-3">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Se já existir um arquivo com o mesmo nome, o novo é salvo como "nome (2)". Nada é sobrescrito.</span>
+        </div>
+
+        <div class="rm-dialog-actions">
+            <button type="button" class="btn btn-ghost" @onclick="Close">Cancelar</button>
+            <button type="button" class="btn btn-primary" disabled="@(!CanSend)" @onclick="Send">
+                <i class="fa-solid fa-paper-plane"></i> Enviar @(_files.Count > 1 ? $"{_files.Count} arquivos" : "")
+            </button>
+        </div>
+    }
+    else
+    {
+        <ul class="send-file-list">
+            @foreach (var file in _files)
+            {
+                var percent = _progress.TryGetValue(file.Name, out var value) ? value : 0;
+                <li>
+                    <i class="fa-regular fa-file"></i>
+                    <span class="text-truncate">@file.Name</span>
+                    <span class="send-file-size">@FormatSize(file.Size)</span>
+                    @if (_phase == Phase.Uploading)
+                    {
+                        <span class="send-file-progress"><span style="width:@((int)(percent * 100))%"></span></span>
+                    }
+                </li>
+            }
+        </ul>
+
+        @switch (_phase)
+        {
+            case Phase.Uploading:
+                <div class="send-status"><span class="diag-loading-dot"></span> Enviando para o servidor...</div>
+                break;
+            case Phase.Waiting:
+                <div class="send-status"><span class="diag-loading-dot"></span> O computador está baixando e salvando em <strong>@FileTransferDestinations.Describe(Destination)</strong>...</div>
+                break;
+            case Phase.Done:
+                <div class="diag-notice diag-notice-success">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <span>
+                        <strong>Arquivo(s) salvo(s) no computador.</strong>
+                        @foreach (var note in _notes)
+                        {
+                            <br /><span>@note</span>
+                        }
+                    </span>
+                </div>
+                <ul class="send-saved-list">
+                    @foreach (var path in _savedPaths)
+                    {
+                        <li>
+                            <code>@path</code>
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Copiar caminho" @onclick="() => CopyPath(path)">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </li>
+                    }
+                </ul>
+                break;
+            case Phase.Failed:
+                <div class="diag-notice diag-notice-danger"><i class="fa-solid fa-triangle-exclamation"></i><span>@_failure</span></div>
+                break;
+        }
+
+        <div class="rm-dialog-actions mt-3">
+            @if (_phase is Phase.Done or Phase.Failed)
+            {
+                <button type="button" class="btn btn-ghost" @onclick="Reset">Enviar outro</button>
+                <button type="button" class="btn btn-primary" @onclick="Close">Fechar</button>
+            }
+            else if (_phase == Phase.Waiting)
+            {
+                <button type="button" class="btn btn-ghost" @onclick="Close">Fechar (aviso quando terminar)</button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private const int MaxFiles = 20;
+    private static readonly TimeSpan AgentTimeout = TimeSpan.FromMinutes(3);
+
+    private enum Phase { Choose, Uploading, Waiting, Done, Failed }
+
+    private sealed record DestinationOption(string Kind, string Name, string Description, string Icon);
+
+    private readonly List<IBrowserFile> _files = new();
+    private readonly Dictionary<string, double> _progress = new();
+    private readonly List<string> _savedPaths = new();
+    private readonly List<string> _notes = new();
+    private Phase _phase = Phase.Choose;
+    private string _kind = FileTransferDestinations.Downloads;
+    private string _customPath = string.Empty;
+    private string? _fileError;
+    private string? _failure;
+    private string? _transferId;
+    private CancellationTokenSource? _timeoutCts;
+    private Guid _inputKey = Guid.NewGuid();
+
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private bool IsWindows => Device.Platform?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
+
+    private string Destination => _kind == FileTransferDestinations.PathPrefix
+        ? FileTransferDestinations.ForPath(_customPath)
+        : _kind;
+
+    private bool CanSend =>
+        _files.Count > 0 &&
+        Device.IsOnline &&
+        (_kind != FileTransferDestinations.PathPrefix || FileTransferDestinations.IsValidCustomPath(_customPath, IsWindows, out _));
+
+    private IEnumerable<DestinationOption> Options
+    {
+        get
+        {
+            var login = Device.CurrentUser?.Split(" (")[0].Trim();
+            var user = string.IsNullOrWhiteSpace(login) ? "do usuário logado" : $"de {login}";
+            yield return new(FileTransferDestinations.Downloads, "Downloads", $"Pasta Downloads {user}.", "fa-solid fa-download");
+            yield return new(FileTransferDestinations.Desktop, "Área de Trabalho", $"Área de Trabalho {user} (inclui a do OneDrive).", "fa-solid fa-display");
+            if (IsWindows)
+            {
+                yield return new(FileTransferDestinations.PublicDesktop, "Área de Trabalho pública", "Aparece na tela de todos os usuários do computador.", "fa-solid fa-users");
+            }
+            yield return new(FileTransferDestinations.Temp, "Pasta temporária", "Pasta interna do agente, para scripts e instaladores.", "fa-solid fa-box-archive");
+            yield return new(FileTransferDestinations.PathPrefix, "Outra pasta", "Digite o caminho completo no computador.", "fa-solid fa-folder-tree");
+        }
+    }
+
+    private IEnumerable<string> PathSuggestions => IsWindows
+        ? new[] { @"C:\Suporte", @"C:\Temp", @"C:\Instaladores" }
+        : new[] { "/opt/suporte", "/tmp" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await Register<FileTransferResultMessage, string>(CircuitConnection.ConnectionId, HandleResult);
+    }
+
+    private void OnFilesChosen(InputFileChangeEventArgs args)
+    {
+        _fileError = null;
+        var tooBig = new List<string>();
+
+        foreach (var file in args.GetMultipleFiles(MaxFiles))
+        {
+            if (file.Size > AppConstants.MaxUploadFileSize)
+            {
+                tooBig.Add(file.Name);
+                continue;
+            }
+            if (_files.Count < MaxFiles && !_files.Any(x => x.Name == file.Name && x.Size == file.Size))
+            {
+                _files.Add(file);
+            }
+        }
+
+        if (tooBig.Count > 0)
+        {
+            _fileError = $"Muito grande(s), ficou de fora: {string.Join(", ", tooBig)}.";
+        }
+        else if (args.FileCount > MaxFiles)
+        {
+            _fileError = $"Só os {MaxFiles} primeiros arquivos foram adicionados.";
+        }
+    }
+
+    private async Task Send()
+    {
+        if (!CanSend || User is null)
+        {
+            return;
+        }
+
+        _phase = Phase.Uploading;
+        _progress.Clear();
+        _savedPaths.Clear();
+        _notes.Clear();
+        _failure = null;
+        StateHasChanged();
+
+        try
+        {
+            var fileIds = new List<string>();
+            foreach (var file in _files)
+            {
+                var fileId = await DataService.AddSharedFile(file, User.OrganizationID, OnUploadProgress);
+                fileIds.Add(fileId);
+            }
+
+            _transferId = Guid.NewGuid().ToString();
+            _phase = Phase.Waiting;
+            StateHasChanged();
+
+            var result = await CircuitConnection.SendFilesToDevice(Device.ID, _transferId, fileIds.ToArray(), Destination);
+            if (!result.IsSuccess)
+            {
+                Fail(result.Reason);
+                return;
+            }
+
+            StartTimeout(_transferId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error while sending files to device.");
+            Fail("Falha ao enviar o arquivo para o servidor.");
+        }
+    }
+
+    private void OnUploadProgress(double percent, string fileName)
+    {
+        _progress[fileName] = percent;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void StartTimeout(string transferId)
+    {
+        _timeoutCts?.Cancel();
+        _timeoutCts = new CancellationTokenSource();
+        var token = _timeoutCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(AgentTimeout, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                await InvokeAsync(() =>
+                {
+                    if (_phase == Phase.Waiting && _transferId == transferId)
+                    {
+                        Fail("O computador não confirmou o recebimento. Confira se ele continua online e se o agente está atualizado (versões antigas não escolhem a pasta).");
+                    }
+                });
+            }
+            catch (ObjectDisposedException) { }
+        });
+    }
+
+    private async Task HandleResult(object subscriber, FileTransferResultMessage message)
+    {
+        if (message.DeviceId != Device.ID || message.TransferId != _transferId)
+        {
+            return;
+        }
+
+        await InvokeAsync(() =>
+        {
+            _timeoutCts?.Cancel();
+            var lines = message.Detail.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (!message.Success)
+            {
+                Fail(lines.Length > 0 ? string.Join(" ", lines) : "O computador não conseguiu salvar o arquivo.");
+                return;
+            }
+
+            foreach (var line in lines)
+            {
+                if (line.StartsWith('/') || (line.Length > 2 && line[1] == ':'))
+                {
+                    _savedPaths.Add(line);
+                }
+                else
+                {
+                    _notes.Add(line);
+                }
+            }
+
+            _phase = Phase.Done;
+            StateHasChanged();
+        });
+    }
+
+    private void Fail(string message)
+    {
+        _failure = message;
+        _phase = Phase.Failed;
+        StateHasChanged();
+    }
+
+    private void Reset()
+    {
+        _timeoutCts?.Cancel();
+        _files.Clear();
+        _progress.Clear();
+        _savedPaths.Clear();
+        _notes.Clear();
+        _transferId = null;
+        _failure = null;
+        _phase = Phase.Choose;
+        _inputKey = Guid.NewGuid();
+    }
+
+    private async Task CopyPath(string path)
+    {
+        await JsInterop.SetClipboardText(path);
+    }
+
+    private async Task TryClose()
+    {
+        // Durante o upload o navegador ainda está lendo os arquivos: fechar interromperia o envio.
+        if (_phase != Phase.Uploading)
+        {
+            await Close();
+        }
+    }
+
+    private async Task Close()
+    {
+        _timeoutCts?.Cancel();
+        await OnClose.InvokeAsync();
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        >= 1_000_000_000 => $"{bytes / 1_000_000_000d:0.#} GB",
+        >= 1_000_000 => $"{bytes / 1_000_000d:0.#} MB",
+        >= 1_000 => $"{bytes / 1_000d:0} KB",
+        _ => $"{bytes} B"
+    };
+}

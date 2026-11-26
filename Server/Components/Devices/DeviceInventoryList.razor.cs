@@ -34,6 +34,113 @@ public partial class DeviceInventoryList : AuthComponentBase, IDisposable
     [Inject]
     private IDataService DataService { get; init; } = null!;
 
+    [Inject]
+    private Remotely.Server.Hubs.ICircuitConnection CircuitConnection { get; init; } = null!;
+
+    [Inject]
+    private IJsInterop JsInterop { get; init; } = null!;
+
+    [Inject]
+    private IToastService ToastService { get; init; } = null!;
+
+    private readonly HashSet<string> _selected = [];
+    private bool _isActing;
+
+    private IEnumerable<Row> PageRows => _filtered.Skip((_page - 1) * PageSize).Take(PageSize);
+
+    private bool AllPageSelected => PageRows.Any() && PageRows.All(x => _selected.Contains(x.Device.ID));
+
+    private List<Device> SelectedDevices => _all.Where(x => _selected.Contains(x.Device.ID)).Select(x => x.Device).ToList();
+
+    private void ToggleSelected(string deviceId, bool selected)
+    {
+        if (selected)
+        {
+            _selected.Add(deviceId);
+        }
+        else
+        {
+            _selected.Remove(deviceId);
+        }
+    }
+
+    private void TogglePage(bool selected)
+    {
+        foreach (var row in PageRows)
+        {
+            ToggleSelected(row.Device.ID, selected);
+        }
+    }
+
+    private void SelectFiltered()
+    {
+        foreach (var row in _filtered)
+        {
+            _selected.Add(row.Device.ID);
+        }
+    }
+
+    private async Task RefreshSelected()
+    {
+        var online = SelectedDevices.Where(x => x.IsOnline).ToList();
+        if (online.Count == 0)
+        {
+            ToastService.ShowToast2("Nenhum dos computadores selecionados está online.", Enums.ToastType.Warning);
+            return;
+        }
+
+        _isActing = true;
+        try
+        {
+            var sent = 0;
+            foreach (var device in online)
+            {
+                if (await CircuitConnection.RequestInventory(device.ID))
+                {
+                    sent++;
+                }
+            }
+            var offline = _selected.Count - online.Count;
+            ToastService.ShowToast2(
+                $"Coleta de inventário pedida a {sent} computador(es)." +
+                (offline > 0 ? $" {offline} offline fica(m) de fora." : "") +
+                " Os dados chegam em até 1 minuto; atualize a página para ver.",
+                Enums.ToastType.Info);
+        }
+        finally
+        {
+            _isActing = false;
+        }
+    }
+
+    private async Task WakeSelected()
+    {
+        var offline = SelectedDevices.Where(x => !x.IsOnline).ToArray();
+        if (offline.Length == 0)
+        {
+            ToastService.ShowToast2("Todos os selecionados já estão online.", Enums.ToastType.Info);
+            return;
+        }
+
+        var result = await CircuitConnection.WakeDevices(offline);
+        ToastService.ShowToast2(
+            result.IsSuccess ? $"Wake-on-LAN enviado para {offline.Length} computador(es)." : $"Falha no Wake-on-LAN: {result.Reason}",
+            result.IsSuccess ? Enums.ToastType.Success : Enums.ToastType.Warning);
+    }
+
+    private async Task PowerSelected(bool restart)
+    {
+        _isActing = true;
+        try
+        {
+            await PowerActionPrompt.Run(JsInterop, CircuitConnection, ToastService, SelectedDevices, restart);
+        }
+        finally
+        {
+            _isActing = false;
+        }
+    }
+
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)PageSize));
 
     private sealed class Row

@@ -31,6 +31,8 @@ export const ViewerApp = {
             UI.ViewOnlyButton.classList.add("toggled");
         }
         ApplyInputHandlers();
+        // Fechar a aba/navegador sem o X também encerra a sessão no computador do usuário.
+        window.addEventListener("pagehide", () => ViewerApp.ViewerHubConnection.NotifyClosing());
         if (UI.RequesterNameInput.value) {
             ViewerApp.RequesterName = UI.RequesterNameInput.value;
         }

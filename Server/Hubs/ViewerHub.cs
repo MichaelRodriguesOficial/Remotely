@@ -7,6 +7,8 @@ using Remotely.Shared.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
 
 namespace Remotely.Server.Hubs;
 
@@ -191,8 +193,81 @@ public class ViewerHub : Hub<IViewerHubClient>
         }
     }
 
+    // Fechar a aba ou o navegador sem clicar no X: o viewer avisa no "pagehide" pelo hub
+    // (ViewerClosing) e por navigator.sendBeacon com um token secreto (POST /api/viewer/closed),
+    // para o computador do usuário encerrar a sessão na hora em vez de esperar o timeout da conexão.
+    private const string CloseTokenKey = "ViewerCloseToken";
+    private const string CloseNotifiedKey = "ViewerCloseNotified";
+    private static readonly ConcurrentDictionary<string, HubCallerContext> _closeTokens = new();
+
+    /// <summary>Token de uso único que permite encerrar esta conexão por sendBeacon ao fechar a página.</summary>
+    public string GetCloseToken()
+    {
+        if (Context.Items.TryGetValue(CloseTokenKey, out var existing) && existing is string current)
+        {
+            return current;
+        }
+
+        var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
+        Context.Items[CloseTokenKey] = token;
+        _closeTokens[token] = Context;
+        return token;
+    }
+
+    /// <summary>O viewer está saindo (aba fechada, navegação ou navegador encerrado).</summary>
+    public Task ViewerClosing()
+    {
+        return EndViewerConnection(Context, _desktopHub);
+    }
+
+    /// <summary>Encerra a conexão do viewer dono do token. Usado pelo endpoint de sendBeacon.</summary>
+    public static async Task<bool> CloseByToken(string token, IHubContext<DesktopHub, IDesktopHubClient> desktopHub)
+    {
+        if (string.IsNullOrWhiteSpace(token) || !_closeTokens.TryRemove(token, out var context))
+        {
+            return false;
+        }
+
+        await EndViewerConnection(context, desktopHub);
+        return true;
+    }
+
+    private static async Task EndViewerConnection(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub)
+    {
+        if (context.Items.ContainsKey(CloseNotifiedKey))
+        {
+            return;
+        }
+        context.Items[CloseNotifiedKey] = true;
+
+        if (context.Items.TryGetValue(nameof(SessionInfo), out var value) &&
+            value is RemoteControlSession session)
+        {
+            session.ViewerList.Remove(context.ConnectionId);
+            if (!string.IsNullOrWhiteSpace(session.DesktopConnectionId))
+            {
+                await desktopHub.Clients
+                    .Client(session.DesktopConnectionId)
+                    .ViewerDisconnected(context.ConnectionId);
+            }
+        }
+
+        context.Abort();
+    }
+
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        if (Context.Items.TryGetValue(CloseTokenKey, out var token) && token is string closeToken)
+        {
+            _closeTokens.TryRemove(closeToken, out _);
+        }
+
+        if (Context.Items.ContainsKey(CloseNotifiedKey))
+        {
+            await base.OnDisconnectedAsync(exception);
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(SessionInfo.DesktopConnectionId))
         {
             await _desktopHub.Clients

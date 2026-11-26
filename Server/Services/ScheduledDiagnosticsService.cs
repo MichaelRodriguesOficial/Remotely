@@ -107,7 +107,8 @@ public class ScheduledDiagnosticsService : BackgroundService
         var started = 0;
         foreach (var device in due)
         {
-            if (!_sessionCache.TryGetConnectionId(device.ID, out var connectionId))
+            if (!_sessionCache.TryGetConnectionId(device.ID, out var connectionId) ||
+                await dataService.GetActiveDiagnosticRun(device.ID) is not null)
             {
                 continue;
             }

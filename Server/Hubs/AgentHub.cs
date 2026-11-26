@@ -551,6 +551,19 @@ public class AgentHub : Hub<IAgentHubClient>
         return _messenger.Send(message, requesterId);
     }
 
+    /// <summary>Resposta do agente ao "Enviar arquivo": onde salvou ou por que falhou.</summary>
+    public Task FileTransferResult(string transferId, string requesterId, bool success, string detail)
+    {
+        if (Device is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var safeDetail = (detail ?? string.Empty).Length > 4000 ? detail![..4000] : detail ?? string.Empty;
+        var message = new FileTransferResultMessage(Device.ID, transferId, success, safeDetail);
+        return _messenger.Send(message, requesterId);
+    }
+
     private async Task<bool> CheckForDeviceBan(params string[] deviceIdNameOrIPs)
     {
         var settings = await _dataService.GetSettings();

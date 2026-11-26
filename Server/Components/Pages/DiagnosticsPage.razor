@@ -158,6 +158,16 @@ else
                                 <span><strong>Escolher testes…</strong><small>Marque os testes individuais</small></span>
                             </button>
                         </li>
+                        @if (SelectedRunningCount > 0)
+                        {
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
+                                <button type="button" class="dropdown-item text-danger" @onclick="CancelSelectedRunning">
+                                    <i class="fa-solid fa-ban text-danger"></i>
+                                    <span><strong>Cancelar em andamento (@SelectedRunningCount)</strong><small>Interrompe diagnósticos e reparos que estão rodando</small></span>
+                                </button>
+                            </li>
+                        }
                     </ul>
                 </div>
             }
@@ -448,6 +458,7 @@ else
         DiagnosticStatus.Error => "fa-solid fa-circle-xmark text-danger",
         DiagnosticStatus.Running or DiagnosticStatus.Pending => "fa-solid fa-circle-notch fa-spin text-info",
         DiagnosticStatus.Skipped => "fa-solid fa-circle-minus text-muted",
+        DiagnosticStatus.Canceled => "fa-solid fa-ban text-muted",
         _ => "fa-solid fa-circle-info text-muted"
     };
 

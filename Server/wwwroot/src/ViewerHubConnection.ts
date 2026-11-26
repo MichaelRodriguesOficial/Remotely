@@ -22,6 +22,8 @@ var signalR = window["signalR"];
 export class ViewerHubConnection {
     Connection: HubConnection;
     PartialCaptureFrames: Uint8Array[] = [];
+    CloseToken: string = "";
+    private _closingSent = false;
 
 
     Connect() {
@@ -32,12 +34,22 @@ export class ViewerHubConnection {
         this.Connection = new signalR.HubConnectionBuilder()
             .withUrl("/hubs/viewer")
             .withHubProtocol(new signalR.protocols.msgpack.MessagePackHubProtocol())
+            .withKeepAliveInterval(5000)
             .configureLogging(signalR.LogLevel.Information)
             .build();
+
+        this.CloseToken = "";
+        this._closingSent = false;
 
         this.ApplyMessageHandlers(this.Connection);
 
         this.Connection.start().then(async () => {
+            try {
+                this.CloseToken = await this.Connection.invoke<string>("GetCloseToken");
+            }
+            catch (e) {
+                console.warn("Could not get close token.", e);
+            }
             this.SendScreenCastRequestToDevice();
         }).catch(err => {
             console.error(err.toString());
@@ -54,6 +66,31 @@ export class ViewerHubConnection {
         });
 
         ViewerApp.ClipboardWatcher.WatchClipboard();
+    }
+
+    /**
+     * Chamado quando a aba ou o navegador fecha sem clicar no X: avisa o servidor
+     * pelo hub e por sendBeacon, para a sessão terminar na hora no computador do usuário.
+     */
+    NotifyClosing() {
+        if (this._closingSent) {
+            return;
+        }
+        this._closingSent = true;
+
+        try {
+            if (this.Connection?.state == HubConnectionState.Connected) {
+                this.Connection.send("ViewerClosing");
+            }
+        }
+        catch { }
+
+        try {
+            if (this.CloseToken && navigator.sendBeacon) {
+                navigator.sendBeacon("/api/viewer/closed", new Blob([this.CloseToken], { type: "text/plain" }));
+            }
+        }
+        catch { }
     }
 
     async ChangeWindowsSession(sessionID: number) {

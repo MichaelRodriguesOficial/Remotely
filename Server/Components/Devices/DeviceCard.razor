@@ -72,16 +72,6 @@
         }
     </div>
 
-    @if (_fileUploadProgressLookup.Any())
-    {
-        foreach (var kvp in _fileUploadProgressLookup)
-        {
-            <div class="alert alert-info py-2 px-3 mx-3 mb-2 small">
-                <i class="fa-solid fa-upload"></i> @(GetProgressMessage(kvp.Key))
-            </div>
-        }
-    }
-
     <div class="dc-metrics">
         <div class="dc-metric">
             <div class="dc-metric-label"><span>CPU</span><span>@FormatPercent(Device.CpuUtilization)</span></div>
@@ -182,16 +172,23 @@
                             }
                             <li>
                                 <button class="dropdown-item" @onclick="() => WakeDevice()">
-                                    <i class="fa-solid fa-power-off"></i> Ligar (Wake-on-LAN)
+                                    <i class="fa-solid fa-bolt"></i> Ligar (Wake-on-LAN)
                                 </button>
                             </li>
                             <li>
-                                <FileInputButton ClassNames="dropdown-item"
-                                                 OnChanged="OnFileInputChanged">
-                                    <ButtonContent>
-                                        <i class="fa-solid fa-upload"></i> Enviar arquivo
-                                    </ButtonContent>
-                                </FileInputButton>
+                                <button class="dropdown-item" disabled="@(!Device.IsOnline)" @onclick="() => PowerAction(restart: true)">
+                                    <i class="fa-solid fa-rotate-right"></i> Reiniciar
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" disabled="@(!Device.IsOnline)" @onclick="() => PowerAction(restart: false)">
+                                    <i class="fa-solid fa-power-off"></i> Desligar
+                                </button>
+                            </li>
+                            <li>
+                                <button class="dropdown-item" disabled="@(!Device.IsOnline)" @onclick="() => _sendFileOpen = true">
+                                    <i class="fa-solid fa-upload"></i> Enviar arquivo...
+                                </button>
                             </li>
                             <li><hr class="dropdown-divider" /></li>
                             <li>
@@ -289,5 +286,10 @@
     @if (_shellTab is not null)
     {
         <DeviceShellDialog Device="Device" Tab="@_shellTab" OnClose="() => _shellTab = null" />
+    }
+
+    @if (_sendFileOpen)
+    {
+        <SendFileDialog Device="Device" OnClose="() => _sendFileOpen = false" />
     }
 </div>

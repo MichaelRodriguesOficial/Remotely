@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
@@ -21,6 +22,7 @@ using Remotely.Server.Options;
 using Remotely.Server.Services;
 using Remotely.Server.Services.Stores;
 using Remotely.Shared.Entities;
+using Remotely.Shared.Interfaces;
 using Remotely.Shared.Services;
 using Remotely.Shared.Utilities;
 using Remotely.Server.Utilities;
@@ -238,7 +240,14 @@ services.AddSignalR(options =>
     .AddMessagePackProtocol()
     // O inventário (compactado) dos agentes pode passar dos 100 KB em máquinas
     // com muitos softwares instalados.
-    .AddHubOptions<AgentHub>(options => options.MaximumReceiveMessageSize = 2_000_000);
+    .AddHubOptions<AgentHub>(options => options.MaximumReceiveMessageSize = 2_000_000)
+    // Viewer do controle remoto: pings mais frequentes para perceber logo um navegador
+    // que sumiu sem avisar (queda de rede, notebook fechado) e liberar a sessão do usuário.
+    .AddHubOptions<ViewerHub>(options =>
+    {
+        options.KeepAliveInterval = TimeSpan.FromSeconds(5);
+        options.ClientTimeoutInterval = TimeSpan.FromSeconds(20);
+    });
 
 // Persist Data Protection keys (used for auth cookies, antiforgery tokens, etc.)
 // in AppData so they survive container restarts and upgrades.  Without this,
@@ -504,6 +513,23 @@ app.UseAntiforgery();
 app.MapRazorPages();
 app.MapHub<DesktopHub>("/hubs/desktop");
 app.MapHub<ViewerHub>("/hubs/viewer");
+
+// sendBeacon do viewer ao fechar a página: encerra a sessão de controle remoto na hora.
+// O token é secreto, de uso único e preso à conexão; sem ele o pedido não faz nada.
+app.MapPost("/api/viewer/closed", async (HttpContext http, IHubContext<DesktopHub, IDesktopHubClient> desktopHub) =>
+{
+    var buffer = new char[129];
+    using var reader = new StreamReader(http.Request.Body);
+    var read = await reader.ReadBlockAsync(buffer, 0, buffer.Length);
+    var token = new string(buffer, 0, read).Trim();
+    if (token.Length is < 32 or > 128 || !token.All(char.IsAsciiHexDigit))
+    {
+        return Results.BadRequest();
+    }
+
+    await ViewerHub.CloseByToken(token, desktopHub);
+    return Results.NoContent();
+}).DisableAntiforgery();
 app.MapHub<AgentHub>("/hubs/service");
 app.MapControllers();
 

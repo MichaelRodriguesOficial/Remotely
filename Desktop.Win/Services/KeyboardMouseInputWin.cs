@@ -19,6 +19,8 @@ public class KeyboardMouseInputWin(
     private readonly ConcurrentQueue<Action> _inputActions = new();
     private readonly AutoResetEvent _inputReadySignal = new(false);
     private volatile bool _inputBlocked;
+    private PhysicalInputBlocker? _physicalBlockerInstance;
+    private PhysicalInputBlocker _physicalBlocker => _physicalBlockerInstance ??= new PhysicalInputBlocker(_logger);
     private Thread? _inputProcessingThread;
 
     [Flags]
@@ -171,7 +173,7 @@ public class KeyboardMouseInputWin(
                         dy = (int)normalizedY,
                         time = 0,
                         mouseData = 0,
-                        dwExtraInfo = GetMessageExtraInfo()
+                        dwExtraInfo = PhysicalInputBlocker.RemotelyInputSignature
                     }
                 };
                 var input = new INPUT() { type = InputType.MOUSE, U = union };
@@ -205,7 +207,7 @@ public class KeyboardMouseInputWin(
                 // Coordinates must be normalized.  The bottom-right coordinate is mapped to 65535.
                 var normalizedX = xyPercent.Item1 * 65535D;
                 var normalizedY = xyPercent.Item2 * 65535D;
-                var union = new InputUnion() { mi = new MOUSEINPUT() { dwFlags = MOUSEEVENTF.ABSOLUTE | MOUSEEVENTF.MOVE | MOUSEEVENTF.VIRTUALDESK, dx = (int)normalizedX, dy = (int)normalizedY, time = 0, mouseData = 0, dwExtraInfo = GetMessageExtraInfo() } };
+                var union = new InputUnion() { mi = new MOUSEINPUT() { dwFlags = MOUSEEVENTF.ABSOLUTE | MOUSEEVENTF.MOVE | MOUSEEVENTF.VIRTUALDESK, dx = (int)normalizedX, dy = (int)normalizedY, time = 0, mouseData = 0, dwExtraInfo = PhysicalInputBlocker.RemotelyInputSignature } };
                 var input = new INPUT() { type = InputType.MOUSE, U = union };
                 var sent = SendInput(1, [input], INPUT.Size);
                 if (sent == 0)
@@ -236,7 +238,7 @@ public class KeyboardMouseInputWin(
                 {
                     deltaY = 120;
                 }
-                var union = new InputUnion() { mi = new MOUSEINPUT() { dwFlags = MOUSEEVENTF.WHEEL, dx = 0, dy = 0, time = 0, mouseData = deltaY, dwExtraInfo = GetMessageExtraInfo() } };
+                var union = new InputUnion() { mi = new MOUSEINPUT() { dwFlags = MOUSEEVENTF.WHEEL, dx = 0, dy = 0, time = 0, mouseData = deltaY, dwExtraInfo = PhysicalInputBlocker.RemotelyInputSignature } };
                 var input = new INPUT() { type = InputType.MOUSE, U = union };
                 var sent = SendInput(1, [input], INPUT.Size);
                 if (sent == 0)
@@ -342,6 +344,16 @@ public class KeyboardMouseInputWin(
             var result = BlockInput(toggleOn);
             _logger.LogInformation("Result of ToggleBlockInput set to {toggleOn}: {result}", toggleOn, result);
         });
+
+        // BlockInput não segura touchpad de precisão nem tela de toque: os ganchos completam o bloqueio.
+        try
+        {
+            _physicalBlocker.SetBlocked(toggleOn);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while toggling the physical input blocker.");
+        }
     }
 
     private static INPUT CreateKeyboardInput(
@@ -369,7 +381,7 @@ public class KeyboardMouseInputWin(
                 {
                     wVk = virtualKey,
                     wScan = (ushort)MapVirtualKeyEx((uint)virtualKey, VkMapType.MAPVK_VK_TO_VSC_EX, GetKeyboardLayout((uint)Environment.CurrentManagedThreadId)),
-                    dwExtraInfo = GetMessageExtraInfo(),
+                    dwExtraInfo = PhysicalInputBlocker.RemotelyInputSignature,
                     dwFlags = flags,
                     time = 0
                 }
@@ -395,7 +407,7 @@ public class KeyboardMouseInputWin(
                     wVk = 0,
                     wScan = unicodeKey,
                     dwFlags = flags,
-                    dwExtraInfo = GetMessageExtraInfo()
+                    dwExtraInfo = PhysicalInputBlocker.RemotelyInputSignature
                 }
             }
         };

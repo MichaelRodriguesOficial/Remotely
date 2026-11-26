@@ -18,7 +18,7 @@ namespace Remotely.Server.Components.Devices;
 
 public partial class DeviceCard : AuthComponentBase
 {
-    private readonly ConcurrentDictionary<string, double> _fileUploadProgressLookup = new();
+    private bool _sendFileOpen;
     private ElementReference _card;
     private Version _currentVersion = new();
     private Theme _theme;
@@ -93,6 +93,10 @@ public partial class DeviceCard : AuthComponentBase
         await Register<DeviceCardStateChangedMessage, string>(
             CircuitConnection.ConnectionId,
             HandleDeviceCardStateChanged);
+
+        await Register<FileTransferResultMessage, string>(
+            CircuitConnection.ConnectionId,
+            HandleFileTransferResult);
 
         await Register<DeviceStateChangedMessage, string>(
             CircuitConnection.ConnectionId,
@@ -290,16 +294,6 @@ public partial class DeviceCard : AuthComponentBase
         return DeviceDisplay.GetOperatingSystem(Device).Name;
     }
 
-    private string GetProgressMessage(string key)
-    {
-        if (_fileUploadProgressLookup.TryGetValue(key, out var value))
-        {
-            return $"{MathHelper.GetFormattedPercent(value)} - {key}";
-        }
-
-        return string.Empty;
-    }
-
     private void HandleHeaderClick()
     {
         if (IsExpanded)
@@ -335,60 +329,24 @@ public partial class DeviceCard : AuthComponentBase
         await CircuitConnection.TriggerHeartbeat(Device.ID);
     }
 
-    private async Task OnFileInputChanged(InputFileChangeEventArgs args)
+    /// <summary>Se a janela de envio já foi fechada, avisa o resultado com um toast.</summary>
+    private Task HandleFileTransferResult(object subscriber, FileTransferResultMessage message)
     {
-        try
+        if (message.DeviceId != Device.ID || _sendFileOpen)
         {
-            EnsureUserSet();
-
-            ToastService.ShowToast("Envio do arquivo iniciado.");
-
-            if (args.File.Size > AppConstants.MaxUploadFileSize)
-            {
-                var maxFileSize = AppConstants.MaxUploadFileSize / 1000 / 1000;
-                ToastService.ShowToast2($"O arquivo excede o tamanho máximo de {maxFileSize} MB.", ToastType.Warning);
-                return;
-            }
-            
-            var fileId = await DataService.AddSharedFile(args.File, User.OrganizationID, OnFileInputProgress);
-            var transferId = Guid.NewGuid().ToString();
-            var result = await CircuitConnection.TransferFileFromBrowserToAgent(Device.ID, transferId, [fileId]);
-
-            if (!result)
-            {
-                ToastService.ShowToast("Dispositivo não encontrado.", classString: "bg-warning");
-            }
-            else
-            {
-                ToastService.ShowToast("Envio do arquivo concluído.");
-            }
+            return Task.CompletedTask;
         }
-        catch (Exception ex)
+
+        var lines = message.Detail.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (message.Success)
         {
-            Logger.LogError(ex, "Error while uploading file to device.");
-            ToastService.ShowToast2("Falha ao enviar o arquivo", ToastType.Error);
+            ToastService.ShowToast2($"{Device.DeviceName}: arquivo salvo em {lines.LastOrDefault()}", ToastType.Success);
         }
-        finally
+        else
         {
-            if (args.File.Name is not null)
-            {
-                _ = _fileUploadProgressLookup.TryRemove(args.File.Name, out _);
-                await InvokeAsync(StateHasChanged);
-            }
+            ToastService.ShowToast2($"{Device.DeviceName}: {string.Join(" ", lines)}", ToastType.Error);
         }
-    }
-
-    private void OnFileInputProgress(double percentComplete, string fileName)
-    {
-        if (_fileUploadProgressLookup.TryGetValue(fileName, out var existingValue) &&
-            percentComplete < 1 &&
-            percentComplete - existingValue < .05)
-        {
-            // Avoid too frequent of updates.
-            return;
-        }
-        _fileUploadProgressLookup.AddOrUpdate(fileName, percentComplete, (k, v) => percentComplete);
-        InvokeAsync(StateHasChanged);
+        return Task.CompletedTask;
     }
 
     private void OpenDeviceDetails()
@@ -474,6 +432,9 @@ public partial class DeviceCard : AuthComponentBase
             await ParentFrame.Refresh();
         }
     }
+
+    private Task PowerAction(bool restart) =>
+        PowerActionPrompt.Run(JsInterop, CircuitConnection, ToastService, [Device], restart);
 
     private async Task WakeDevice()
     {

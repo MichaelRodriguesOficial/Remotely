@@ -24,92 +24,102 @@ internal static class WindowsDiagnostics
 
     public static void Disks(DiagnosticTestResult test)
     {
-        var disks = Wmi("SELECT DeviceId, ObjectId, FriendlyName, MediaType, BusType, HealthStatus, Size FROM MSFT_PhysicalDisk", StorageScope);
-        var counters = Wmi("SELECT DeviceId, Temperature, TemperatureMax, Wear, ReadErrorsUncorrected, WriteErrorsUncorrected, ReadErrorsTotal, WriteErrorsTotal, PowerOnHours, StartStopCycleCount FROM MSFT_StorageReliabilityCounter", StorageScope);
+        var disks = Wmi("SELECT DeviceId, ObjectId, FriendlyName, MediaType, BusType, HealthStatus, SpindleSpeed FROM MSFT_PhysicalDisk", StorageScope);
+        var counters = Wmi("SELECT DeviceId, Temperature, TemperatureMax, Wear, ReadErrorsUncorrected, WriteErrorsUncorrected, ReadErrorsCorrected, WriteErrorsCorrected, PowerOnHours, StartStopCycleCount FROM MSFT_StorageReliabilityCounter", StorageScope);
+
+        // SMART dos discos SATA pelo driver (bytes crus de atributos e limites), ligados ao índice do disco.
+        var drives = Wmi("SELECT Index, PNPDeviceID FROM Win32_DiskDrive");
+        var ataData = Wmi("SELECT InstanceName, VendorSpecific FROM MSStorageDriver_ATAPISmartData", @"root\wmi");
+        var ataThresholds = Wmi("SELECT InstanceName, VendorSpecific FROM MSStorageDriver_FailurePredictThresholds", @"root\wmi");
+        var predicts = Wmi("SELECT InstanceName, PredictFailure FROM MSStorageDriver_FailurePredictStatus", @"root\wmi");
 
         foreach (var disk in disks)
         {
             var name = ToText(Get(disk, "FriendlyName")) ?? "Disco";
             var deviceId = ToText(Get(disk, "DeviceId"));
             var mediaType = ToLong(Get(disk, "MediaType"));
-            var isHdd = mediaType == 3;
-            var group = $"{name}{(isHdd ? " (HD)" : mediaType == 4 ? " (SSD)" : "")}";
+            var busType = ToLong(Get(disk, "BusType"));
+            var isNvme = busType == 17;
+            var isHdd = mediaType == 3 || ToLong(Get(disk, "SpindleSpeed")) is > 0 and < uint.MaxValue;
+            var kind = isNvme ? "NVMe" : isHdd ? "HD" : mediaType == 4 ? "SSD" : null;
 
-            var health = ToLong(Get(disk, "HealthStatus"));
-            test.Items.Add(health switch
+            var data = new DiskHealthData
             {
-                0 => Item("Saúde (Windows)", "Saudável", DiagnosticStatus.Ok, group: group),
-                1 => Item("Saúde (Windows)", "Atenção", DiagnosticStatus.Warning, "O Windows indica que o disco pode falhar. Faça backup.", group),
-                2 => Item("Saúde (Windows)", "Com defeito", DiagnosticStatus.Error, "Troque o disco o quanto antes e faça backup imediatamente.", group),
-                _ => Item("Saúde (Windows)", "Desconhecida", DiagnosticStatus.Info, group: group)
-            });
+                Group = kind is null ? name : $"{name} ({kind})",
+                IsHdd = isHdd,
+                IsNvme = isNvme,
+                IsExternal = busType == 7
+            };
 
+            if (ToLong(Get(disk, "HealthStatus")) is >= 0 and <= 2 and var health)
+            {
+                data.WindowsHealth = (int)health;
+            }
+
+            var diskIndex = int.TryParse(deviceId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var index) ? index : -1;
+
+            // 1) Leitura direta: é a fonte mais precisa e vale mais que o resumo do Windows.
+            if (isNvme && diskIndex >= 0 && WindowsSmart.TryReadNvmeHealthLog(diskIndex) is { } nvmeLog)
+            {
+                DiskHealth.TryParseNvmeHealthLog(nvmeLog, data);
+            }
+            else if (diskIndex >= 0 && FindByDrive(drives, ataData, diskIndex) is { } ataRow &&
+                     Get(ataRow, "VendorSpecific") is byte[] attributes)
+            {
+                var thresholds = FindByDrive(drives, ataThresholds, diskIndex) is { } thresholdRow &&
+                                 Get(thresholdRow, "VendorSpecific") is byte[] limits
+                    ? limits
+                    : Array.Empty<byte>();
+                DiskHealth.ApplyAtaAttributes(DiskHealth.ParseAtaAttributes(attributes, thresholds), data);
+            }
+
+            if (diskIndex >= 0 && FindByDrive(drives, predicts, diskIndex) is { } predict &&
+                ToBool(Get(predict, "PredictFailure")) == true)
+            {
+                data.PredictFailure = true;
+            }
+
+            // 2) Contadores do Windows completam o que faltou.
             var counter = counters.FirstOrDefault(x => ToText(Get(x, "DeviceId")) == deviceId)
                 ?? GetReliabilityCounter(ToText(Get(disk, "ObjectId")));
-            if (counter is null)
+            if (counter is not null)
             {
-                test.Items.Add(Item("SMART", "Não informado pelo controlador", DiagnosticStatus.Info, group: group));
-                continue;
+                data.Sources.Add("contadores do Windows");
+                data.TemperatureC ??= ToLong(Get(counter, "Temperature")) is > 0 and < 120 and var temperature ? (int)temperature : null;
+                data.TemperatureLimitC = ToLong(Get(counter, "TemperatureMax")) is > 0 and < 120 and var max ? (int)max : null;
+                if (!isHdd)
+                {
+                    data.PercentUsed ??= ToLong(Get(counter, "Wear")) is >= 0 and <= 255 and var wear ? (int)wear : null;
+                }
+                data.ReadErrorsUncorrected = ToLong(Get(counter, "ReadErrorsUncorrected"));
+                data.WriteErrorsUncorrected = ToLong(Get(counter, "WriteErrorsUncorrected"));
+                var corrected = (ToLong(Get(counter, "ReadErrorsCorrected")) ?? 0) + (ToLong(Get(counter, "WriteErrorsCorrected")) ?? 0);
+                data.ReadWriteErrorsCorrected = corrected > 0 ? corrected : null;
+                data.PowerOnHours ??= ToLong(Get(counter, "PowerOnHours")) is > 0 and var hours ? hours : null;
+                data.PowerCycles ??= ToLong(Get(counter, "StartStopCycleCount")) is > 0 and var cycles ? cycles : null;
             }
 
-            if (ToLong(Get(counter, "Temperature")) is > 0 and var temperature)
-            {
-                var (warn, error) = isHdd ? (50, 60) : (65, 75);
-                var max = ToLong(Get(counter, "TemperatureMax"));
-                test.Items.Add(Item(
-                    "Temperatura",
-                    $"{temperature} °C{(max is > 0 ? $" (limite {max} °C)" : "")}",
-                    temperature >= error ? DiagnosticStatus.Error : temperature >= warn ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-                    temperature >= warn ? "Disco quente: verifique ventilação e poeira." : null,
-                    group));
-            }
-
-            if (ToLong(Get(counter, "Wear")) is { } wear && !isHdd)
-            {
-                test.Items.Add(Item(
-                    "Desgaste",
-                    $"{wear}% da vida útil usada",
-                    wear >= 95 ? DiagnosticStatus.Error : wear >= 80 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-                    wear >= 80 ? "SSD perto do fim da vida útil. Planeje a troca." : null,
-                    group));
-            }
-
-            var readUncorrected = ToLong(Get(counter, "ReadErrorsUncorrected")) ?? 0;
-            var writeUncorrected = ToLong(Get(counter, "WriteErrorsUncorrected")) ?? 0;
-            test.Items.Add(Item(
-                "Erros não corrigidos",
-                $"{readUncorrected} de leitura, {writeUncorrected} de escrita",
-                readUncorrected + writeUncorrected > 0 ? DiagnosticStatus.Error : DiagnosticStatus.Ok,
-                readUncorrected + writeUncorrected > 0 ? "O disco perdeu dados. Faça backup e troque o disco." : null,
-                group));
-
-            var readTotal = ToLong(Get(counter, "ReadErrorsTotal")) ?? 0;
-            var writeTotal = ToLong(Get(counter, "WriteErrorsTotal")) ?? 0;
-            if (readTotal + writeTotal > 0)
-            {
-                test.Items.Add(Item("Erros corrigidos", $"{readTotal} de leitura, {writeTotal} de escrita",
-                    readTotal + writeTotal > 100 ? DiagnosticStatus.Warning : DiagnosticStatus.Info, group: group));
-            }
-
-            if (ToLong(Get(counter, "PowerOnHours")) is > 0 and var hours)
-            {
-                test.Items.Add(Item("Tempo ligado", $"{hours:N0} horas (~{hours / 24.0 / 365:0.0} anos)".Replace(',', '.'), group: group));
-            }
-            if (ToLong(Get(counter, "StartStopCycleCount")) is > 0 and var cycles)
-            {
-                test.Items.Add(Item("Ciclos liga/desliga", cycles.ToString(CultureInfo.InvariantCulture), group: group));
-            }
+            test.Items.AddRange(DiskHealth.Evaluate(data));
         }
+    }
 
-        // Discos antigos (ATA) também avisam falha iminente pelo SMART.
-        foreach (var predict in Wmi("SELECT InstanceName, PredictFailure FROM MSStorageDriver_FailurePredictStatus", @"root\wmi"))
+    /// <summary>Linha de uma classe MSStorageDriver_* (InstanceName = PNPDeviceID + "_0") do disco N.</summary>
+    private static Dictionary<string, object?>? FindByDrive(
+        List<Dictionary<string, object?>> drives,
+        List<Dictionary<string, object?>> rows,
+        int diskIndex)
+    {
+        var pnp = drives.FirstOrDefault(x => ToLong(Get(x, "Index")) == diskIndex) is { } drive
+            ? ToText(Get(drive, "PNPDeviceID"))
+            : null;
+        if (string.IsNullOrWhiteSpace(pnp))
         {
-            if (ToBool(Get(predict, "PredictFailure")) == true)
-            {
-                test.Items.Add(Item("Previsão de falha (SMART)", "O disco prevê falha", DiagnosticStatus.Error,
-                    "Faça backup imediatamente e troque o disco.", ToText(Get(predict, "InstanceName"))));
-            }
+            return null;
         }
+
+        return rows.FirstOrDefault(x =>
+            ToText(Get(x, "InstanceName")) is { } instance &&
+            instance.StartsWith(pnp, StringComparison.OrdinalIgnoreCase));
     }
 
     private static Dictionary<string, object?>? GetReliabilityCounter(string? objectId)
@@ -132,36 +142,44 @@ internal static class WindowsDiagnostics
     public static bool Battery(DiagnosticTestResult test)
     {
         var staticData = Wmi("SELECT DeviceName, DesignedCapacity FROM BatteryStaticData", @"root\wmi");
-        if (staticData.Count == 0)
-        {
-            return false;
-        }
-
         var full = Wmi("SELECT FullChargedCapacity FROM BatteryFullChargedCapacity", @"root\wmi");
         var cycles = Wmi("SELECT CycleCount FROM BatteryCycleCount", @"root\wmi");
         var status = Wmi("SELECT RemainingCapacity, Charging, PowerOnline FROM BatteryStatus", @"root\wmi");
 
-        for (var i = 0; i < staticData.Count; i++)
+        // O relatório do powercfg traz fabricante, química, histórico de capacidade e autonomia estimada.
+        var batteries = ReadPowercfgBatteryReport();
+
+        var count = Math.Max(staticData.Count, batteries.Count);
+        if (count == 0)
         {
-            var group = ToText(Get(staticData[i], "DeviceName")) ?? $"Bateria {i + 1}";
-            var design = ToLong(Get(staticData[i], "DesignedCapacity"));
-            var current = i < full.Count ? ToLong(Get(full[i], "FullChargedCapacity")) : null;
+            return false;
+        }
 
-            if (design is > 0 && current is > 0)
-            {
-                var health = Math.Min(100, 100.0 * current.Value / design.Value);
-                test.Items.Add(Item(
-                    "Saúde",
-                    $"{health:0}% ({current} de {design} mWh)",
-                    health < 50 ? DiagnosticStatus.Error : health < 70 ? DiagnosticStatus.Warning : DiagnosticStatus.Ok,
-                    health < 50 ? "Bateria desgastada: troque." : health < 70 ? "Bateria perdendo capacidade. Programe a troca." : null,
-                    group));
-            }
+        for (var i = 0; i < count; i++)
+        {
+            var data = i < batteries.Count ? batteries[i] : new BatteryHealthData { Group = $"Bateria {i + 1}" };
 
-            if (i < cycles.Count && ToLong(Get(cycles[i], "CycleCount")) is > 0 and var count)
+            if (i < staticData.Count)
             {
-                test.Items.Add(Item("Ciclos de carga", count.ToString(CultureInfo.InvariantCulture),
-                    count > 1000 ? DiagnosticStatus.Warning : DiagnosticStatus.Info, group: group));
+                if (data.Group.StartsWith("Bateria ", StringComparison.Ordinal) && ToText(Get(staticData[i], "DeviceName")) is { } deviceName)
+                {
+                    data.Group = deviceName;
+                }
+                // WMI é a leitura do momento; o relatório pode ser de alguns minutos atrás.
+                if (ToLong(Get(staticData[i], "DesignedCapacity")) is > 0 and var design)
+                {
+                    data.DesignCapacity = design;
+                    data.RelativeUnits = false;
+                }
+                if (i < full.Count && ToLong(Get(full[i], "FullChargedCapacity")) is > 0 and var fullCharge)
+                {
+                    data.FullChargeCapacity = fullCharge;
+                }
+                if (i < cycles.Count && ToLong(Get(cycles[i], "CycleCount")) is > 0 and var cycleCount)
+                {
+                    data.CycleCount = cycleCount;
+                }
+                data.Sources.Add("WMI");
             }
 
             if (i < status.Count)
@@ -169,16 +187,48 @@ internal static class WindowsDiagnostics
                 var remaining = ToLong(Get(status[i], "RemainingCapacity"));
                 var charging = ToBool(Get(status[i], "Charging"));
                 var online = ToBool(Get(status[i], "PowerOnline"));
-                if (remaining is > 0 && current is > 0)
+                if (remaining is > 0 && data.FullChargeCapacity is > 0)
                 {
-                    test.Items.Add(Item("Carga atual",
-                        $"{Math.Min(100, 100.0 * remaining.Value / current.Value):0}%{(charging == true ? " (carregando)" : online == true ? " (na tomada)" : " (na bateria)")}",
-                        group: group));
+                    data.ChargePercent = (int)Math.Round(Math.Min(100, 100.0 * remaining.Value / data.FullChargeCapacity.Value));
                 }
+                data.PowerState = charging == true ? "carregando" : online == true ? "na tomada" : "na bateria";
             }
+
+            test.Items.AddRange(BatteryHealth.Evaluate(data));
         }
 
+        test.Summary = BatteryHealth.Summarize(test.Items);
         return true;
+    }
+
+    private static List<BatteryHealthData> ReadPowercfgBatteryReport()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"remotely-battery-{Guid.NewGuid():N}.xml");
+        try
+        {
+            var powercfg = Path.Combine(Environment.SystemDirectory, "powercfg.exe");
+            var (exitCode, _) = Run(powercfg, $"/batteryreport /xml /output \"{path}\"", 45);
+            if (exitCode != 0 || !File.Exists(path))
+            {
+                return new();
+            }
+            return BatteryHealth.ParsePowercfgXml(File.ReadAllText(path));
+        }
+        catch
+        {
+            return new();
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch
+            {
+                // Arquivo temporário; o Windows limpa depois.
+            }
+        }
     }
 
     // -----------------------------------------------------------------

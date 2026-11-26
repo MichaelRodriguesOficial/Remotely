@@ -11,6 +11,7 @@ using Remotely.Shared.Models.Diagnostics;
 using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -278,12 +279,14 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             try
             {
                 // Dá tempo do servidor registrar o dispositivo online.
-                await Task.Delay(TimeSpan.FromSeconds(10), _appLifetime.ApplicationStopping);
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
+                _memoryResumeCts = cts;
+                await Task.Delay(TimeSpan.FromSeconds(10), cts.Token);
                 await _diagnosticsRunner.ResumeMemoryTest(
                     _connectionInfo?.Host,
-                    report => SendDiagnosticReport(report, _appLifetime.ApplicationStopping),
+                    report => SendDiagnosticReport(report, cts.Token),
                     _diagnosticsLock,
-                    _appLifetime.ApplicationStopping);
+                    cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -295,6 +298,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             }
             finally
             {
+                _memoryResumeCts = null;
                 Interlocked.Exchange(ref _memoryResumeRunning, 0);
             }
         });
@@ -328,6 +332,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             {
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(_appLifetime.ApplicationStopping);
                 cts.CancelAfter(timeout);
+                _currentDiagnosticsCts = cts;
 
                 await job(report => SendDiagnosticReport(report, cts.Token), cts.Token);
             }
@@ -337,10 +342,49 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             }
             finally
             {
+                _currentDiagnosticsCts = null;
                 _diagnosticsLock.Release();
             }
         });
 
+        return Task.CompletedTask;
+    }
+
+    public Task PowerAction(string action, int delaySeconds)
+    {
+        if (!_isServerVerified)
+        {
+            return Task.CompletedTask;
+        }
+
+        var (success, output) = PowerActions.Execute(action, delaySeconds);
+        _logger.LogInformation("Power action {action} in {delay}s requested by the server. Success: {success}. {output}",
+            action, delaySeconds, success, output);
+        return Task.CompletedTask;
+    }
+
+    private CancellationTokenSource? _currentDiagnosticsCts;
+    private CancellationTokenSource? _memoryResumeCts;
+
+    public Task CancelDiagnostics()
+    {
+        if (!_isServerVerified)
+        {
+            return Task.CompletedTask;
+        }
+
+        _logger.LogInformation("Diagnostics canceled by the server.");
+        try
+        {
+            _currentDiagnosticsCts?.Cancel();
+            _memoryResumeCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Já terminou.
+        }
+
+        Remotely.Agent.Services.Diagnostics.DiagnosticsRunner.CancelPendingMemoryTest();
         return Task.CompletedTask;
     }
 
@@ -666,7 +710,13 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         }
     }
 
-    public async Task TransferFileFromBrowserToAgent(string transferId, string[] fileIds, string requesterId, string expiringToken)
+    /// <summary>Método antigo: salva na pasta temporária do agente, como o Remotely original.</summary>
+    public Task TransferFileFromBrowserToAgent(string transferId, string[] fileIds, string requesterId, string expiringToken)
+    {
+        return ReceiveFiles(transferId, fileIds, requesterId, expiringToken, FileTransferDestinations.Temp);
+    }
+
+    public async Task ReceiveFiles(string transferId, string[] fileIds, string requesterId, string expiringToken, string destination)
     {
         try
         {
@@ -678,32 +728,87 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
                 return;
             }
 
-            _logger.LogInformation("File upload started by {requesterID}.", requesterId);
+            if (!FileTransferDestinations.TryParse(destination, OperatingSystem.IsWindows(), out var kind, out var customPath, out var error))
+            {
+                await SendFileTransferResult(transferId, requesterId, false, error);
+                return;
+            }
 
-            var sharedFilePath = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "RemotelySharedFiles")).FullName;
+            _logger.LogInformation("File upload started by {requesterID} to {destination}.", requesterId, destination);
+
+            var target = FileDestinationResolver.Resolve(kind, customPath);
+            var saved = new List<string>();
 
             foreach (var fileID in fileIds)
             {
                 var url = $"{_connectionInfo?.Host}/API/FileSharing/{fileID}";
                 using var client = _httpFactory.CreateClient();
                 client.DefaultRequestHeaders.Add(AppConstants.ExpiringTokenHeaderName, expiringToken);
-                using var response = await client.GetAsync(url);
+                using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
 
-                var filename = response.Content.Headers.ContentDisposition?.FileName ?? Path.GetRandomFileName();
-                var invalidChars = Path.GetInvalidFileNameChars().ToHashSet();
-                var legalChars = filename.ToCharArray().Where(x => !invalidChars.Contains(x));
+                if (!response.IsSuccessStatusCode)
+                {
+                    await SendFileTransferResult(transferId, requesterId, false,
+                        $"O servidor recusou o download do arquivo ({(int)response.StatusCode}).");
+                    return;
+                }
 
-                filename = new string(legalChars.ToArray());
+                var disposition = response.Content.Headers.ContentDisposition;
+                var filename = FileDestinationResolver.SanitizeFileName(disposition?.FileNameStar ?? disposition?.FileName);
+                var filePath = FileDestinationResolver.GetAvailablePath(target.Folder, filename);
 
-                using var rs = await response.Content.ReadAsStreamAsync();
-                using var fs = new FileStream(Path.Combine(sharedFilePath, filename), FileMode.Create);
-                rs.CopyTo(fs);
+                await using (var rs = await response.Content.ReadAsStreamAsync())
+                await using (var fs = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write))
+                {
+                    await rs.CopyToAsync(fs);
+                }
+
+                if (target.LinuxOwner is { } owner)
+                {
+                    FileDestinationResolver.ChownToUser(filePath, owner);
+                }
+
+                saved.Add(filePath);
             }
+
+            var detail = string.Join("\n", saved);
+            if (!string.IsNullOrWhiteSpace(target.Note))
+            {
+                detail = target.Note + "\n" + detail;
+            }
+
+            await SendFileTransferResult(transferId, requesterId, true, detail);
             await _hubConnection.SendAsync("TransferCompleted", transferId, requesterId);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogError(ex, "Access denied while saving transferred file.");
+            await SendFileTransferResult(transferId, requesterId, false, "Sem permissão para gravar nessa pasta.");
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(ex, "IO error while saving transferred file.");
+            await SendFileTransferResult(transferId, requesterId, false, $"Não foi possível gravar o arquivo: {ex.Message}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while transfering file from browser to agent.");
+            await SendFileTransferResult(transferId, requesterId, false, "Erro no agente ao receber o arquivo.");
+        }
+    }
+
+    private async Task SendFileTransferResult(string transferId, string requesterId, bool success, string detail)
+    {
+        try
+        {
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.SendAsync("FileTransferResult", transferId, requesterId, success, detail);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not report file transfer result.");
         }
     }
 
@@ -839,6 +944,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             nameof(TransferFileFromBrowserToAgent),
             TransferFileFromBrowserToAgent);
 
+        _hubConnection.On<string, string[], string, string, string>(nameof(ReceiveFiles), ReceiveFiles);
+
         _hubConnection.On(nameof(TriggerHeartbeat), TriggerHeartbeat);
 
         _hubConnection.On(nameof(RequestInventory), RequestInventory);
@@ -846,6 +953,10 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         _hubConnection.On<string, string[]>(nameof(RunDiagnostics), RunDiagnostics);
 
         _hubConnection.On<string, string, string?>(nameof(RunRepair), RunRepair);
+
+        _hubConnection.On(nameof(CancelDiagnostics), CancelDiagnostics);
+
+        _hubConnection.On<string, int>(nameof(PowerAction), PowerAction);
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
     }

@@ -22,6 +22,7 @@ internal class ScreenCaster : IScreenCaster
     private readonly IAppState _appState;
     private readonly ICursorIconWatcher _cursorIconWatcher;
     private readonly IImageHelper _imageHelper;
+    private readonly IKeyboardMouseInput _keyboardMouseInput;
     private readonly ILogger<ScreenCaster> _logger;
     private readonly CancellationTokenSource _metricsCts = new();
     private readonly RecyclableMemoryStreamManager _recycleStreams = new();
@@ -41,8 +42,10 @@ internal class ScreenCaster : IScreenCaster
         IImageHelper imageHelper,
         ISystemTime systemTime,
         IMessenger messenger,
+        IKeyboardMouseInput keyboardMouseInput,
         ILogger<ScreenCaster> logger)
     {
+        _keyboardMouseInput = keyboardMouseInput;
         _appState = appState;
         _cursorIconWatcher = cursorIconWatcher;
         _sessionIndicator = sessionIndicator;
@@ -154,6 +157,20 @@ internal class ScreenCaster : IScreenCaster
 
             _appState.Viewers.TryRemove(viewer.ViewerConnectionId, out _);
             Disposer.TryDisposeAll(viewer);
+
+            // Sem ninguém conectado, o teclado e o mouse do usuário nunca podem ficar bloqueados
+            // (ex.: o técnico fechou o navegador com o bloqueio ligado).
+            if (_appState.Viewers.IsEmpty)
+            {
+                try
+                {
+                    _keyboardMouseInput.ToggleBlockInput(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error while releasing blocked input after the last viewer left.");
+                }
+            }
 
             // Close if no one is viewing.
             if (_appState.Viewers.IsEmpty && _appState.Mode == AppMode.Unattended)
