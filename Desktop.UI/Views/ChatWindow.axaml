@@ -18,7 +18,7 @@
 		ShowActivated="True"
 		x:DataType="vm:IChatWindowViewModel"
 		x:Name="ChatWindowRef"
-        Title="Chat Session" Height="450" Width="450">
+        Title="Chat com o suporte" Height="450" Width="450">
 
 	<Design.DataContext>
 		<fakes:FakeChatWindowViewModel />

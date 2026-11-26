@@ -340,6 +340,7 @@ services.AddSingleton(WeakReferenceMessenger.Default);
 services.AddSingleton<ISessionRecordingSink, SessionRecordingSink>();
 services.AddSingleton<IDesktopStreamCache, DesktopStreamCache>();
 services.AddSingleton<IRemoteControlSessionCache, RemoteControlSessionCache>();
+services.AddSingleton<IRemoteControlAuditService, RemoteControlAuditService>();
 services.AddSingleton<ISystemTime, SystemTime>();
 services.AddSingleton<IAgentHubSessionCache, AgentHubSessionCache>();
 services.AddHostedService<RemoteControlSessionCleaner>();
@@ -516,7 +517,7 @@ app.MapHub<ViewerHub>("/hubs/viewer");
 
 // sendBeacon do viewer ao fechar a página: encerra a sessão de controle remoto na hora.
 // O token é secreto, de uso único e preso à conexão; sem ele o pedido não faz nada.
-app.MapPost("/api/viewer/closed", async (HttpContext http, IHubContext<DesktopHub, IDesktopHubClient> desktopHub) =>
+app.MapPost("/api/viewer/closed", async (HttpContext http, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit) =>
 {
     var buffer = new char[129];
     using var reader = new StreamReader(http.Request.Body);
@@ -527,7 +528,7 @@ app.MapPost("/api/viewer/closed", async (HttpContext http, IHubContext<DesktopHu
         return Results.BadRequest();
     }
 
-    await ViewerHub.CloseByToken(token, desktopHub);
+    await ViewerHub.CloseByToken(token, desktopHub, audit);
     return Results.NoContent();
 }).DisableAntiforgery();
 app.MapHub<AgentHub>("/hubs/service");

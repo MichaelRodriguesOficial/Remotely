@@ -22,6 +22,7 @@ public class ViewerHub : Hub<IViewerHubClient>
     private readonly IRemoteControlSessionCache _desktopSessionCache;
     private readonly ILogger<ViewerHub> _logger;
     private readonly IDesktopStreamCache _streamCache;
+    private readonly IRemoteControlAuditService _audit;
 
     public ViewerHub(
         IRemoteControlSessionCache desktopSessionCache,
@@ -30,8 +31,10 @@ public class ViewerHub : Hub<IViewerHubClient>
         IHubContext<DesktopHub, IDesktopHubClient> desktopHub,
         ISessionRecordingSink sessionRecordingSink,
         IDataService dataService,
+        IRemoteControlAuditService audit,
         ILogger<ViewerHub> logger)
     {
+        _audit = audit;
         _desktopSessionCache = desktopSessionCache;
         _streamCache = streamCache;
         _desktopHub = desktopHub;
@@ -217,28 +220,29 @@ public class ViewerHub : Hub<IViewerHubClient>
     /// <summary>O viewer está saindo (aba fechada, navegação ou navegador encerrado).</summary>
     public Task ViewerClosing()
     {
-        return EndViewerConnection(Context, _desktopHub);
+        return EndViewerConnection(Context, _desktopHub, _audit);
     }
 
     /// <summary>Encerra a conexão do viewer dono do token. Usado pelo endpoint de sendBeacon.</summary>
-    public static async Task<bool> CloseByToken(string token, IHubContext<DesktopHub, IDesktopHubClient> desktopHub)
+    public static async Task<bool> CloseByToken(string token, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit)
     {
         if (string.IsNullOrWhiteSpace(token) || !_closeTokens.TryRemove(token, out var context))
         {
             return false;
         }
 
-        await EndViewerConnection(context, desktopHub);
+        await EndViewerConnection(context, desktopHub, audit);
         return true;
     }
 
-    private static async Task EndViewerConnection(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub)
+    private static async Task EndViewerConnection(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit)
     {
         if (context.Items.ContainsKey(CloseNotifiedKey))
         {
             return;
         }
         context.Items[CloseNotifiedKey] = true;
+        await audit.SessionEnded(context.ConnectionId, RemoteControlAuditService.BrowserClosed);
 
         if (context.Items.TryGetValue(nameof(SessionInfo), out var value) &&
             value is RemoteControlSession session)
@@ -257,6 +261,10 @@ public class ViewerHub : Hub<IViewerHubClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        await _audit.SessionEnded(
+            Context.ConnectionId,
+            exception is null ? RemoteControlAuditService.EndedByTechnician : RemoteControlAuditService.ConnectionLost);
+
         if (Context.Items.TryGetValue(CloseTokenKey, out var token) && token is string closeToken)
         {
             _closeTokens.TryRemove(closeToken, out _);
@@ -384,6 +392,8 @@ public class ViewerHub : Hub<IViewerHubClient>
 
             SessionInfo.RequireConsent = false;
 
+            await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
+
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
                 .GetScreenCast(
@@ -395,6 +405,7 @@ public class ViewerHub : Hub<IViewerHubClient>
         else
         {
             SessionInfo.Mode = RemoteControlMode.Attended;
+            await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
                 .RequestScreenCast(

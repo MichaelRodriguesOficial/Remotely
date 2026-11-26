@@ -22,6 +22,7 @@ public class DataCleanupService : BackgroundService, IDisposable
     {
         await Task.Yield();
 
+        await CloseOrphanSessionLogs();
         await PerformCleanup();
 
         using var timer = new PeriodicTimer(TimeSpan.FromDays(1));
@@ -47,6 +48,7 @@ public class DataCleanupService : BackgroundService, IDisposable
         {
             await RemoveExpiredDbRecords();
             await RemoveExpiredRecordings();
+            await RemoveExpiredSessionLogs();
         }
         catch (Exception ex)
         {
@@ -59,6 +61,39 @@ public class DataCleanupService : BackgroundService, IDisposable
         using var scope = _scopeFactory.CreateScope();
         var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
         await dataService.CleanupOldRecords();
+    }
+
+    private async Task CloseOrphanSessionLogs()
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var audit = scope.ServiceProvider.GetRequiredService<IRemoteControlAuditService>();
+            var closed = await audit.CloseOrphans();
+            if (closed > 0)
+            {
+                _logger.LogInformation("Marked {count} remote control session log(s) left open by a restart.", closed);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while closing orphan remote control session logs.");
+        }
+    }
+
+    /// <summary>Histórico de sessões remotas: guarda pelo menos 1 ano (ou mais, se a retenção for maior).</summary>
+    private async Task RemoveExpiredSessionLogs()
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IDataService>();
+        var audit = scope.ServiceProvider.GetRequiredService<IRemoteControlAuditService>();
+        var settings = await dataService.GetSettings();
+        var days = Math.Max(365, settings.DataRetentionInDays);
+        var removed = await audit.Prune(TimeSpan.FromDays(days));
+        if (removed > 0)
+        {
+            _logger.LogInformation("Removed {count} remote control session log(s) older than {days} days.", removed, days);
+        }
     }
 
     private async Task RemoveExpiredRecordings()

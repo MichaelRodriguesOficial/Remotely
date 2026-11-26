@@ -11,20 +11,9 @@ public partial class SessionIndicatorWindow : Window
 
         Closing += SessionIndicatorWindow_Closing;
         PointerPressed += SessionIndicatorWindow_PointerPressed;
-        Opened += SessionIndicatorWindow_Opened;
+        Remotely.Desktop.UI.Services.WindowPlacement.KeepBottomRight(this);
     }
 
-    private void SessionIndicatorWindow_Opened(object? sender, EventArgs e)
-    {
-        Topmost = false;
-
-        if (Screens.Primary is not null)
-        {
-            var left = Screens.Primary.WorkingArea.Right - FrameSize?.Width ?? Width;
-            var top = Screens.Primary.WorkingArea.Bottom - FrameSize?.Height ?? Height;
-            Position = new PixelPoint((int)left, (int)top);
-        }
-    }
 
     private void SessionIndicatorWindow_PointerPressed(object? sender, Avalonia.Input.PointerPressedEventArgs e)
     {

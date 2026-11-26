@@ -30,7 +30,7 @@ public class ChatUiService : IChatUiService
         {
             if (chatMessage.Disconnected)
             {
-                await _dialogProvider.Show("Your partner has disconnected from the chat.", "Partner Disconnected", MessageBoxType.OK);
+                await _dialogProvider.Show("O técnico saiu do chat.", "Chat encerrado", MessageBoxType.OK);
                 Environment.Exit(0);
                 return;
             }

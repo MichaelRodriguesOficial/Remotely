@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.11.0 — 2026-11-26
+
+Primeira fase da modernização do controle remoto (Etapa 2).
+
+### Controle remoto
+- **Sessões remotas** (menu novo): histórico de cada sessão com técnico, computador, modo (autônomo ou assistido, só ver), início, duração, IP do técnico e como terminou: encerrada pelo técnico, navegador fechado, conexão perdida, encerrada no computador, recusada pelo usuário ou servidor reiniciado. Cards com total de sessões, tempo, sessões em andamento e técnicos; busca, período (24 h a 1 ano), filtro por técnico e exportação em CSV. Técnicos veem só as próprias sessões. O histórico é guardado por pelo menos 1 ano.
+
+### App do usuário (Windows)
+- **Painel novo no canto da tela**: iniciais e nome do técnico, "Controlando este computador" ou "Vendo a tela", há quanto tempo, e o botão **Encerrar acesso**. Pode ser arrastado e fica por cima das outras janelas.
+- Corrigida a posição das janelas do app (painel e transferência de arquivos): o cálculo misturava pixels físicos e lógicos, e com escala de 125% ou 150% a janela ficava cortada ou fora do canto.
+- **Uma cópia por sessão do Windows**: ao abrir uma nova sessão de controle remoto (ou ao trocar de sessão, bloquear a tela, UAC), as cópias antigas sem técnico conectado fecham na hora, em vez de ficarem abertas por 30 segundos com outra janela no canto.
+- Textos em português: pedido de acesso ("O suporte de TI quer acessar este computador", com Permitir/Recusar), janela principal do modo assistido, chat, transferência de arquivos e caixas de mensagem.
+
+### Segurança
+- O nome do técnico e da organização entram escapados no comando que abre o app: um nome com aspas não consegue mais acrescentar argumentos (por exemplo, apontar o app para outro servidor). Vale para Windows e Linux.
+- No Windows, o ID da sessão e a chave de acesso não vão mais na linha de comando do app (visível para outros programas): seguem por variável de ambiente, que o app apaga ao ler. No Linux, a chave de acesso deixou de aparecer no log do agente.
+
 ## v1.10.0 — 2026-11-26
 
 ### Inventário

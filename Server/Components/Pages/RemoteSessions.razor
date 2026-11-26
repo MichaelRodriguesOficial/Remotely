@@ -1,0 +1,270 @@
+@page "/remote-sessions"
+@attribute [Authorize]
+@inherits AuthComponentBase
+@inject IRemoteControlAuditService Audit
+@inject IJsInterop JsInterop
+
+<PageHeader Title="Sessões remotas"
+            Subtitle="Quem acessou cada computador, quando, por quanto tempo e como a sessão terminou."
+            Icon="fa-solid fa-clock-rotate-left" />
+
+@if (_isLoading)
+{
+    <LoadingSignal StatusMessage="Carregando" />
+}
+else
+{
+    <div class="diag-health">
+        <div class="diag-health-item">
+            <span class="diag-health-icon"><i class="fa-solid fa-display"></i></span>
+            <span><strong>@_filtered.Count</strong> sessão(ões)</span>
+        </div>
+        <div class="diag-health-item">
+            <span class="diag-health-icon"><i class="fa-solid fa-hourglass-half"></i></span>
+            <span><strong>@FormatDuration(TotalTime)</strong> no total</span>
+        </div>
+        <button type="button" class="diag-health-item diag-health-ok @(_onlyActive ? "active" : "")" @onclick="ToggleActive">
+            <span class="diag-health-icon"><i class="fa-solid fa-circle-play"></i></span>
+            <span><strong>@_all.Count(IsActive)</strong> em andamento</span>
+        </button>
+        <div class="diag-health-item">
+            <span class="diag-health-icon"><i class="fa-solid fa-user-gear"></i></span>
+            <span><strong>@_filtered.Select(x => x.RequesterUserName ?? x.RequesterName).Distinct().Count()</strong> técnico(s)</span>
+        </div>
+    </div>
+
+    <div class="panel inv-list-toolbar">
+        <div class="input-icon inv-list-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input class="form-control"
+                   placeholder="Buscar por computador, técnico ou IP"
+                   value="@_query"
+                   @oninput="OnQueryInput"
+                   aria-label="Buscar" />
+        </div>
+
+        <select class="form-select inv-list-select" @bind="_days" @bind:after="Load" aria-label="Período">
+            <option value="1">Últimas 24 horas</option>
+            <option value="7">Últimos 7 dias</option>
+            <option value="30">Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="365">Último ano</option>
+        </select>
+
+        @if (User?.IsAdministrator == true)
+        {
+            <select class="form-select inv-list-select" @bind="_technician" @bind:after="ApplyFilters" aria-label="Técnico">
+                <option value="">Todos os técnicos</option>
+                @foreach (var technician in _technicians)
+                {
+                    <option @key="technician" value="@technician">@technician</option>
+                }
+            </select>
+        }
+
+        <button type="button" class="btn btn-secondary" @onclick="ExportCsv" disabled="@(_filtered.Count == 0)">
+            <i class="fa-solid fa-file-csv"></i> Exportar
+        </button>
+    </div>
+
+    @if (User?.IsAdministrator != true)
+    {
+        <p class="text-muted small mb-2"><i class="fa-solid fa-circle-info"></i> Você vê só as suas sessões. Administradores veem as de todos os técnicos.</p>
+    }
+
+    @if (_filtered.Count == 0)
+    {
+        <div class="panel empty-state">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+            <p>Nenhuma sessão no período.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-wrap inv-list-table">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Início</th>
+                        <th>Computador</th>
+                        <th>Técnico</th>
+                        <th>Modo</th>
+                        <th>Duração</th>
+                        <th>Término</th>
+                        <th>IP do técnico</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in _filtered)
+                    {
+                        <tr @key="log.ID">
+                            <td class="text-nowrap">@log.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(log.DeviceID))
+                                {
+                                    <a href="@($"device-details/{log.DeviceID}")">@(log.DeviceName ?? log.DeviceID)</a>
+                                }
+                                else
+                                {
+                                    <span>@(log.DeviceName ?? "—")</span>
+                                }
+                            </td>
+                            <td>
+                                <div>@(string.IsNullOrWhiteSpace(log.RequesterName) ? log.RequesterUserName : log.RequesterName)</div>
+                                @if (!string.IsNullOrWhiteSpace(log.RequesterUserName) && log.RequesterUserName != log.RequesterName)
+                                {
+                                    <div class="text-muted small">@log.RequesterUserName</div>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @(log.Mode == "Attended" ? "Assistido" : "Autônomo")
+                                @if (log.ViewOnly)
+                                {
+                                    <span class="pill no-dot ms-1">só ver</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @if (IsActive(log))
+                                {
+                                    <span class="diag-running-pill"><span class="diag-loading-dot"></span> Em andamento · @FormatDuration(Duration(log))</span>
+                                }
+                                else
+                                {
+                                    @FormatDuration(Duration(log))
+                                }
+                            </td>
+                            <td>
+                                @if (log.EndedAt is { } ended)
+                                {
+                                    <div>@(log.EndReason ?? "Encerrada")</div>
+                                    <div class="text-muted small">@ended.ToLocalTime().ToString("dd/MM HH:mm")</div>
+                                }
+                                else if (!IsActive(log))
+                                {
+                                    <span class="text-muted">@(log.EndReason ?? "Sem registro de término")</span>
+                                }
+                            </td>
+                            <td class="text-nowrap"><code>@(log.ViewerIp ?? "—")</code></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (_all.Count >= Limit)
+        {
+            <p class="text-muted small mt-2">Mostrando as @Limit sessões mais recentes do período.</p>
+        }
+    }
+}
+
+@code {
+    private const int Limit = 1000;
+
+    // Sessão sem término há mais de 12 h ficou sem registro (servidor reiniciado, por exemplo).
+    private static readonly TimeSpan MaxOpen = TimeSpan.FromHours(12);
+
+    private List<RemoteControlSessionLog> _all = new();
+    private List<RemoteControlSessionLog> _filtered = new();
+    private List<string> _technicians = new();
+    private bool _isLoading = true;
+    private bool _onlyActive;
+    private int _days = 30;
+    private string _query = string.Empty;
+    private string _technician = string.Empty;
+
+    private TimeSpan TotalTime => _filtered.Aggregate(TimeSpan.Zero, (sum, x) => sum + Duration(x));
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        EnsureUserSet();
+        _isLoading = _all.Count == 0;
+
+        _all = await Audit.GetSessions(new RemoteSessionQuery(
+            User.OrganizationID,
+            DateTimeOffset.Now.AddDays(-_days),
+            User.IsAdministrator ? null : User.UserName,
+            Limit: Limit));
+
+        _technicians = _all
+            .Select(x => x.RequesterUserName)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
+
+        _isLoading = false;
+        ApplyFilters();
+    }
+
+    private void OnQueryInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void ToggleActive()
+    {
+        _onlyActive = !_onlyActive;
+        ApplyFilters();
+    }
+
+    private void ApplyFilters()
+    {
+        var query = _query.Trim();
+        _filtered = _all
+            .Where(x => !_onlyActive || IsActive(x))
+            .Where(x => string.IsNullOrWhiteSpace(_technician) || x.RequesterUserName == _technician)
+            .Where(x => query.Length == 0 ||
+                Has(x.DeviceName, query) || Has(x.RequesterName, query) ||
+                Has(x.RequesterUserName, query) || Has(x.ViewerIp, query))
+            .ToList();
+    }
+
+    private static bool Has(string? value, string query) =>
+        value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static bool IsActive(RemoteControlSessionLog log) =>
+        log.EndedAt is null && log.EndReason is null && DateTimeOffset.Now - log.StartedAt < MaxOpen;
+
+    private static TimeSpan Duration(RemoteControlSessionLog log)
+    {
+        var end = log.EndedAt ?? (IsActive(log) ? DateTimeOffset.Now : log.StartedAt);
+        return end > log.StartedAt ? end - log.StartedAt : TimeSpan.Zero;
+    }
+
+    private static string FormatDuration(TimeSpan span) =>
+        span.TotalHours >= 1
+            ? $"{(int)span.TotalHours} h {span.Minutes:00} min"
+            : span.TotalMinutes >= 1
+                ? $"{(int)span.TotalMinutes} min"
+                : $"{Math.Max(0, (int)span.TotalSeconds)} s";
+
+    private async Task ExportCsv()
+    {
+        var rows = _filtered.Select(x => (IReadOnlyList<string?>)new[]
+        {
+            x.StartedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"),
+            x.EndedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"),
+            FormatDuration(Duration(x)),
+            x.DeviceName,
+            x.RequesterName,
+            x.RequesterUserName,
+            x.Mode == "Attended" ? "Assistido" : "Autônomo",
+            x.ViewOnly ? "Sim" : "Não",
+            x.EndReason ?? (IsActive(x) ? "Em andamento" : ""),
+            x.ViewerIp
+        });
+
+        var csv = ReportBuilder.Csv(
+            ["Início", "Término", "Duração", "Computador", "Técnico", "Login", "Modo", "Só ver", "Como terminou", "IP do técnico"],
+            rows);
+        await JsInterop.DownloadFile($"sessoes-remotas-{DateTime.Now:yyyy-MM-dd}.csv", "text/csv", csv);
+    }
+}

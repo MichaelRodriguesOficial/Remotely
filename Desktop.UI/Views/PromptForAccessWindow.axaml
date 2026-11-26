@@ -10,7 +10,7 @@
 		x:Name="PromptForAccessWindowRef"
         BorderBrush="DimGray"
         BorderThickness="1"
-        Title="Remote Control Request" 
+        Title="Pedido de acesso remoto" 
         MinHeight="200"
         MinWidth="250"
         Height="275" 
@@ -32,7 +32,7 @@
 
     <StackPanel Grid.Row="0">
       <TextBlock Classes="SectionHeader"  FontWeight="Bold" FontSize="18" Foreground="DimGray" Margin="10" TextWrapping="Wrap">
-        A remote control session has been requested.
+        O suporte de TI quer acessar este computador.
       </TextBlock>
 
       <TextBlock FontSize="16"
@@ -43,11 +43,11 @@
     </StackPanel>
 
     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-      <Button Width="60" Height="40" Content="Yes" Margin="10"
+      <Button Width="100" Height="40" Content="Permitir" Margin="10"
               Classes="NormalButton"
               Command="{Binding SetResultYes}"
               CommandParameter="{Binding #PromptForAccessWindowRef}"></Button>
-      <Button Width="60" Height="40" Content="No" Margin="10"
+      <Button Width="100" Height="40" Content="Recusar" Margin="10"
               Classes="NormalButton"
               Command="{Binding SetResultNo}"
               CommandParameter="{Binding #PromptForAccessWindowRef}"></Button>

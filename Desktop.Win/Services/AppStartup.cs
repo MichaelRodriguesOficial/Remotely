@@ -72,6 +72,7 @@ internal class AppStartup : IAppStartup
                     {
                         return;
                     }
+                    InstanceCoordinator.Start(_appState, _shutdownService, _logger, _uiDispatcher.ApplicationExitingToken);
                     await StartScreenCasting().ConfigureAwait(false);
                     break;
                 }

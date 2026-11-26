@@ -90,7 +90,7 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
             InputText = string.Empty;
             await _streamWriter.WriteLineAsync(JsonSerializer.Serialize(chatMessage));
             await _streamWriter.FlushAsync();
-            chatMessage.SenderName = "You";
+            chatMessage.SenderName = "Você";
             ChatMessages.Add(chatMessage);
         }
         catch (Exception ex)

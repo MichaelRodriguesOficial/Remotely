@@ -571,6 +571,63 @@ namespace Remotely.Server.Migrations.PostgreSql
                     b.ToTable("DeviceDiagnosticRuns");
                 });
 
+            modelBuilder.Entity("Remotely.Shared.Entities.RemoteControlSessionLog", b =>
+                {
+                    b.Property<string>("ID")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DeviceID")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OrganizationID")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RequesterName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("RequesterUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ViewOnly")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ViewerIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("OrganizationID", "StartedAt");
+
+                    b.ToTable("RemoteControlSessionLogs");
+                });
+
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
                 {
                     b.Property<string>("ID")

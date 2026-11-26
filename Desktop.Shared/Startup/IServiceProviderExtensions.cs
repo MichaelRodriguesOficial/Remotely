@@ -43,6 +43,10 @@ public static class IServiceProviderExtensions
                 return Result.Ok();
             }
 
+            // O agente passa o ID da sessão e a chave de acesso por variável de ambiente, fora da linha de comando.
+            sessionId = TakeEnvironmentValue("REMOTELY_SESSION_ID", sessionId);
+            accessKey = TakeEnvironmentValue("REMOTELY_ACCESS_KEY", accessKey);
+
             var appState = services.GetRequiredService<IAppState>();
             appState.Configure(
                 host ?? string.Empty,
@@ -132,6 +136,16 @@ public static class IServiceProviderExtensions
         {
             return Result.Fail(ex);
         }
+    }
+
+    private static string TakeEnvironmentValue(string name, string current)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        if (value is not null)
+        {
+            Environment.SetEnvironmentVariable(name, null);
+        }
+        return string.IsNullOrWhiteSpace(current) ? value ?? string.Empty : current;
     }
 
     // This shouldn't be required in modern .NET to prevent the app from crashing,

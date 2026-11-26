@@ -33,6 +33,8 @@ public class AppDb : IdentityDbContext
     public DbSet<Device> Devices { get; set; }
     public DbSet<DeviceInventoryRecord> DeviceInventories { get; set; }
     public DbSet<DeviceDiagnosticRun> DeviceDiagnosticRuns { get; set; }
+
+    public DbSet<RemoteControlSessionLog> RemoteControlSessionLogs { get; set; }
     public DbSet<InviteLink> InviteLinks { get; set; }
     public DbSet<KeyValueRecord> KeyValueRecords { get; set; }
     public DbSet<Organization> Organizations { get; set; }
@@ -178,6 +180,9 @@ public class AppDb : IdentityDbContext
 
         builder.Entity<DeviceDiagnosticRun>()
             .HasIndex(x => x.DeviceID);
+
+        builder.Entity<RemoteControlSessionLog>()
+            .HasIndex(x => new { x.OrganizationID, x.StartedAt });
 
         builder.Entity<DeviceInventoryRecord>()
             .HasOne<Device>()

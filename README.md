@@ -65,6 +65,12 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td colspan="2" align="center">Inventário: atualizar, ligar, reiniciar ou desligar vários computadores de uma vez</td>
   </tr>
   <tr>
+    <td colspan="2"><img src=".github/media/sessoes-remotas.png" alt="Histórico de sessões remotas com técnico, computador, duração e como terminou" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Sessões remotas: quem acessou cada computador, quando, por quanto tempo e como terminou</td>
+  </tr>
+  <tr>
     <td><img src=".github/media/enviar-arquivo.png" alt="Janela Enviar arquivo com escolha da pasta de destino" /></td>
     <td><img src=".github/media/enviar-arquivo-salvo.png" alt="Confirmação com o caminho onde o arquivo foi salvo" /></td>
   </tr>
@@ -140,6 +146,8 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Inventário com colunas que você escolhe e reordena** (salvas por usuário) e **ações em lote**: atualizar o inventário, ligar (Wake-on-LAN), reiniciar ou desligar vários computadores de uma vez.
 - **Discos e bateria com veredito** (Bom / Atenção / Ruim): SMART lido direto do NVMe e do SATA (setores realocados e pendentes, vida útil, reserva, erros de mídia, limites do fabricante) e bateria pelo relatório do Windows (capacidade, ciclos, ritmo de desgaste e autonomia estimada).
 - **Enviar arquivo escolhendo o destino**: Downloads ou Área de Trabalho do usuário logado, Área de Trabalho pública, pasta temporária ou qualquer pasta, com o caminho exato de volta no painel.
+- **Histórico de sessões remotas**: técnico, computador, início, duração, IP e como a sessão terminou (pelo técnico, navegador fechado, conexão perdida, encerrada ou recusada no computador), com busca, filtros e exportação. Técnicos veem as próprias sessões; administradores, as de todos.
+- **Painel do usuário redesenhado** (Windows): fica no canto certo da tela com qualquer escala, mostra quem está conectado, o que está fazendo e há quanto tempo, com botão "Encerrar acesso", tudo em português.
 - **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
 - **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").
 - **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.

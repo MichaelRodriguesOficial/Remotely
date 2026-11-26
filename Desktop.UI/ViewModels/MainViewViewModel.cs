@@ -167,15 +167,15 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
             OperatingSystem.IsLinux() && 
             !_environment.IsElevated)
         {
-            await _dialogProvider.Show("Please run with sudo.", "Sudo Required", MessageBoxType.OK);
+            await _dialogProvider.Show("Execute com sudo.", "Permissão necessária", MessageBoxType.OK);
             Environment.Exit(0);
         }
 
-        StatusMessage = "Initializing...";
+        StatusMessage = "Iniciando...";
 
         await InstallDependencies();
 
-        StatusMessage = "Retrieving...";
+        StatusMessage = "Obtendo ID...";
 
         while (string.IsNullOrWhiteSpace(Host))
         {
@@ -197,7 +197,7 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
                     await _dispatcher.InvokeAsync(() =>
                     {
                         Viewers.Clear();
-                        StatusMessage = "Disconnected";
+                        StatusMessage = "Desconectado";
                     });
                 };
 
@@ -206,7 +206,7 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
                     await _dispatcher.InvokeAsync(() =>
                     {
                         Viewers.Clear();
-                        StatusMessage = "Reconnecting";
+                        StatusMessage = "Reconectando...";
                     });
                 };
 
@@ -227,8 +227,8 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
         }
 
         // If we got here, something went wrong.
-        StatusMessage = "Failed";
-        await _dialogProvider.Show("Failed to connect to server.", "Connection Failed", MessageBoxType.OK);
+        StatusMessage = "Falhou";
+        await _dialogProvider.Show("Não foi possível conectar ao servidor.", "Falha na conexão", MessageBoxType.OK);
     }
 
     public async Task PromptForHostName()
@@ -309,8 +309,8 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
     private async void ScreenCastRequested(object? sender, ScreenCastRequest screenCastRequest)
     {
         var result = await _dialogProvider.Show(
-            $"You've received a connection request from {screenCastRequest.RequesterName}.  Accept?",
-            "Connection Request",
+            $"{screenCastRequest.RequesterName} quer ver e controlar este computador. Permitir?",
+            "Pedido de conexão",
             MessageBoxType.YesNo);
 
         if (result == MessageBoxResult.Yes)

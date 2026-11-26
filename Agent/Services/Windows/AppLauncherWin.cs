@@ -4,6 +4,7 @@ using Remotely.Agent.Interfaces;
 using Remotely.Shared.Models;
 using Remotely.Shared.Utilities;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.Versioning;
@@ -41,13 +42,13 @@ public class AppLauncherWin : IAppLauncher
             if (WindowsIdentity.GetCurrent().IsSystem)
             {
                 var result = Win32Interop.CreateInteractiveSystemProcess(
-                    _rcBinaryPath +
-                        $" --mode Chat" +
-                        $" --host \"{_connectionInfo.Host}\"" +
-                        $" --pipe-name {pipeName}" +
-                        $" --requester-name \"{requesterName}\"" +
-                        $" --org-name \"{orgName}\"" +
-                        $" --org-id \"{orgId}\"",
+                    BuildCommandLine(
+                        "--mode", "Chat",
+                        "--host", _connectionInfo.Host,
+                        "--pipe-name", pipeName,
+                        "--requester-name", requesterName,
+                        "--org-name", orgName,
+                        "--org-id", orgId),
                     targetSessionId: -1,
                     hiddenWindow: false,
                     out var procInfo);
@@ -66,13 +67,13 @@ public class AppLauncherWin : IAppLauncher
             }
             else
             {
-                return Process.Start(_rcBinaryPath,
-                    $" --mode Chat" +
-                    $" --host \"{_connectionInfo.Host}\"" +
-                    $" --requester-name \"{userConnectionId}\"" +
-                    $" --org-name \"{orgName}\"" +
-                    $" --org-id \"{orgId}\"" +
-                    $" --pipe-name {pipeName}").Id;
+                return StartAsCurrentUser(null,
+                    "--mode", "Chat",
+                    "--host", _connectionInfo.Host,
+                    "--requester-name", requesterName,
+                    "--org-name", orgName,
+                    "--org-id", orgId,
+                    "--pipe-name", pipeName).Id;
             }
         }
         catch (Exception ex)
@@ -110,18 +111,15 @@ public class AppLauncherWin : IAppLauncher
                 userConnectionId);
             if (WindowsIdentity.GetCurrent().IsSystem)
             {
-                var result = Win32Interop.CreateInteractiveSystemProcess(
-                    _rcBinaryPath +
-                        $" --mode Unattended" +
-                        $" --host {_connectionInfo.Host}" +
-                        $" --requester-name \"{requesterName}\"" +
-                        $" --org-name \"{orgName}\"" +
-                        $" --org-id \"{orgId}\"" +
-                        $" --session-id \"{sessionId}\"" +
-                        $" --access-key \"{accessKey}\"",
-                    targetSessionId: targetSessionId,
-                    hiddenWindow: false,
-                    out _);
+                var result = StartAsSystemInSession(
+                    sessionId,
+                    accessKey,
+                    targetSessionId,
+                    "--mode", "Unattended",
+                    "--host", _connectionInfo.Host,
+                    "--requester-name", requesterName,
+                    "--org-name", orgName,
+                    "--org-id", orgId);
                 if (!result)
                 {
                     await hubConnection.SendAsync("DisplayMessage",
@@ -133,14 +131,12 @@ public class AppLauncherWin : IAppLauncher
             }
             else
             {
-                Process.Start(_rcBinaryPath,
-                        $" --mode Unattended" +
-                        $" --host {_connectionInfo.Host}" +
-                        $" --requester-name \"{requesterName}\"" +
-                        $" --org-name \"{orgName}\"" +
-                        $" --org-id \"{orgId}\"" +
-                        $" --session-id \"{sessionId}\"" +
-                        $" --access-key \"{accessKey}\"");
+                StartAsCurrentUser(new() { [SessionIdVariable] = sessionId, [AccessKeyVariable] = accessKey },
+                    "--mode", "Unattended",
+                    "--host", _connectionInfo.Host,
+                    "--requester-name", requesterName,
+                    "--org-name", orgName,
+                    "--org-id", orgId);
             }
         }
         catch (Exception ex)
@@ -164,20 +160,17 @@ public class AppLauncherWin : IAppLauncher
                 // Give a little time for session changing, etc.
                 await Task.Delay(1000);
 
-                var result = Win32Interop.CreateInteractiveSystemProcess(_rcBinaryPath +
-                        $" --mode Unattended" +
-                        $" --relaunch true" +
-                        $" --host {_connectionInfo.Host}" +
-                        $" --requester-name \"{requesterName}\"" +
-                        $" --org-name \"{orgName}\"" +
-                        $" --org-id \"{orgId}\"" +
-                        $" --session-id \"{sessionId}\"" +
-                        $" --access-key \"{accessKey}\"" +
-                        $" --viewers {string.Join(",", viewerIds)}",
-
-                    targetSessionId: targetSessionID,
-                    hiddenWindow: false,
-                    out _);
+                var result = StartAsSystemInSession(
+                    sessionId,
+                    accessKey,
+                    targetSessionID,
+                    "--mode", "Unattended",
+                    "--relaunch", "true",
+                    "--host", _connectionInfo.Host,
+                    "--requester-name", requesterName,
+                    "--org-name", orgName,
+                    "--org-id", orgId,
+                    "--viewers", string.Join(",", viewerIds));
 
                 if (!result)
                 {
@@ -192,16 +185,14 @@ public class AppLauncherWin : IAppLauncher
             }
             else
             {
-                Process.Start(_rcBinaryPath,
-                    $" --mode Unattended" +
-                    $" --relaunch true" +
-                    $" --host {_connectionInfo.Host}" +
-                    $" --requester-name \"{requesterName}\"" +
-                    $" --org-name \"{orgName}\"" +
-                    $" --org-id \"{orgId}\"" +
-                    $" --session-id \"{sessionId}\"" +
-                    $" --access-key \"{accessKey}\"" +
-                    $" --viewers {string.Join(",", viewerIds)}");
+                StartAsCurrentUser(new() { [SessionIdVariable] = sessionId, [AccessKeyVariable] = accessKey },
+                    "--mode", "Unattended",
+                    "--relaunch", "true",
+                    "--host", _connectionInfo.Host,
+                    "--requester-name", requesterName,
+                    "--org-name", orgName,
+                    "--org-id", orgId,
+                    "--viewers", string.Join(",", viewerIds));
             }
         }
         catch (Exception ex)
@@ -210,5 +201,56 @@ public class AppLauncherWin : IAppLauncher
             _logger.LogError(ex, "Error while restarting screen caster.");
             throw;
         }
+    }
+
+    // A chave de acesso e o ID da sessão não vão mais na linha de comando (visível para outros programas):
+    // seguem por variável de ambiente, herdada só pelo processo criado, e o app as apaga ao ler.
+    public const string SessionIdVariable = "REMOTELY_SESSION_ID";
+    public const string AccessKeyVariable = "REMOTELY_ACCESS_KEY";
+    private static readonly object _environmentLock = new();
+
+    private string BuildCommandLine(params string?[] arguments)
+    {
+        return CommandLineQuoting.Quote(_rcBinaryPath) + " " + CommandLineQuoting.Join(arguments);
+    }
+
+    private bool StartAsSystemInSession(string sessionId, string accessKey, int targetSessionId, params string?[] arguments)
+    {
+        var commandLine = BuildCommandLine(arguments);
+        lock (_environmentLock)
+        {
+            try
+            {
+                Environment.SetEnvironmentVariable(SessionIdVariable, sessionId);
+                Environment.SetEnvironmentVariable(AccessKeyVariable, accessKey);
+                return Win32Interop.CreateInteractiveSystemProcess(
+                    commandLine,
+                    targetSessionId: targetSessionId,
+                    hiddenWindow: false,
+                    out _);
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(SessionIdVariable, null);
+                Environment.SetEnvironmentVariable(AccessKeyVariable, null);
+            }
+        }
+    }
+
+    private Process StartAsCurrentUser(Dictionary<string, string?>? environment, params string?[] arguments)
+    {
+        var psi = new ProcessStartInfo(_rcBinaryPath) { UseShellExecute = false };
+        foreach (var argument in arguments)
+        {
+            psi.ArgumentList.Add(argument ?? string.Empty);
+        }
+        if (environment is not null)
+        {
+            foreach (var (key, value) in environment)
+            {
+                psi.Environment[key] = value;
+            }
+        }
+        return Process.Start(psi) ?? throw new InvalidOperationException("Failed to start the remote control app.");
     }
 }

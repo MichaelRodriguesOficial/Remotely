@@ -12,6 +12,7 @@ public class DesktopHub : Hub<IDesktopHubClient>
 {
     private readonly IAgentHubSessionCache _agentCache;
     private readonly ILogger<DesktopHub> _logger;
+    private readonly IRemoteControlAuditService _audit;
     private readonly IRemoteControlSessionCache _sessionCache;
     private readonly IDesktopStreamCache _streamCache;
     private readonly IHubContext<ViewerHub, IViewerHubClient> _viewerHub;
@@ -23,8 +24,10 @@ public class DesktopHub : Hub<IDesktopHubClient>
         IAgentHubSessionCache agentCache,
         IHubContext<AgentHub, IAgentHubClient> agentHub,
         IHubContext<ViewerHub, IViewerHubClient> viewerHub,
+        IRemoteControlAuditService audit,
         ILogger<DesktopHub> logger)
     {
+        _audit = audit;
         _sessionCache = sessionCache;
         _agentCache = agentCache;
         _streamCache = streamCache;
@@ -57,10 +60,15 @@ public class DesktopHub : Hub<IDesktopHubClient>
 
     public async Task DisconnectViewer(string viewerID, bool notifyViewer)
     {
-        ViewerList.Remove(viewerID);
+        var wasViewer = ViewerList.Remove(viewerID);
 
         if (notifyViewer)
         {
+            // O computador encerrou (usuário clicou em "Encerrar acesso" ou o app fechou).
+            if (wasViewer)
+            {
+                await _audit.SessionEnded(viewerID, RemoteControlAuditService.EndedOnComputer);
+            }
             await _viewerHub.Clients.Client(viewerID).ViewerRemoved();
         }
     }
@@ -234,9 +242,13 @@ public class DesktopHub : Hub<IDesktopHubClient>
         return _viewerHub.Clients.Clients(viewerIDs).ConnectionFailed();
     }
 
-    public Task SendConnectionRequestDenied(string viewerID)
+    public async Task SendConnectionRequestDenied(string viewerID)
     {
-        return _viewerHub.Clients.Client(viewerID).ConnectionRequestDenied();
+        if (SessionInfo.ViewerList.Contains(viewerID))
+        {
+            await _audit.SessionEnded(viewerID, RemoteControlAuditService.DeniedByUser);
+        }
+        await _viewerHub.Clients.Client(viewerID).ConnectionRequestDenied();
     }
 
     public async Task SendDesktopStream(IAsyncEnumerable<byte[]> stream, Guid streamId)

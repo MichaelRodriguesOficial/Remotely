@@ -53,7 +53,7 @@ public class PromptForAccessWindowViewModel : BrandedViewModelBase, IPromptForAc
 
     public string RequesterName
     {
-        get => Get<string>() ?? "a technician";
+        get => Get<string>() ?? "um técnico";
         set
         {
             Set(value);
@@ -65,7 +65,7 @@ public class PromptForAccessWindowViewModel : BrandedViewModelBase, IPromptForAc
     {
         get
         {
-            return $"Would you like to allow {RequesterName} from {OrganizationName} to control your computer?";
+            return $"Permitir que {RequesterName} ({OrganizationName}) veja e controle este computador? Você pode encerrar a qualquer momento pelo painel no canto da tela.";
         }
     }
     public ICommand SetResultNo => new RelayCommand<Window>(window =>

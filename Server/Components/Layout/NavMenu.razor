@@ -61,6 +61,16 @@
 
         <AuthorizeView>
             <Authorized>
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="remote-sessions">
+                        <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> <span>Sessões remotas</span>
+                    </NavLink>
+                </li>
+            </Authorized>
+        </AuthorizeView>
+
+        <AuthorizeView>
+            <Authorized>
                 @if (AccessProfiles.GetPermissions(_user).Scripts)
                 {
                     <li class="nav-item">

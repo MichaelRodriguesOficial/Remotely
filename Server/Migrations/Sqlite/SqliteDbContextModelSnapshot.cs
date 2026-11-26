@@ -566,6 +566,64 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.ToTable("DeviceDiagnosticRuns");
                 });
 
+            modelBuilder.Entity("Remotely.Shared.Entities.RemoteControlSessionLog", b =>
+                {
+                    b.Property<string>("ID")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceID")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeviceName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OrganizationID")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequesterName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequesterUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ViewOnly")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ViewerIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ID");
+
+                    b.HasIndex("OrganizationID", "StartedAt");
+
+                    b.ToTable("RemoteControlSessionLogs");
+                });
+
             modelBuilder.Entity("Remotely.Shared.Entities.DeviceGroup", b =>
                 {
                     b.Property<string>("ID")
