@@ -16,6 +16,9 @@ export class ClipboardWatcher {
             console.log("ClipboardWatcher is already running.");
             return;
         }
+        if (!this.IsEnabled()) {
+            return;
+        }
         try {
             // This will throw on Firefox, Safari, and possibly other browsers.
             // MDN states that they have no intention of implementing clipboard
@@ -40,19 +43,50 @@ export class ClipboardWatcher {
             if (!document.hasFocus()) {
                 return;
             }
+            if (!this.IsEnabled()) {
+                this.NewClipboardText = null;
+                return;
+            }
             if (this.NewClipboardText && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(this.NewClipboardText);
+                try {
+                    await navigator.clipboard.writeText(this.NewClipboardText);
+                }
+                catch (_a) {
+                    return;
+                }
                 this.LastClipboardText = this.NewClipboardText;
                 this.NewClipboardText = null;
                 ShowToast("Área de transferência atualizada.");
                 return;
             }
-            var newText = await navigator.clipboard.readText();
+            if (ViewerApp.ViewOnlyMode) {
+                return;
+            }
+            var newText;
+            try {
+                newText = await navigator.clipboard.readText();
+            }
+            catch (_b) {
+                // Sem permissão ou documento sem foco: tenta de novo no próximo ciclo.
+                return;
+            }
             if (this.LastClipboardText != newText) {
                 this.LastClipboardText = newText;
                 ViewerApp.MessageSender.SendTextTransfer(newText, false);
             }
         }, 500);
+    }
+    /** Desligado pelo técnico ou sem permissão de área de transferência no perfil. */
+    IsEnabled() {
+        var _a;
+        return ViewerApp.Settings.ClipboardSync !== false &&
+            ((_a = ViewerApp.Settings.ViewerOptions) === null || _a === void 0 ? void 0 : _a.AllowClipboard) !== false;
+    }
+    Stop() {
+        if (this.ClipboardTimer) {
+            window.clearInterval(this.ClipboardTimer);
+            this.ClipboardTimer = 0;
+        }
     }
     SetClipboardText(text) {
         if (text == this.LastClipboardText) {

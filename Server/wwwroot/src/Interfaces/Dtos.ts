@@ -141,6 +141,8 @@ export interface RemoteControlViewerOptions {
     AllowClipboard?: boolean;
     AllowSystemActions?: boolean;
     IdleTimeoutMinutes?: number;
+    DeviceId?: string;
+    DeviceName?: string;
 }
 
 export interface ScreenDataDto {

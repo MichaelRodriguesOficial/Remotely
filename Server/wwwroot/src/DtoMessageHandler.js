@@ -70,6 +70,8 @@ export class DtoMessageHandler {
         }
         document.title = `${screenDataDto.MachineName} - Sessão de controle remoto`;
         UI.ToggleConnectUI(false);
+        UI.HideWaitOverlay();
+        UI.SetSessionIdentity(screenDataDto.MachineName);
         UI.SetScreenSize(screenDataDto.ScreenWidth, screenDataDto.ScreenHeight);
         UI.UpdateDisplays(screenDataDto.SelectedDisplay, screenDataDto.DisplayNames);
     }

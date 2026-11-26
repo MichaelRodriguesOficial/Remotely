@@ -24,4 +24,11 @@ public class RemoteControlViewerOptions
     /// <summary>Minutos sem mouse ou teclado até a sessão ser encerrada (0 = nunca).</summary>
     [DataMember]
     public int IdleTimeoutMinutes { get; init; }
+
+    /// <summary>Computador da sessão aberta pelo painel (para o painel lateral do visualizador).</summary>
+    [DataMember]
+    public string? DeviceId { get; init; }
+
+    [DataMember]
+    public string? DeviceName { get; init; }
 }

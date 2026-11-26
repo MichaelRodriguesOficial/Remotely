@@ -65,6 +65,20 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td colspan="2" align="center">Inventário: atualizar, ligar, reiniciar ou desligar vários computadores de uma vez</td>
   </tr>
   <tr>
+    <td colspan="2"><img src=".github/media/visualizador.png" alt="Visualizador do controle remoto com a barra nova agrupada" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Controle remoto: barra nova com monitores, copiar e colar, arquivos, painel e tela cheia</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/visualizador-painel.png" alt="Painel lateral do visualizador com terminal do computador" /></td>
+    <td><img src=".github/media/visualizador-reiniciar.png" alt="Reiniciar e voltar: o visualizador espera o computador ligar e reconecta" /></td>
+  </tr>
+  <tr>
+    <td align="center">Painel lateral: dados, terminal, scripts e envio de arquivo sem sair da tela</td>
+    <td align="center">Reiniciar e voltar: reconecta sozinho quando o computador liga</td>
+  </tr>
+  <tr>
     <td colspan="2"><img src=".github/media/sessoes-remotas.png" alt="Histórico de sessões remotas com técnico, computador, duração e como terminou" /></td>
   </tr>
   <tr>
@@ -163,6 +177,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Histórico de sessões remotas**: técnico, computador, início, duração, IP e como a sessão terminou (pelo técnico, navegador fechado, conexão perdida, encerrada ou recusada no computador), com busca, filtros e exportação. Técnicos veem as próprias sessões; administradores, as de todos.
 - **Painel do usuário redesenhado** (Windows): fica no canto certo da tela com qualquer escala, mostra quem está conectado, o que está fazendo e há quanto tempo, com botão "Encerrar acesso", tudo em português.
 - **Aceite do usuário e regras de sessão**: perguntar e aceitar sozinho em X segundos, sempre exigir o aceite ou não perguntar, no servidor e por grupo de dispositivos; sessão parada encerrada sozinha; aviso por e-mail ou webhook (n8n) quando alguém acessa computadores de grupos sensíveis.
+- **Visualizador do controle remoto renovado**: barra agrupada com nome do computador e tempo de sessão, monitores direto na barra, tela cheia que manda Win e Alt+Tab ao computador remoto, copiar e colar automático (com botão para ligar e desligar), painel lateral com dados, terminal, scripts e envio de arquivo, e **Reiniciar e voltar**, que reinicia o computador e reconecta sozinho.
 - **Permissões da sessão por perfil**: controlar ou só ver, arquivos, área de transferência e Ctrl+Alt+Del/bloqueio de entrada, conferidos no servidor.
 - **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
 - **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").

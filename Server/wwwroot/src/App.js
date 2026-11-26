@@ -22,6 +22,10 @@ export const ViewerApp = {
         decodeURIComponent(queryString["viewonly"]).toLowerCase() == "true" :
         false,
     Mode: RemoteControlMode.Unknown,
+    /** Computador desta sessão (para o painel lateral). Vem das opções do servidor. */
+    DeviceId: "",
+    /** Reiniciado pelo técnico: a página espera o computador voltar. */
+    IsWaitingForRestart: false,
     Settings: GetSettings(),
     Init: () => {
         ViewerApp.Mode = queryString["mode"] ?

@@ -20,7 +20,8 @@ public sealed record RemoteSessionQuery(
 /// </summary>
 public interface IRemoteControlAuditService
 {
-    Task SessionStarted(string viewerConnectionId, RemoteControlSession session, string? requesterName, string? viewerIp);
+    /// <summary>Abre o registro da sessão. Retorna false se esta conexão já tinha um registro aberto (reconexão).</summary>
+    Task<bool> SessionStarted(string viewerConnectionId, RemoteControlSession session, string? requesterName, string? viewerIp);
 
     /// <summary>Fecha o registro da conexão. Só o primeiro motivo vale.</summary>
     Task SessionEnded(string viewerConnectionId, string reason);
@@ -57,13 +58,13 @@ public class RemoteControlAuditService : IRemoteControlAuditService
         _logger = logger;
     }
 
-    public async Task SessionStarted(string viewerConnectionId, RemoteControlSession session, string? requesterName, string? viewerIp)
+    public async Task<bool> SessionStarted(string viewerConnectionId, RemoteControlSession session, string? requesterName, string? viewerIp)
     {
         try
         {
             if (_openLogs.ContainsKey(viewerConnectionId))
             {
-                return;
+                return false;
             }
 
             using var db = _dbFactory.GetContext();
@@ -92,10 +93,12 @@ public class RemoteControlAuditService : IRemoteControlAuditService
             db.RemoteControlSessionLogs.Add(log);
             await db.SaveChangesAsync();
             _openLogs[viewerConnectionId] = log.ID;
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while recording the start of a remote control session.");
+            return true;
         }
     }
 

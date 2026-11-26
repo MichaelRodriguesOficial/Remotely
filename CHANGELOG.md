@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.13.0 — 2026-11-26
+
+Fase 2 da modernização do controle remoto, parte 2: o visualizador.
+
+### Barra nova
+- Barra fixa no topo, com os botões agrupados (monitores, controle, copiar e colar e arquivos, tela) e o **nome do computador com o tempo de sessão**. Recolhe na seta da direita e lembra a escolha. Em telas menores ficam só os ícones.
+- **Monitores na barra**: com 2 a 6 monitores, um botão numerado para cada (o ativo fica destacado). Com um monitor só, o grupo some. Os monitores passam a ser contados a partir de 1.
+- **Tela cheia com os atalhos do Windows** (Chrome e Edge): Win, Alt+Tab e Esc vão para o computador remoto. Para sair, segure Esc. O botão acompanha a tela cheia mesmo quando ela é fechada pelo navegador.
+- Menus suspensos, avisos e confirmações no mesmo visual do painel.
+
+### Copiar e colar
+- **Sincronização automática** do texto copiado entre o seu computador e o remoto, com botão para ligar e desligar em "Mais opções" (guardado no navegador). Não roda em sessões só de visualização nem quando o perfil não permite a área de transferência.
+- "Copiar e colar" ganhou **Colar meu texto lá** (coloca o texto na área de transferência do remoto, para usar Ctrl+V) além de **Digitar meu texto** (útil em telas de login).
+
+### Painel lateral
+- Botão **Painel** abre, ao lado da tela remota, os dados do computador (uso de CPU, memória e disco, IPs, usuário e a ficha do inventário), o **terminal** e os **scripts rápidos** e o **envio de arquivo** com escolha da pasta, sem sair da sessão. Trocar de aba não perde o terminal nem um envio em andamento. Respeita o acesso ao grupo e o perfil do técnico.
+
+### Reiniciar e voltar
+- No menu **Windows**, **Reiniciar e voltar** reinicia o computador sem encerrar a sessão: a página mostra há quanto tempo está esperando e reconecta sozinha quando o computador liga de novo, sem pedir o aceite outra vez. O histórico de sessões continua com um único registro e o aviso de início não é repetido. A espera não conta como sessão parada.
+
+### Correções
+- "Reconectando" nunca aparecia no visualizador (nome do evento traduzido por engano).
+- A tecla Menu (de contexto) era enviada como Alt.
+- "Convidar outras pessoas" não copiava o link quando a sincronização da área de transferência estava desligada ou indisponível.
+- Abrir e fechar a barra gerava erro no console e deixava menus abertos.
+- O botão de tela cheia ficava marcado depois de sair com Esc.
+- A sincronização da área de transferência começava antes da sessão ser aceita.
+
 ## v1.12.0 — 2026-11-26
 
 Fase 2 da modernização do controle remoto, parte 1: regras e segurança da sessão.

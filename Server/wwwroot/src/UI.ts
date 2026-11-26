@@ -57,6 +57,137 @@ export var WindowsSessionMenuButton = document.getElementById("windowsSessionMen
 export var MetricsButton = document.getElementById("metricsButton") as HTMLButtonElement;
 export var MetricsFrame = document.getElementById("metricsFrame") as HTMLDivElement;
 export var BetaPillPullDown = document.getElementById("betaPillPullDown") as HTMLDivElement;
+export var MachineNameLabel = document.getElementById("machineNameLabel") as HTMLElement;
+export var SessionTimerLabel = document.getElementById("sessionTimerLabel") as HTMLElement;
+export var MonitorButtons = document.getElementById("monitorButtons") as HTMLDivElement;
+export var MonitorGroup = document.getElementById("monitorGroup") as HTMLDivElement;
+export var PanelButton = document.getElementById("panelButton") as HTMLButtonElement;
+export var SidePanel = document.getElementById("sidePanel") as HTMLElement;
+export var SidePanelFrame = document.getElementById("sidePanelFrame") as HTMLIFrameElement;
+export var SidePanelClose = document.getElementById("sidePanelClose") as HTMLButtonElement;
+export var SidePanelPopout = document.getElementById("sidePanelPopout") as HTMLAnchorElement;
+export var RestartButton = document.getElementById("restartButton") as HTMLButtonElement;
+export var ClipboardSyncButton = document.getElementById("clipboardSyncButton") as HTMLButtonElement;
+export var SendClipboardButton = document.getElementById("sendClipboardButton") as HTMLButtonElement;
+export var WaitOverlay = document.getElementById("waitOverlay") as HTMLDivElement;
+export var WaitOverlayTitle = document.getElementById("waitOverlayTitle") as HTMLElement;
+export var WaitOverlayText = document.getElementById("waitOverlayText") as HTMLElement;
+export var WaitOverlayTimer = document.getElementById("waitOverlayTimer") as HTMLElement;
+export var WaitOverlayCancel = document.getElementById("waitOverlayCancel") as HTMLButtonElement;
+
+function FormatElapsed(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+var sessionStartedAt = 0;
+var sessionTimer = -1;
+
+/** Mostra o nome do computador e começa a contar o tempo de sessão (uma vez por página). */
+export function SetSessionIdentity(machineName: string) {
+    if (MachineNameLabel && machineName) {
+        MachineNameLabel.textContent = machineName;
+        MachineNameLabel.title = machineName;
+    }
+
+    if (sessionStartedAt == 0) {
+        sessionStartedAt = Date.now();
+        sessionTimer = window.setInterval(() => {
+            if (SessionTimerLabel) {
+                SessionTimerLabel.textContent = `Conectado há ${FormatElapsed(Date.now() - sessionStartedAt)}`;
+            }
+        }, 1000);
+        if (SessionTimerLabel) {
+            SessionTimerLabel.textContent = "Conectado agora";
+        }
+    }
+}
+
+var waitStartedAt = 0;
+var waitTimer = -1;
+
+/** Tela de espera (ex.: reiniciando o computador). Some quando a imagem volta. */
+export function ShowWaitOverlay(title: string, text: string) {
+    if (!WaitOverlay) {
+        return;
+    }
+    WaitOverlayTitle.textContent = title;
+    WaitOverlayText.textContent = text;
+    WaitOverlay.classList.remove("d-none");
+    if (waitTimer < 0) {
+        waitStartedAt = Date.now();
+        WaitOverlayTimer.textContent = "00:00";
+        waitTimer = window.setInterval(() => {
+            WaitOverlayTimer.textContent = FormatElapsed(Date.now() - waitStartedAt);
+        }, 1000);
+    }
+}
+
+export function HideWaitOverlay() {
+    if (!WaitOverlay) {
+        return;
+    }
+    WaitOverlay.classList.add("d-none");
+    if (waitTimer >= 0) {
+        window.clearInterval(waitTimer);
+        waitTimer = -1;
+    }
+}
+
+export function IsWaitOverlayShown(): boolean {
+    return !!WaitOverlay && !WaitOverlay.classList.contains("d-none");
+}
+
+/** Confirmação na própria página (sem o confirm() do navegador, que trava o visualizador). */
+export function Confirm(title: string, message: string, okText: string): Promise<boolean> {
+    return new Promise(resolve => {
+        const backdrop = document.createElement("div");
+        backdrop.className = "modal-confirm";
+        const card = document.createElement("div");
+        card.className = "confirm-card";
+        card.setAttribute("role", "dialog");
+        card.setAttribute("aria-modal", "true");
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+        const body = document.createElement("p");
+        body.textContent = message;
+        const actions = document.createElement("div");
+        actions.className = "confirm-actions";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancelar";
+        const ok = document.createElement("button");
+        ok.className = "confirm-ok";
+        ok.textContent = okText;
+        actions.append(cancel, ok);
+        card.append(heading, body, actions);
+        backdrop.appendChild(card);
+        document.body.appendChild(backdrop);
+        ok.focus();
+
+        const finish = (value: boolean) => {
+            backdrop.remove();
+            resolve(value);
+        };
+        ok.onclick = () => finish(true);
+        cancel.onclick = () => finish(false);
+        backdrop.onclick = ev => {
+            if (ev.target == backdrop) {
+                finish(false);
+            }
+        };
+        card.onkeydown = ev => {
+            ev.stopPropagation();
+            if (ev.key == "Escape") {
+                finish(false);
+            }
+        };
+        card.onkeyup = ev => ev.stopPropagation();
+    });
+}
 
 export function CloseAllPopupMenus(exceptMenuId: string) {
     PopupMenus.forEach(x => {
@@ -171,21 +302,62 @@ export function UpdateCursor(imageBytes: Uint8Array, hotSpotX: number, hotSpotY:
 
 export function UpdateDisplays(selectedDisplay: string, displayNames: string[]) {
     ScreenSelectMenu.innerHTML = "";
+    if (MonitorButtons) {
+        MonitorButtons.innerHTML = "";
+        const groupIcon = document.createElement("span");
+        groupIcon.className = "rc-group-icon";
+        groupIcon.title = "Monitores do computador remoto";
+        groupIcon.innerHTML = '<i class="fas fa-desktop"></i>';
+        MonitorButtons.appendChild(groupIcon);
+    }
+
+    const select = (displayName: string) => {
+        ViewerApp.MessageSender.SendSelectScreen(displayName);
+        UpdateDisplays(displayName, displayNames);
+    };
+
     for (let i = 0; i < displayNames.length; i++) {
+        const isSelected = displayNames[i] == selectedDisplay;
+
         var button = document.createElement("button");
-        button.innerHTML = `Monitor ${i}`;
-        if (displayNames[i] == selectedDisplay) {
+        const icon = document.createElement("i");
+        icon.className = "fas fa-desktop";
+        button.append(icon, document.createTextNode(` Monitor ${i + 1}`));
+        if (isSelected) {
             button.classList.add("toggled");
         }
         ScreenSelectMenu.appendChild(button);
-        button.onclick = (ev: MouseEvent) => {
-            ViewerApp.MessageSender.SendSelectScreen(displayNames[i]);
-            ScreenSelectMenu.classList.toggle("open");
-            ScreenSelectMenu.querySelectorAll("button").forEach(button => {
-                button.classList.remove("toggled");
-            });
-            (ev.currentTarget as HTMLButtonElement).classList.add("toggled");
+        button.onclick = () => {
+            ScreenSelectMenu.classList.remove("open");
+            select(displayNames[i]);
         };
+
+        if (MonitorButtons) {
+            const inline = document.createElement("button");
+            inline.className = "rc-btn" + (isSelected ? " toggled" : "");
+            inline.textContent = `${i + 1}`;
+            inline.title = `Ver o monitor ${i + 1}`;
+            inline.setAttribute("aria-pressed", isSelected ? "true" : "false");
+            inline.onclick = ev => {
+                ev.stopPropagation();
+                select(displayNames[i]);
+            };
+            MonitorButtons.appendChild(inline);
+        }
+    }
+
+    // Até 6 monitores: botões numerados direto na barra. Mais que isso: menu.
+    // Um monitor só: nada a escolher.
+    const inlineMode = displayNames.length > 1 && displayNames.length <= 6;
+    if (MonitorGroup) {
+        MonitorGroup.classList.toggle("d-none", displayNames.length <= 1);
+    }
+    if (MonitorButtons) {
+        MonitorButtons.classList.toggle("d-none", !inlineMode);
+    }
+    ChangeScreenButton.classList.toggle("d-none", inlineMode);
+    if (inlineMode) {
+        ChangeScreenButton.title = "Escolher o monitor do computador remoto.";
     }
 }
 
@@ -194,7 +366,7 @@ export function UpdateMetrics(metricsDto: SessionMetricsDto) {
     FpsDiv.innerHTML = metricsDto.Fps.toFixed(0);
     MbpsDiv.innerHTML = metricsDto.Mbps.toFixed(2);
     LatencyDiv.innerHTML = `${metricsDto.RoundTripLatency.toFixed(2)}ms`;
-    GpuDiv.innerHTML = metricsDto.IsGpuAccelerated ? "Enabled" : "Unavailable";
+    GpuDiv.innerHTML = metricsDto.IsGpuAccelerated ? "Ativa" : "Indisponível";
 }
 
 export function UpdateWindowsSessions(windowsSessions: Array<WindowsSession>) {

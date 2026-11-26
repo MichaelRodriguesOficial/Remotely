@@ -70,6 +70,7 @@ public class RemoteControlIdleMonitor : BackgroundService
         foreach (var context in viewers)
         {
             if (ViewerHub.IsViewOnly(context) ||
+                ViewerHub.IsWaitingForDevice(context) ||
                 !context.Items.TryGetValue(ViewerHub.LastInputKey, out var value) ||
                 value is not DateTimeOffset lastInput)
             {

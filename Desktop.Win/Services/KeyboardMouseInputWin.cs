@@ -497,7 +497,7 @@ public class KeyboardMouseInputWin(
             "F11" => VirtualKey.F11,
             "F12" => VirtualKey.F12,
             "Meta" => VirtualKey.LWIN,
-            "ContextMenu" => VirtualKey.MENU,
+            "ContextMenu" => VirtualKey.APPS,
             _ => key.Length == 1 ?
                     (VirtualKey)VkKeyScan(Convert.ToChar(key)) :
                     null

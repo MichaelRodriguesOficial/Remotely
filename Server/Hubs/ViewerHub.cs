@@ -26,6 +26,7 @@ public class ViewerHub : Hub<IViewerHubClient>
     private readonly IRemoteControlAuditService _audit;
     private readonly IAccessProfileService _accessProfiles;
     private readonly IRemoteSessionNotifier _notifier;
+    private readonly IAgentHubSessionCache _agentCache;
 
     public ViewerHub(
         IRemoteControlSessionCache desktopSessionCache,
@@ -37,8 +38,10 @@ public class ViewerHub : Hub<IViewerHubClient>
         IRemoteControlAuditService audit,
         IAccessProfileService accessProfiles,
         IRemoteSessionNotifier notifier,
+        IAgentHubSessionCache agentCache,
         ILogger<ViewerHub> logger)
     {
+        _agentCache = agentCache;
         _notifier = notifier;
         _audit = audit;
         _accessProfiles = accessProfiles;
@@ -211,9 +214,74 @@ public class ViewerHub : Hub<IViewerHubClient>
             AllowFiles = permissions.Files,
             AllowClipboard = permissions.Clipboard,
             AllowSystemActions = permissions.SystemActions,
-            IdleTimeoutMinutes = Math.Max(0, settings.RemoteControlIdleMinutes)
+            IdleTimeoutMinutes = Math.Max(0, settings.RemoteControlIdleMinutes),
+            // O painel lateral só existe em sessão aberta pelo painel, com técnico logado.
+            // A página do painel confere de novo o acesso ao computador.
+            DeviceId = SessionInfo.Mode == RemoteControlMode.Unattended &&
+                Context.User?.Identity?.IsAuthenticated == true &&
+                !string.IsNullOrWhiteSpace(SessionInfo.DeviceId)
+                    ? SessionInfo.DeviceId
+                    : null,
+            DeviceName = string.IsNullOrWhiteSpace(SessionInfo.MachineName) ? null : SessionInfo.MachineName
         };
     }
+
+    /// <summary>
+    /// "Reiniciar e voltar": reinicia o computador sem encerrar a sessão. Quando o agente volta,
+    /// o servidor reabre a tela remota (AgentHub.CheckForPendingRemoteControlSessions) e o visualizador reconecta.
+    /// </summary>
+    public async Task<Result> RestartDevice()
+    {
+        var session = SessionInfo;
+        if (session.Mode != RemoteControlMode.Unattended || string.IsNullOrWhiteSpace(session.DeviceId))
+        {
+            return Result.Fail("Disponível só no acesso aberto pelo painel.");
+        }
+
+        if (!session.ViewerList.Contains(Context.ConnectionId))
+        {
+            return Result.Fail("A sessão ainda não foi iniciada.");
+        }
+
+        if (!Permissions.SystemActions || !Permissions.Input || session.ViewOnly)
+        {
+            return Result.Fail("Seu perfil não permite reiniciar o computador.");
+        }
+
+        if (!_agentCache.TryGetConnectionId(session.DeviceId, out var agentConnectionId))
+        {
+            return Result.Fail("O agente do computador não está conectado.");
+        }
+
+        // Desconexão esperada: a sessão fica guardada até o agente voltar, sem tentar reabrir antes.
+        session.StreamerState = StreamerState.WindowsShuttingDown | StreamerState.DisconnectExpected;
+        session.AgentConnectionId = agentConnectionId;
+        Context.Items[LastInputKey] = DateTimeOffset.Now;
+        Context.Items.Remove(IdleWarnedKey);
+
+        _logger.LogInformation(
+            "Restart requested from remote control. Device: {deviceId}. User: {user}. Viewer: {connectionId}.",
+            session.DeviceId,
+            Context.User?.Identity?.Name,
+            Context.ConnectionId);
+
+        await _agentHub.Clients.Client(agentConnectionId).PowerAction("restart", 0);
+
+        var others = session.ViewerList.Where(x => x != Context.ConnectionId).ToList();
+        if (others.Count > 0)
+        {
+            await Clients.Clients(others).ShowMessage("O computador está reiniciando. O acesso volta quando ele ligar.");
+        }
+
+        return Result.Ok();
+    }
+
+    /// <summary>Esperando o computador reiniciar ou reabrir a tela remota (não conta como sessão parada).</summary>
+    internal static bool IsWaitingForDevice(HubCallerContext context) =>
+        context.Items.TryGetValue(nameof(SessionInfo), out var value) &&
+        value is RemoteControlSession session &&
+        (session.StreamerState.HasFlag(StreamerState.DisconnectExpected) ||
+         session.StreamerState.HasFlag(StreamerState.Reconnecting));
 
     /// <summary>
     /// Confere no servidor se o tipo de mensagem é permitido para esta conexão. O visualizador esconde
@@ -511,9 +579,12 @@ public class ViewerHub : Hub<IViewerHubClient>
 
             SessionInfo.RequireConsent = false;
 
-            await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
+            // Reconexão (reinício, troca de sessão do Windows) não abre outro registro nem repete o aviso.
+            if (await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp))
+            {
+                _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
+            }
             _activeViewers[Context.ConnectionId] = Context;
-            _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
 
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
@@ -526,9 +597,11 @@ public class ViewerHub : Hub<IViewerHubClient>
         else
         {
             SessionInfo.Mode = RemoteControlMode.Attended;
-            await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
+            if (await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp))
+            {
+                _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
+            }
             _activeViewers[Context.ConnectionId] = Context;
-            _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
                 .RequestScreenCast(

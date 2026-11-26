@@ -59,13 +59,15 @@ export class ViewerHubConnection {
         });
 
         this.Connection.onclose(() => {
+            ViewerApp.IsWaitingForRestart = false;
+            UI.HideWaitOverlay();
+            ViewerApp.ClipboardWatcher.Stop();
             if (!UI.StatusMessage.innerText) {
                 UI.SetStatusMessage("Conexão encerrada.");
             }
             UI.ToggleConnectUI(true);
         });
 
-        ViewerApp.ClipboardWatcher.WatchClipboard();
     }
 
     /**
@@ -105,6 +107,21 @@ export class ViewerHubConnection {
         const noInput = options.AllowInput === false;
         const noSystem = options.AllowSystemActions === false || noInput;
 
+        ViewerApp.DeviceId = options.DeviceId || "";
+        if (UI.PanelButton) {
+            UI.PanelButton.classList.toggle("d-none", !ViewerApp.DeviceId);
+        }
+        if (UI.SidePanelPopout && ViewerApp.DeviceId) {
+            UI.SidePanelPopout.href = `/device-details/${encodeURIComponent(ViewerApp.DeviceId)}`;
+        }
+
+        // Copiar e colar automático só começa com a sessão aceita e se o perfil permitir.
+        if (options.AllowClipboard !== false && !noInput) {
+            ViewerApp.ClipboardWatcher.WatchClipboard();
+        }
+        hide(UI.ClipboardSyncButton, options.AllowClipboard === false || noInput);
+        hide(UI.RestartButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended);
+
         if (noInput) {
             ViewerApp.ViewOnlyMode = true;
             UI.ViewOnlyButton.classList.add("toggled");
@@ -122,6 +139,20 @@ export class ViewerHubConnection {
         }
         else if (options.AllowFiles === false || options.AllowClipboard === false || options.AllowSystemActions === false) {
             ShowToast("Seu perfil de acesso limita algumas ações nesta sessão.");
+        }
+    }
+
+    /** Reinicia o computador; a sessão continua e reconecta quando ele voltar. */
+    async RestartDevice(): Promise<Result> {
+        if (this.Connection?.state != HubConnectionState.Connected) {
+            return { IsSuccess: false, Reason: "Sem conexão com o servidor." } as Result;
+        }
+        try {
+            return await this.Connection.invoke<Result>("RestartDevice");
+        }
+        catch (e) {
+            console.error(e);
+            return { IsSuccess: false, Reason: "Não foi possível reiniciar o computador." } as Result;
         }
     }
 
@@ -185,6 +216,8 @@ export class ViewerHubConnection {
             ViewerApp.RequesterName);
 
         if (!result.IsSuccess) {
+            ViewerApp.IsWaitingForRestart = false;
+            UI.HideWaitOverlay();
             this.Connection.stop();
             UI.SetStatusMessage(result.Reason);
             return;
@@ -207,19 +240,25 @@ export class ViewerHubConnection {
                 },
                 complete: () => {
                     streamingState.StreamEnded = true;
+                    ViewerApp.SessionRecorder.Stop();
+                    if (ViewerApp.IsWaitingForRestart) {
+                        return;
+                    }
                     if (!UI.StatusMessage.innerText) {
                         UI.SetStatusMessage("Transmissão encerrada.");
                     }
-                    ViewerApp.SessionRecorder.Stop();
                     UI.ToggleConnectUI(true);
                 },
                 error: (err) => {
                     console.warn(err);
                     streamingState.StreamEnded = true;
+                    ViewerApp.SessionRecorder.Stop();
+                    if (ViewerApp.IsWaitingForRestart) {
+                        return;
+                    }
                     if (!UI.StatusMessage.innerText) {
                         UI.SetStatusMessage("Transmissão encerrada.");
                     }
-                    ViewerApp.SessionRecorder.Stop();
                     UI.ToggleConnectUI(true);
                 },
             });
@@ -267,13 +306,20 @@ export class ViewerHubConnection {
             const newUrl =
                 `${location.origin}${location.pathname}` +
                 `?mode=Unattended&sessionId=${newSessionId}&accessKey=${newAccessKey}&viewOnly=${ViewerApp.ViewOnlyMode}`;
-            window.history.pushState(null, "", newUrl);
+            window.history.replaceState(null, "", newUrl);
+            if (ViewerApp.IsWaitingForRestart) {
+                UI.ShowWaitOverlay("Computador de volta", "Reconectando a imagem...");
+                ViewerApp.IsWaitingForRestart = false;
+            }
             ViewerApp.SessionId = newSessionId;
             ViewerApp.AccessKey = newAccessKey;
             this.SendScreenCastRequestToDevice();
         });
 
-        hubConnection.on("Reconectando", () => {
+        hubConnection.on("Reconnecting", () => {
+            if (ViewerApp.IsWaitingForRestart) {
+                return;
+            }
             UI.SetStatusMessage("Reconectando");
             ShowToast("Reconectando");
         });
@@ -283,6 +329,10 @@ export class ViewerHubConnection {
         });
 
         hubConnection.on("ShowMessage", (message: string) => {
+            if (ViewerApp.IsWaitingForRestart) {
+                UI.ShowWaitOverlay("Reiniciando o computador", message);
+                return;
+            }
             ShowToast(message);
             UI.SetStatusMessage(message);
         });

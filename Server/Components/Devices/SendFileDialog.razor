@@ -9,9 +9,12 @@
 @inject ILogger<SendFileDialog> Logger
 
 @* Enviar arquivos para um computador escolhendo a pasta de destino. *@
-<div class="rm-dialog-backdrop" @onclick="TryClose"></div>
-<div class="rm-dialog rm-dialog-send panel" role="dialog" aria-modal="true" aria-labelledby="send-file-title-@Device.ID">
-    <div class="rm-dialog-head">
+@if (!Embedded)
+{
+    <div class="rm-dialog-backdrop" @onclick="TryClose"></div>
+}
+<div class="@(Embedded ? "rm-embedded" : "rm-dialog rm-dialog-send panel")" role="@(Embedded ? "region" : "dialog")" aria-modal="@(Embedded ? null : "true")" aria-labelledby="send-file-title-@Device.ID">
+    <div class="rm-dialog-head" hidden="@Embedded">
         <span class="diag-tile-icon"><i class="fa-solid fa-file-arrow-up"></i></span>
         <div class="min-w-0">
             <h2 id="send-file-title-@Device.ID">Enviar arquivo</h2>
@@ -93,7 +96,10 @@
         </div>
 
         <div class="rm-dialog-actions">
-            <button type="button" class="btn btn-ghost" @onclick="Close">Cancelar</button>
+            @if (!Embedded)
+            {
+                <button type="button" class="btn btn-ghost" @onclick="Close">Cancelar</button>
+            }
             <button type="button" class="btn btn-primary" disabled="@(!CanSend)" @onclick="Send">
                 <i class="fa-solid fa-paper-plane"></i> Enviar @(_files.Count > 1 ? $"{_files.Count} arquivos" : "")
             </button>
@@ -157,9 +163,12 @@
             @if (_phase is Phase.Done or Phase.Failed)
             {
                 <button type="button" class="btn btn-ghost" @onclick="Reset">Enviar outro</button>
-                <button type="button" class="btn btn-primary" @onclick="Close">Fechar</button>
+                @if (!Embedded)
+                {
+                    <button type="button" class="btn btn-primary" @onclick="Close">Fechar</button>
+                }
             }
-            else if (_phase == Phase.Waiting)
+            else if (_phase == Phase.Waiting && !Embedded)
             {
                 <button type="button" class="btn btn-ghost" @onclick="Close">Fechar (aviso quando terminar)</button>
             }
@@ -193,6 +202,10 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>Dentro de outra página (painel do visualizador): sem fundo escuro nem botão de fechar.</summary>
+    [Parameter]
+    public bool Embedded { get; set; }
 
     private bool IsWindows => Device.Platform?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
 

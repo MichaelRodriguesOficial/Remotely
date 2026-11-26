@@ -51,12 +51,19 @@
     </div>
 
     <div id="clipboardTransferMenu" class="popup-menu">
-        <button id="typeClipboardButton">Digitar área de transferência</button>
+        <button id="sendClipboardButton" title="Coloca o texto copiado aqui na área de transferência do computador remoto.">
+            <i class="fas fa-paste"></i>
+            Colar meu texto lá
+        </button>
+        <button id="typeClipboardButton" title="Digita o texto copiado, tecla por tecla (útil em telas de login).">
+            <i class="fas fa-keyboard"></i>
+            Digitar meu texto
+        </button>
     </div>
 
     <div id="fileTransferMenu" class="popup-menu">
-        <button id="fileUploadButton">Enviar arquivo</button>
-        <button id="fileDownloadButton">Baixar arquivo</button>
+        <button id="fileUploadButton"><i class="fas fa-upload"></i> Enviar arquivo</button>
+        <button id="fileDownloadButton"><i class="fas fa-download"></i> Baixar arquivo</button>
     </div>
 
     <div id="windowsSessionMenu" class="popup-menu">
@@ -66,6 +73,10 @@
         <select id="windowsSessionSelect"
                 title="Trocar para outra sessão do Windows.">
         </select>
+        <button id="restartButton" class="menu-action" title="Reinicia o computador e reconecta sozinho quando ele voltar.">
+            <i class="fas fa-rotate-right"></i>
+            Reiniciar e voltar
+        </button>
     </div>
 
     <div id="extrasMenu" class="popup-menu">
@@ -76,16 +87,16 @@
             Áudio
         </button>
 
-        <button id="fileTransferButton"
-                title="Transferir arquivos para o computador remoto.">
-            <i class="fas fa-file-upload"></i>
-            Transferir arquivos
-        </button>
-
         <button id="inviteButton"
                 title="Copiar um link para outra pessoa ver a tela remota.">
             <i class="fas fa-user-plus"></i>
             Convidar outras pessoas
+        </button>
+
+        <button id="clipboardSyncButton"
+                title="Copia e cola automaticamente entre o seu computador e o remoto (texto).">
+            <i class="fas fa-arrows-rotate"></i>
+            Sincronizar área de transferência
         </button>
 
         <button id="metricsButton"
@@ -107,7 +118,7 @@
         <div id="fpsDiv">
         </div>
         <div>
-            Latency:
+            Latência:
         </div>
         <div id="latencyDiv">
         </div>
@@ -149,92 +160,134 @@
     </div>
 
     <div id="workAreaGrid" style="display: none;">
-        <div>
-            <div id="menuFrame">
-                <div class="menu-column menu-column-left">
-
-                </div>
-                <div class="menu-column menu-column-middle">
-                    <button id="changeScreenButton"
-                            title="Alternar entre monitores no computador remoto.">
-                        <i class="fas fa-desktop"></i>
-                        Monitores
-                    </button>
-
-                    <button id="viewOnlyButton"
-                            title="Quando ativado, não envia comandos nem entradas ao computador remoto.">
-                        <i class="fas fa-eye"></i>
-                        Somente visualizar
-                    </button>
-
-                    <button id="clipboardTransferButton"
-                            title="Digita no computador remoto o texto da área de transferência.">
-                        <i class="fas fa-clipboard"></i>
-                        Área de transferência
-                    </button>
-
-                    <button id="blockInputButton"
-                            title="Impede o usuário remoto de usar teclado e mouse.">
-                        <i class="fas fa-mouse"></i>
-                        Bloquear teclado/mouse remoto
-                    </button>
-
-                    <button id="ctrlAltDelButton"
-                            title="Envia Ctrl+Alt+Del ao computador remoto. Exige execução como SYSTEM."
-                            class="d-none">
-                        <i class="fas fa-sign-in-alt"></i>
-                        Ctrl+Alt+Del
-                    </button>
+        <div id="toolbarRow">
+            <div id="menuFrame" class="open" role="toolbar" aria-label="Controle remoto">
+                <div class="rc-identity" title="Computador conectado e tempo de sessão">
+                    <span class="rc-live-dot"></span>
+                    <div class="rc-identity-text">
+                        <strong id="machineNameLabel">Conectando...</strong>
+                        <span id="sessionTimerLabel">00:00</span>
+                    </div>
                 </div>
 
-                <div class="menu-column menu-column-right">
-                    <button id="disconnectButton"
-                            title="Desconectar da sessão atual.">
-                        x
-                    </button>
+                <div class="rc-groups">
+                    <div class="rc-group d-none" id="monitorGroup">
+                        <button id="changeScreenButton" class="rc-btn"
+                                title="Escolher o monitor do computador remoto.">
+                            <i class="fas fa-desktop"></i>
+                            <span class="rc-label">Monitores</span>
+                        </button>
+                        <div id="monitorButtons" class="rc-monitors"></div>
+                    </div>
 
-                    <button id="extrasMenuButton">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
+                    <div class="rc-group">
+                        <button id="viewOnlyButton" class="rc-btn"
+                                title="Somente visualizar: não envia mouse nem teclado ao computador remoto.">
+                            <i class="fas fa-eye"></i>
+                            <span class="rc-label">Só ver</span>
+                        </button>
 
-                    <button id="windowsSessionMenuButton">
-                        <i class="fa-brands fa-windows"></i>
-                    </button>
+                        <button id="blockInputButton" class="rc-btn"
+                                title="Bloquear o teclado e o mouse do usuário durante o acesso.">
+                            <i class="fas fa-lock"></i>
+                            <span class="rc-label">Bloquear usuário</span>
+                        </button>
 
-                    <button id="fullScreenButton" title="Entrar em tela cheia.">
-                        <i class="fas fa-window-maximize"></i>
-                    </button>
+                        <button id="ctrlAltDelButton" class="rc-btn d-none"
+                                title="Enviar Ctrl+Alt+Del ao computador remoto.">
+                            <i class="fas fa-keyboard"></i>
+                            <span class="rc-label">Ctrl+Alt+Del</span>
+                        </button>
 
-                    <button id="fitToScreenButton"
-                            class="toggled"
-                            title="Quando ativado, ajusta a imagem ao tamanho da janela.">
-                        <i class="fas fa-expand"></i>
-                    </button>
+                        <button id="windowsSessionMenuButton" class="rc-btn d-none"
+                                title="Sessões do Windows e reiniciar.">
+                            <i class="fa-brands fa-windows"></i>
+                            <span class="rc-label">Windows</span>
+                        </button>
+
+                        <button id="keyboardButton" class="rc-btn d-none"
+                                title="Abrir o teclado virtual.">
+                            <i class="fas fa-keyboard"></i>
+                        </button>
+                    </div>
+
+                    <div class="rc-group">
+                        <button id="clipboardTransferButton" class="rc-btn"
+                                title="Área de transferência.">
+                            <i class="fas fa-clipboard"></i>
+                            <span class="rc-label">Copiar e colar</span>
+                        </button>
+
+                        <button id="fileTransferButton" class="rc-btn"
+                                title="Enviar ou baixar arquivos.">
+                            <i class="fas fa-file-arrow-up"></i>
+                            <span class="rc-label">Arquivos</span>
+                        </button>
+
+                        <button id="panelButton" class="rc-btn d-none"
+                                title="Painel do computador: dados, terminal, scripts e envio de arquivos.">
+                            <i class="fas fa-table-columns"></i>
+                            <span class="rc-label">Painel</span>
+                        </button>
+                    </div>
+
+                    <div class="rc-group">
+                        <button id="fitToScreenButton" class="rc-btn toggled"
+                                title="Ajustar a imagem ao tamanho da janela (desligado: tamanho real, com rolagem).">
+                            <i class="fas fa-compress"></i>
+                        </button>
+
+                        <button id="fullScreenButton" class="rc-btn"
+                                title="Tela cheia. Nela, atalhos como Win e Alt+Tab vão para o computador remoto (segure Esc para sair).">
+                            <i class="fas fa-maximize"></i>
+                        </button>
+
+                        <button id="extrasMenuButton" class="rc-btn" title="Mais opções.">
+                            <i class="fas fa-ellipsis-vertical"></i>
+                        </button>
+                    </div>
                 </div>
+
+                <button id="disconnectButton" class="rc-btn rc-danger"
+                        title="Encerrar o acesso.">
+                    <i class="fas fa-power-off"></i>
+                    <span class="rc-label">Encerrar</span>
+                </button>
             </div>
 
-            <div class="text-center">
-                <button id="menuButton">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
+            <button id="menuButton" class="open" title="Recolher ou mostrar a barra.">
+                <i class="fas fa-chevron-up"></i>
+            </button>
+        </div>
 
-                <button 
-                    id="keyboardButton" 
-                    title="Abrir o teclado virtual."
-                    class="d-none">
-                    <i class="fas fa-keyboard align-middle"></i>
-                </button>
+        <div id="screenViewerWrapper">
+            <canvas id="screenViewer" class="fit"></canvas>
+            <input id="fileTransferInput" hidden="hidden" type="file" multiple />
+            <input id="touchKeyboardInput" type="text" autocomplete="off" autocapitalize="off" />
+        </div>
 
+        <aside id="sidePanel" class="d-none" aria-label="Painel do computador">
+            <div class="side-panel-head">
+                <strong><i class="fas fa-table-columns"></i> Painel do computador</strong>
+                <a id="sidePanelPopout" class="side-panel-icon" target="_blank" rel="noopener" title="Abrir a página do computador em outra aba">
+                    <i class="fas fa-up-right-from-square"></i>
+                </a>
+                <button id="sidePanelClose" class="side-panel-icon" title="Fechar o painel">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+            <iframe id="sidePanelFrame" title="Painel do computador"></iframe>
+        </aside>
+
+        <div id="waitOverlay" class="d-none" role="status" aria-live="polite">
+            <div class="wait-card">
+                <div class="wait-spinner"><i class="fas fa-rotate"></i></div>
+                <h2 id="waitOverlayTitle">Reiniciando o computador</h2>
+                <p id="waitOverlayText">O acesso volta sozinho quando o computador ligar de novo.</p>
+                <div id="waitOverlayTimer" class="wait-timer">00:00</div>
+                <button id="waitOverlayCancel" class="wait-cancel">Parar de esperar e encerrar</button>
             </div>
         </div>
-        <div>
-            <div id="screenViewerWrapper">
-                <canvas id="screenViewer" class="fit"></canvas>
-                <input id="fileTransferInput" hidden="hidden" type="file" multiple />
-                <input id="touchKeyboardInput" type="text" autocomplete="off" autocapitalize="off"  />
-            </div>
-        </div>
-
     </div>
 
     <div id="toastsWrapper">

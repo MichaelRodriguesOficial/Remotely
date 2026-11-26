@@ -5,10 +5,13 @@
 @inherits AuthComponentBase
 
 @* Terminal e scripts rápidos de um único dispositivo, aberto pelo menu "Mais" do card. *@
-<div class="rm-dialog-backdrop" @onclick="Close" @onclick:stopPropagation></div>
-<div class="rm-dialog rm-dialog-wide panel shell-dialog" role="dialog" aria-modal="true" aria-labelledby="@($"shell-title-{Device.ID}")"
+@if (!Embedded)
+{
+    <div class="rm-dialog-backdrop" @onclick="Close" @onclick:stopPropagation></div>
+}
+<div class="@(Embedded ? "rm-embedded shell-dialog" : "rm-dialog rm-dialog-wide panel shell-dialog")" role="@(Embedded ? "region" : "dialog")" aria-modal="@(Embedded ? null : "true")" aria-labelledby="@($"shell-title-{Device.ID}")"
      @onclick:stopPropagation>
-    <div class="rm-dialog-head">
+    <div class="rm-dialog-head" hidden="@Embedded">
         <span class="diag-tile-icon"><i class="fa-solid fa-terminal"></i></span>
         <div class="min-w-0">
             <h2 id="@($"shell-title-{Device.ID}")">@Device.DeviceName</h2>
@@ -134,6 +137,10 @@
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    /// <summary>Dentro de outra página (painel do visualizador): sem fundo escuro nem cabeçalho.</summary>
+    [Parameter]
+    public bool Embedded { get; set; }
 
     /// <summary>Comando já preenchido (ex.: "Executar de novo" no histórico).</summary>
     [Parameter]
@@ -315,7 +322,7 @@
                 _historyIndex = Math.Min(_history.Count, _historyIndex + 1);
                 _command = _historyIndex < _history.Count ? _history[_historyIndex] : string.Empty;
                 break;
-            case "Escape":
+            case "Escape" when !Embedded:
                 await Close();
                 break;
         }

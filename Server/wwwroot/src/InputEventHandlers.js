@@ -1,4 +1,5 @@
-import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, BetaPillPullDown, } from "./UI.js";
+import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
+import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
 import { ViewerApp } from "./App.js";
 import { UploadFiles } from "./FileTransferService.js";
@@ -67,28 +68,18 @@ export function ApplyInputHandlers() {
         ViewOnlyButton.classList.toggle("toggled");
         ViewerApp.ViewOnlyMode = ViewOnlyButton.classList.contains("toggled");
     });
-    TypeClipboardButton.addEventListener("click", (ev) => {
-        var _a;
-        if (!location.protocol.includes("https") &&
-            !location.origin.includes("localhost")) {
-            alert("Clipboard API only works in a secure context (i.e. HTTPS or localhost).");
-            return;
-        }
-        if (!((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.readText)) {
-            alert("Este navegador não permite acessar a área de transferência.");
-            return;
-        }
+    TypeClipboardButton.addEventListener("click", async (ev) => {
+        CloseAllPopupMenus(null);
         if (ViewerApp.ViewOnlyMode) {
-            alert("O modo somente visualização está ativado.");
+            ShowToast("O modo somente visualização está ativado.");
             return;
         }
-        navigator.clipboard.readText().then(async (text) => {
-            await ViewerApp.MessageSender.SendTextTransfer(text, true);
-            ShowToast("Área de transferência enviada!");
-        }, (reason) => {
-            alert("Não foi possível ler a área de transferência. Verifique as permissões.");
-            console.log("Unable to read clipboard.  Reason: " + reason);
-        });
+        const text = await ReadClipboardText();
+        if (text == null) {
+            return;
+        }
+        await ViewerApp.MessageSender.SendTextTransfer(text, true);
+        ShowToast("Texto digitado no computador remoto.");
     });
     ConnectButton.addEventListener("click", () => {
         if (!ConnectForm.checkValidity()) {
@@ -148,6 +139,7 @@ export function ApplyInputHandlers() {
     });
     FileTransferButton.addEventListener("click", (ev) => {
         ev.stopPropagation();
+        CloseAllPopupMenus(FileTransferMenu.id);
         const x = document.body.clientWidth -
             FileTransferButton.getBoundingClientRect().right;
         const right = `${x.toFixed(0)}px`;
@@ -156,8 +148,7 @@ export function ApplyInputHandlers() {
         FileTransferMenu.style.right = right;
         FileTransferMenu.style.top = top;
         FileTransferMenu.classList.toggle("open");
-        const buttonZindex = Number.parseInt(getComputedStyle(FileTransferButton.parentElement).zIndex);
-        FileTransferMenu.style.zIndex = `${buttonZindex + 1}`;
+        FileTransferMenu.style.zIndex = "6";
         window.addEventListener("click", () => {
             CloseAllPopupMenus(null);
         }, { once: true });
@@ -184,13 +175,40 @@ export function ApplyInputHandlers() {
             ScreenViewer.classList.remove("fit");
         }
     });
-    FullScreenButton.addEventListener("click", () => {
-        FullScreenButton.classList.toggle("toggled");
-        if (FullScreenButton.classList.contains("toggled")) {
-            document.body.requestFullscreen();
+    FullScreenButton.addEventListener("click", async () => {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+            }
+            else {
+                await document.body.requestFullscreen();
+            }
         }
-        else {
-            document.exitFullscreen();
+        catch (e) {
+            console.warn("Fullscreen request failed.", e);
+            ShowToast("O navegador não permitiu a tela cheia.");
+        }
+    });
+    // O botão acompanha a tela cheia mesmo quando ela é encerrada pelo Esc ou pelo navegador.
+    // Em tela cheia, o Keyboard Lock (Chrome/Edge) manda Win, Alt+Tab e Esc ao computador remoto.
+    document.addEventListener("fullscreenchange", async () => {
+        const isFullscreen = !!document.fullscreenElement;
+        FullScreenButton.classList.toggle("toggled", isFullscreen);
+        const keyboard = navigator.keyboard;
+        if (!(keyboard === null || keyboard === void 0 ? void 0 : keyboard.lock)) {
+            return;
+        }
+        try {
+            if (isFullscreen && !ViewerApp.ViewOnlyMode) {
+                await keyboard.lock();
+                ShowToast("Atalhos do Windows vão para o computador remoto. Segure Esc para sair da tela cheia.");
+            }
+            else {
+                keyboard.unlock();
+            }
+        }
+        catch (e) {
+            console.warn("Keyboard lock unavailable.", e);
         }
     });
     BlockInputButton.addEventListener("click", async (ev) => {
@@ -214,8 +232,9 @@ export function ApplyInputHandlers() {
         else {
             url = `${location.origin}${location.pathname}?mode=Unattended&sessionId=${ViewerApp.SessionId}&accessKey=${ViewerApp.AccessKey}`;
         }
-        ViewerApp.ClipboardWatcher.SetClipboardText(url);
-        ShowToast("Link copiado para a área de transferência.");
+        CopyText(url).then(copied => {
+            ShowToast(copied ? "Link copiado para a área de transferência." : "Não foi possível copiar o link.");
+        });
     });
     KeyboardButton.addEventListener("click", (ev) => {
         CloseAllPopupMenus(null);
@@ -228,15 +247,71 @@ export function ApplyInputHandlers() {
         }
     });
     MenuButton.addEventListener("click", (ev) => {
-        MenuFrame.classList.toggle("open");
-        MenuButton.classList.toggle("open");
-        if (MenuFrame.classList.contains("open")) {
-            BetaPillPullDown.classList.add("d-none");
+        const open = !MenuFrame.classList.contains("open");
+        SetToolbarOpen(open);
+        ViewerApp.Settings.ToolbarCollapsed = !open;
+        SetSettings(ViewerApp.Settings);
+        CloseAllPopupMenus(null);
+    });
+    SetToolbarOpen(ViewerApp.Settings.ToolbarCollapsed !== true);
+    PanelButton.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        CloseAllPopupMenus(null);
+        ToggleSidePanel(SidePanel.classList.contains("d-none"));
+    });
+    SidePanelClose.addEventListener("click", () => ToggleSidePanel(false));
+    RestartButton.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        CloseAllPopupMenus(null);
+        if (ViewerApp.ViewOnlyMode) {
+            ShowToast("O modo somente visualização está ativado.");
+            return;
+        }
+        const confirmed = await Confirm("Reiniciar o computador?", "O computador reinicia agora. Arquivos abertos e não salvos podem ser perdidos. " +
+            "Esta janela espera ele voltar e reconecta sozinha.", "Reiniciar");
+        if (!confirmed) {
+            return;
+        }
+        const result = await ViewerApp.ViewerHubConnection.RestartDevice();
+        if (!(result === null || result === void 0 ? void 0 : result.IsSuccess)) {
+            ShowToast((result === null || result === void 0 ? void 0 : result.Reason) || "Não foi possível reiniciar o computador.");
+            return;
+        }
+        ViewerApp.IsWaitingForRestart = true;
+        ShowWaitOverlay("Reiniciando o computador", "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");
+    });
+    WaitOverlayCancel.addEventListener("click", () => {
+        HideWaitOverlay();
+        ViewerApp.IsWaitingForRestart = false;
+        DisconnectButton.click();
+    });
+    ClipboardSyncButton.classList.toggle("toggled", ViewerApp.Settings.ClipboardSync !== false);
+    ClipboardSyncButton.addEventListener("click", () => {
+        const enabled = ViewerApp.Settings.ClipboardSync === false;
+        ViewerApp.Settings.ClipboardSync = enabled;
+        SetSettings(ViewerApp.Settings);
+        ClipboardSyncButton.classList.toggle("toggled", enabled);
+        if (enabled) {
+            ViewerApp.ClipboardWatcher.WatchClipboard();
+            ShowToast("Sincronização da área de transferência ligada.");
         }
         else {
-            BetaPillPullDown.classList.remove("d-none");
+            ViewerApp.ClipboardWatcher.Stop();
+            ShowToast("Sincronização da área de transferência desligada.");
         }
+    });
+    SendClipboardButton.addEventListener("click", async (ev) => {
         CloseAllPopupMenus(null);
+        if (ViewerApp.ViewOnlyMode) {
+            ShowToast("O modo somente visualização está ativado.");
+            return;
+        }
+        const text = await ReadClipboardText();
+        if (text == null) {
+            return;
+        }
+        await ViewerApp.MessageSender.SendTextTransfer(text, false);
+        ShowToast("Texto colocado na área de transferência do computador remoto. Use Ctrl+V lá.");
     });
     MetricsButton.addEventListener("click", () => {
         MetricsFrame.classList.toggle("d-none");
@@ -592,5 +667,56 @@ function resetTouchState() {
     isDragging = false;
     isPinchZooming = false;
     isScrolling = false;
+}
+/** Lê o texto copiado no navegador do técnico. Avisa quando o navegador não deixa. */
+async function ReadClipboardText() {
+    var _a;
+    if (!window.isSecureContext || !((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.readText)) {
+        ShowToast("O navegador só libera a área de transferência em HTTPS.");
+        return null;
+    }
+    try {
+        const text = await navigator.clipboard.readText();
+        if (!text) {
+            ShowToast("A área de transferência está vazia.");
+            return null;
+        }
+        return text;
+    }
+    catch (e) {
+        console.log("Unable to read clipboard.", e);
+        ShowToast("Não foi possível ler a área de transferência. Libere a permissão no navegador.");
+        return null;
+    }
+}
+async function CopyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        return true;
+    }
+    catch (_a) {
+        return false;
+    }
+}
+function SetToolbarOpen(open) {
+    MenuFrame.classList.toggle("open", open);
+    MenuButton.classList.toggle("open", open);
+    MenuButton.title = open ? "Recolher a barra" : "Mostrar a barra";
+}
+/** Painel lateral com dados, terminal, scripts e envio de arquivo do computador (página do servidor). */
+export function ToggleSidePanel(show) {
+    var _a;
+    const frame = document.getElementById("sidePanelFrame");
+    if (show && !ViewerApp.DeviceId) {
+        return;
+    }
+    if (show && !frame.getAttribute("src")) {
+        frame.setAttribute("src", `/viewer-panel/${encodeURIComponent(ViewerApp.DeviceId)}`);
+    }
+    SidePanel.classList.toggle("d-none", !show);
+    PanelButton.classList.toggle("toggled", show);
+    if (!show) {
+        (_a = ScreenViewer.focus) === null || _a === void 0 ? void 0 : _a.call(ScreenViewer);
+    }
 }
 //# sourceMappingURL=InputEventHandlers.js.map

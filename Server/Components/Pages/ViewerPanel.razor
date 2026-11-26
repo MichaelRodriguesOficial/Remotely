@@ -1,0 +1,186 @@
+@page "/viewer-panel/{DeviceId}"
+@layout Remotely.Server.Components.Layout.PanelLayout
+@attribute [Authorize]
+@inherits AuthComponentBase
+@using Remotely.Server.Models.Messages
+@using Remotely.Shared.Models.Inventory
+@inject IDataService DataService
+@inject ICircuitConnection CircuitConnection
+
+@* Painel lateral do visualizador: dados do computador, terminal, scripts e envio de arquivo,
+   sem sair da tela remota. Abre num iframe do próprio servidor. *@
+<PageTitle>Painel do computador</PageTitle>
+
+@if (_loading)
+{
+    <div class="vp-loading"><span class="diag-loading-dot"></span> Carregando...</div>
+}
+else if (_device is null || !_hasAccess)
+{
+    <div class="empty-state py-4">
+        <div class="empty-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Sem acesso</h3>
+        <p>Este computador não existe ou você não tem acesso ao grupo dele.</p>
+    </div>
+}
+else
+{
+    <div class="vp-header">
+        <span class="vp-status @(_device.IsOnline ? "online" : "")" title="@(_device.IsOnline ? "Online" : "Offline")"></span>
+        <div class="min-w-0">
+            <strong class="vp-name">@(_device.Alias ?? _device.DeviceName)</strong>
+            <span class="vp-sub">
+                @(string.IsNullOrWhiteSpace(_device.CurrentUser) ? "Ninguém logado" : _device.CurrentUser)
+                @if (!string.IsNullOrWhiteSpace(_device.Platform))
+                {
+                    <text> · @_device.Platform</text>
+                }
+            </span>
+        </div>
+    </div>
+
+    <div class="vp-tabs" role="tablist">
+        <button type="button" role="tab" class="@(_tab == "info" ? "active" : "")" aria-selected="@(_tab == "info")" @onclick='() => _tab = "info"'>
+            <i class="fa-solid fa-circle-info"></i> Computador
+        </button>
+        <button type="button" role="tab" class="@(_tab == "shell" ? "active" : "")" aria-selected="@(_tab == "shell")" @onclick='() => _tab = "shell"'>
+            <i class="fa-solid fa-terminal"></i> Terminal
+        </button>
+        <button type="button" role="tab" class="@(_tab == "send" ? "active" : "")" aria-selected="@(_tab == "send")" @onclick='() => _tab = "send"'>
+            <i class="fa-solid fa-file-arrow-up"></i> Enviar
+        </button>
+    </div>
+
+    <div class="vp-body">
+        @* As abas ficam montadas: trocar de aba não perde o terminal nem um envio em andamento. *@
+        <div hidden="@(_tab != "info")">
+            <div class="vp-meters">
+                @Meter("CPU", _device.CpuUtilization, null)
+                @Meter("Memória", _device.UsedMemoryPercent, $"{_device.UsedMemory:0.0} de {_device.TotalMemory:0.0} GB")
+                @Meter("Disco", _device.UsedStoragePercent, $"{_device.UsedStorage:0} de {_device.TotalStorage:0} GB")
+            </div>
+
+            @if (_inventory?.NetworkPorts is { Count: > 0 } ports)
+            {
+                var addresses = ports
+                    .Where(x => x.Virtual != true && x.Type != "Loopback")
+                    .SelectMany(x => x.IPv4)
+                    .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith("127.") && !x.StartsWith("169.254."))
+                    .Distinct()
+                    .Take(4)
+                    .ToList();
+                if (addresses.Count > 0)
+                {
+                    <div class="vp-chips">
+                        @foreach (var ip in addresses)
+                        {
+                            <span class="vp-chip" title="Endereço IP"><i class="fa-solid fa-network-wired"></i> @ip</span>
+                        }
+                    </div>
+                }
+            }
+
+            <DeviceComputerInfo Device="_device" Inventory="_inventory" NameFormat="_nameFormat" Compact="true" />
+
+            <a class="btn btn-secondary btn-sm w-100 mt-2" href="@($"/device-details/{_device.ID}")" target="_blank" rel="noopener">
+                <i class="fa-solid fa-up-right-from-square"></i> Abrir a página completa do computador
+            </a>
+        </div>
+
+        <div hidden="@(_tab != "shell")">
+            @if (Permissions.Scripts)
+            {
+                <DeviceShellDialog Device="_device" Embedded="true" />
+            }
+            else
+            {
+                <div class="diag-notice"><i class="fa-solid fa-lock"></i><span>Seu perfil não permite executar comandos.</span></div>
+            }
+        </div>
+
+        <div hidden="@(_tab != "send")">
+            <SendFileDialog Device="_device" Embedded="true" />
+        </div>
+    </div>
+}
+
+@code {
+    private Device? _device;
+    private DeviceInventory? _inventory;
+    private bool _hasAccess;
+    private bool _loading = true;
+    private string _tab = "info";
+    private UserNameDisplayFormat _nameFormat;
+
+    [Parameter]
+    public string DeviceId { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+        EnsureUserSet();
+
+        _nameFormat = (await DataService.GetSettings()).UserNameDisplayFormat;
+
+        var deviceResult = await DataService.GetDevice(DeviceId.Trim());
+        if (deviceResult.IsSuccess)
+        {
+            _device = deviceResult.Value;
+            _hasAccess = Permissions.RemoteControl && DataService.DoesUserHaveAccessToDevice(_device.ID, User);
+            if (_hasAccess)
+            {
+                var record = await DataService.GetDeviceInventory(_device.ID);
+                _inventory = InventorySerializer.FromJson(record?.Data);
+            }
+        }
+
+        if (!_hasAccess)
+        {
+            _device = null;
+        }
+
+        await Register<DeviceStateChangedMessage, string>(
+            CircuitConnection.ConnectionId,
+            HandleDeviceStateChanged);
+
+        _loading = false;
+    }
+
+    private async Task HandleDeviceStateChanged(object subscriber, DeviceStateChangedMessage message)
+    {
+        if (_device is null || message.Device.ID != _device.ID)
+        {
+            return;
+        }
+
+        _device.IsOnline = message.Device.IsOnline;
+        _device.CurrentUser = message.Device.CurrentUser;
+        _device.CurrentUserGivenName = message.Device.CurrentUserGivenName;
+        _device.CurrentUserSurname = message.Device.CurrentUserSurname;
+        _device.CpuUtilization = message.Device.CpuUtilization;
+        _device.UsedMemory = message.Device.UsedMemory;
+        _device.TotalMemory = message.Device.TotalMemory;
+        _device.UsedStorage = message.Device.UsedStorage;
+        _device.TotalStorage = message.Device.TotalStorage;
+        _device.LastOnline = message.Device.LastOnline;
+        _device.PublicIP = message.Device.PublicIP;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static RenderFragment Meter(string label, double fraction, string? detail) => __builder =>
+    {
+        var percent = Math.Clamp(double.IsFinite(fraction) ? fraction : 0, 0, 1) * 100;
+        var level = percent >= 90 ? "danger" : percent >= 75 ? "warning" : "ok";
+        <div class="vp-meter">
+            <div class="vp-meter-top">
+                <span>@label</span>
+                <strong>@percent.ToString("0")%</strong>
+            </div>
+            <div class="vp-meter-bar"><span class="@level" style="width:@(percent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span></div>
+            @if (!string.IsNullOrWhiteSpace(detail))
+            {
+                <small>@detail</small>
+            }
+        </div>
+    };
+}

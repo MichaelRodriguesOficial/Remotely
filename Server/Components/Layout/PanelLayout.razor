@@ -1,0 +1,32 @@
+@inherits LayoutComponentBase
+
+@* Layout enxuto para páginas abertas dentro de outra tela (painel lateral do visualizador). *@
+<CircuitStatus />
+
+<AuthorizeView Policy="@PolicyNames.TwoFactorRequired">
+    <Authorized>
+        <div class="viewer-panel-shell">
+            @Body
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="viewer-panel-shell">
+            <div class="empty-state py-4">
+                <div class="empty-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                <h3>Verificação em duas etapas</h3>
+                <p>Ative a verificação em duas etapas no painel para usar este recurso.</p>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<div id="blazor-error-ui">
+    Ocorreu um erro inesperado.
+    <a href="" class="reload">Recarregar</a>
+    <a class="dismiss" title="Fechar">✕</a>
+</div>
+
+<ToastHarness />
+<LoaderHarness />
+<ModalHarness />
+<ConfirmHost />
