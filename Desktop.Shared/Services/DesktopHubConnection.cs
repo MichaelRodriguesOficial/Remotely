@@ -267,10 +267,15 @@ public class DesktopHubConnection : IDesktopHubConnection, IDesktopHubClient
                 // on a Windows Server OS.
                 return PromptForAccessResult.Accepted;
             }
-            await SendMessageToViewer(accessRequest.ViewerConnectionId, "Asking user for permission");
+            await SendMessageToViewer(
+                accessRequest.ViewerConnectionId,
+                accessRequest.AutoAcceptSeconds > 0
+                    ? $"Pedindo permissão ao usuário (aceita sozinho em {accessRequest.AutoAcceptSeconds} s)"
+                    : "Pedindo permissão ao usuário");
             return await _remoteControlAccessService.PromptForAccess(
                 accessRequest.RequesterDisplayName,
-                accessRequest.OrganizationName);
+                accessRequest.OrganizationName,
+                accessRequest.AutoAcceptSeconds);
         }
         catch (Exception ex)
         {

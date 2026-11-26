@@ -26,4 +26,14 @@ public class DeviceGroup
 
     [JsonIgnore]
     public List<ScriptSchedule>? ScriptSchedules { get; set; }
+
+    /// <summary>
+    /// Aceite do usuário no controle remoto dos computadores do grupo: null = padrão do servidor,
+    /// "AutoAccept" (pergunta e aceita sozinho), "Ask" (exige o aceite) ou "Never" (não pergunta).
+    /// </summary>
+    [StringLength(20)]
+    public string? RemoteControlConsent { get; set; }
+
+    /// <summary>Avisa por e-mail/webhook quando alguém abre uma sessão num computador do grupo.</summary>
+    public bool NotifyRemoteSessions { get; set; }
 }

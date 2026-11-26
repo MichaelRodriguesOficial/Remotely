@@ -17,6 +17,10 @@ public class FakePromptForAccessViewModel : FakeBrandedViewModelBase, IPromptFor
 
     public string RequestMessage => "Test request message";
 
+    public string CountdownText => "Sem resposta, o acesso será permitido em 30 s.";
+
+    public bool HasCountdown => true;
+
     public ICommand SetResultNo => new RelayCommand(() => { });
 
     public ICommand SetResultYes => new RelayCommand(() => { });

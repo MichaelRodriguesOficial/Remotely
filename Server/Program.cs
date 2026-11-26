@@ -341,6 +341,8 @@ services.AddSingleton<ISessionRecordingSink, SessionRecordingSink>();
 services.AddSingleton<IDesktopStreamCache, DesktopStreamCache>();
 services.AddSingleton<IRemoteControlSessionCache, RemoteControlSessionCache>();
 services.AddSingleton<IRemoteControlAuditService, RemoteControlAuditService>();
+services.AddSingleton<IRemoteSessionNotifier, RemoteSessionNotifier>();
+services.AddHostedService<RemoteControlIdleMonitor>();
 services.AddSingleton<ISystemTime, SystemTime>();
 services.AddSingleton<IAgentHubSessionCache, AgentHubSessionCache>();
 services.AddHostedService<RemoteControlSessionCleaner>();

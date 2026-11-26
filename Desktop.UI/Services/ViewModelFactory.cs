@@ -12,7 +12,7 @@ public interface IViewModelFactory
     IChatWindowViewModel CreateChatWindowViewModel(string organizationName, StreamWriter streamWriter);
     IFileTransferWindowViewModel CreateFileTransferWindowViewModel(IViewer viewer);
     IHostNamePromptViewModel CreateHostNamePromptViewModel();
-    IPromptForAccessWindowViewModel CreatePromptForAccessViewModel(string requesterName, string organizationName);
+    IPromptForAccessWindowViewModel CreatePromptForAccessViewModel(string requesterName, string organizationName, int autoAcceptSeconds = 0);
 }
 
 internal class ViewModelFactory : IViewModelFactory
@@ -41,12 +41,12 @@ internal class ViewModelFactory : IViewModelFactory
         return new FileTransferWindowViewModel(viewer, brandingProvider, dispatcher, fileTransfer, logger);
     }
 
-    public IPromptForAccessWindowViewModel CreatePromptForAccessViewModel(string requesterName, string organizationName)
+    public IPromptForAccessWindowViewModel CreatePromptForAccessViewModel(string requesterName, string organizationName, int autoAcceptSeconds = 0)
     {
         var brandingProvider = _serviceProvider.GetRequiredService<IBrandingProvider>();
         var dispatcher = _serviceProvider.GetRequiredService<IUiDispatcher>();
         var logger = _serviceProvider.GetRequiredService<ILogger<PromptForAccessWindowViewModel>>();
-        return new PromptForAccessWindowViewModel(requesterName, organizationName, brandingProvider, dispatcher, logger);
+        return new PromptForAccessWindowViewModel(requesterName, organizationName, brandingProvider, dispatcher, logger, autoAcceptSeconds);
     }
 
     public IHostNamePromptViewModel CreateHostNamePromptViewModel()

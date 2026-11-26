@@ -20,6 +20,21 @@ public class SettingsModel
     public string MessageOfTheDay { get; set; } = string.Empty;
     public bool RedirectToHttps { get; set; } = true;
     public bool RemoteControlNotifyUser { get; set; } = true;
+
+    /// <summary>Aceite do usuário: "AutoAccept" (pergunta e aceita sozinho), "Ask" (exige) ou "Never".</summary>
+    public string RemoteControlConsent { get; set; } = "AutoAccept";
+
+    /// <summary>Segundos até o aceite automático (modo AutoAccept).</summary>
+    public int RemoteControlConsentSeconds { get; set; } = 30;
+
+    /// <summary>Encerra a sessão sem mouse/teclado do técnico por este tempo (0 = nunca).</summary>
+    public int RemoteControlIdleMinutes { get; set; } = 15;
+
+    /// <summary>URL (ex.: webhook do n8n) chamada quando uma sessão começa em grupo com aviso ligado.</summary>
+    public string RemoteControlNotifyWebhook { get; set; } = string.Empty;
+
+    /// <summary>E-mails (separados por vírgula ou ;) avisados quando uma sessão começa em grupo com aviso ligado.</summary>
+    public string RemoteControlNotifyEmails { get; set; } = string.Empty;
     public bool RemoteControlRequiresAuthentication { get; set; } = true;
     public bool Require2FA { get; set; }
     public string ServerUrl { get; set; } = string.Empty;

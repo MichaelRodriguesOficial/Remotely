@@ -12,6 +12,7 @@ public interface IAccessProfileService
     Task<Result> AssignUser(string organizationId, string userId, string? profileId);
     Task<Result> DeleteProfile(string organizationId, string profileId);
     UserPermissions GetPermissions(RemotelyUser? user);
+    RemoteControlPermissions GetRemoteControlPermissions(RemotelyUser? user);
     AccessProfile? GetProfileForUser(RemotelyUser user);
     IReadOnlyList<AccessProfile> GetProfiles(string organizationId);
     Task<Result<AccessProfile>> SaveProfile(string organizationId, AccessProfile profile);
@@ -85,6 +86,36 @@ public class AccessProfileService : IAccessProfileService
             profile.AllowDeviceManagement,
             profile.AllowRepairs,
             profile.Name);
+    }
+
+    public RemoteControlPermissions GetRemoteControlPermissions(RemotelyUser? user)
+    {
+        if (user is null)
+        {
+            return RemoteControlPermissions.None;
+        }
+
+        if (user.IsAdministrator)
+        {
+            return RemoteControlPermissions.Full;
+        }
+
+        var profile = GetProfileForUser(user);
+        if (profile is null)
+        {
+            return RemoteControlPermissions.Full;
+        }
+
+        if (!profile.AllowRemoteControl)
+        {
+            return RemoteControlPermissions.None;
+        }
+
+        return new RemoteControlPermissions(
+            profile.AllowRemoteInput,
+            profile.AllowRemoteFiles,
+            profile.AllowRemoteClipboard,
+            profile.AllowRemoteSystemActions);
     }
 
     public async Task<Result<AccessProfile>> SaveProfile(string organizationId, AccessProfile profile)

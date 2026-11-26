@@ -89,6 +89,13 @@ public partial class ServerConfig : AuthComponentBase
 
         Input = await DataService.GetSettings();
 
+        // A opção antiga "Pedir consentimento do usuário" virou o modo "Sempre exigir o aceite".
+        if (Input.EnforceAttendedAccess)
+        {
+            Input.RemoteControlConsent = RemoteControlPolicy.Ask;
+            Input.EnforceAttendedAccess = false;
+        }
+
         _userList.AddRange(DataService.GetAllUsersForServer().OrderBy(x => x.UserName));
     }
 
@@ -227,6 +234,11 @@ public partial class ServerConfig : AuthComponentBase
     private async Task Save()
     {
         Input.ScheduledDiagnosticsIntervalDays = Math.Clamp(Input.ScheduledDiagnosticsIntervalDays, 1, 30);
+        Input.RemoteControlConsent = RemoteControlPolicy.Normalize(Input.RemoteControlConsent);
+        Input.RemoteControlConsentSeconds = Math.Clamp(Input.RemoteControlConsentSeconds, 5, 300);
+        Input.RemoteControlIdleMinutes = Math.Clamp(Input.RemoteControlIdleMinutes, 0, 480);
+        Input.RemoteControlNotifyWebhook = Input.RemoteControlNotifyWebhook?.Trim() ?? string.Empty;
+        Input.RemoteControlNotifyEmails = Input.RemoteControlNotifyEmails?.Trim() ?? string.Empty;
         await DataService.SaveSettings(Input);
 
         ToastService.ShowToast("Configuração salva.");

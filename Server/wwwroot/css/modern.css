@@ -2405,3 +2405,21 @@ label, .form-label {
         color: var(--rm-text-strong);
         font-size: 0.82rem;
     }
+
+/* ---------- Grupos: aceite do usuário e aviso de sessões ---------- */
+.list-editor .list-item.group-item { font-family: inherit; justify-content: flex-start; }
+.group-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.group-item-consent { width: auto; max-width: 15rem; font-size: 0.8rem; }
+.list-editor:has(.group-item) { max-height: 20rem; }
+.profile-remote-perms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.25rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--rm-radius-sm);
+    background: var(--rm-surface-2);
+    font-size: 0.88rem;
+}
+    .profile-remote-perms .profile-remote-title { flex-basis: 100%; font-weight: 600; color: var(--rm-text-strong); }
+    .profile-remote-perms .form-check { margin: 0; }

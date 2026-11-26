@@ -214,13 +214,51 @@
         </div>
         <div class="setting-row">
             <div>
-                <label class="setting-label" for="cfg-EnforceAttendedAccess">Pedir consentimento do usuário</label>
-                <p class="setting-desc">O usuário do computador precisa aceitar antes de cada sessão de controle remoto.</p>
+                <label class="setting-label" for="cfg-RemoteControlConsent">Aceite do usuário</label>
+                <p class="setting-desc">O que acontece quando um técnico abre o controle remoto. Cada grupo de dispositivos pode ter a sua regra (Organização → Grupos). Servidores Windows não perguntam.</p>
             </div>
-            <div class="setting-control">
-                <div class="form-check form-switch">
-                    <InputCheckbox id="cfg-EnforceAttendedAccess" class="form-check-input" role="switch" @bind-Value="Input.EnforceAttendedAccess" />
-                </div>
+            <div class="setting-control flex-column align-items-stretch gap-2">
+                <InputSelect id="cfg-RemoteControlConsent" class="form-select" @bind-Value="Input.RemoteControlConsent">
+                    @foreach (var option in RemoteControlPolicy.ConsentOptions)
+                    {
+                        <option value="@option.Value">@option.Label</option>
+                    }
+                </InputSelect>
+                @if (Input.RemoteControlConsent == RemoteControlPolicy.AutoAccept)
+                {
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small text-muted text-nowrap">Aceita sozinho em</span>
+                        <InputNumber class="form-control" style="max-width: 6rem" min="5" max="300" @bind-Value="Input.RemoteControlConsentSeconds" aria-label="Segundos até aceitar sozinho" />
+                        <span class="small text-muted">segundos</span>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RemoteControlIdleMinutes">Encerrar sessão parada (minutos)</label>
+                <p class="setting-desc">Sem mouse ou teclado do técnico por esse tempo, a sessão é encerrada (com aviso 1 minuto antes). Sessões só de visualização não contam. 0 desliga.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputNumber id="cfg-RemoteControlIdleMinutes" class="form-control" min="0" max="480" @bind-Value="Input.RemoteControlIdleMinutes" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RemoteControlNotifyEmails">Avisar início de sessão por e-mail</label>
+                <p class="setting-desc">E-mails (separados por vírgula) avisados quando alguém abre uma sessão num computador de grupo com "Avisar sessões" ligado. Usa o SMTP abaixo.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-RemoteControlNotifyEmails" class="form-control" @bind-Value="Input.RemoteControlNotifyEmails" placeholder="seguranca@empresa.com.br" autocomplete="off" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-RemoteControlNotifyWebhook">Avisar início de sessão por webhook</label>
+                <p class="setting-desc">URL que recebe um POST em JSON (ex.: webhook do n8n) nos mesmos casos.</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-RemoteControlNotifyWebhook" class="form-control" @bind-Value="Input.RemoteControlNotifyWebhook" placeholder="https://n8n.empresa.com.br/webhook/..." autocomplete="off" />
             </div>
         </div>
         <div class="setting-row">

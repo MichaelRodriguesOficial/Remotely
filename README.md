@@ -71,6 +71,20 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td colspan="2" align="center">Sessões remotas: quem acessou cada computador, quando, por quanto tempo e como terminou</td>
   </tr>
   <tr>
+    <td><img src=".github/media/config-acesso-remoto.png" alt="Configuração do acesso remoto com aceite do usuário, sessão parada e avisos" /></td>
+    <td><img src=".github/media/grupos-aceite.png" alt="Grupos de dispositivos com regra de aceite e aviso de sessões" /></td>
+  </tr>
+  <tr>
+    <td align="center">Aceite do usuário, sessão parada e avisos de início</td>
+    <td align="center">Regra de aceite e aviso por grupo</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src=".github/media/perfil-acesso-remoto.png" alt="Perfil de acesso com permissões da sessão de controle remoto" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Perfis de acesso: o que o técnico pode fazer dentro da sessão</td>
+  </tr>
+  <tr>
     <td><img src=".github/media/enviar-arquivo.png" alt="Janela Enviar arquivo com escolha da pasta de destino" /></td>
     <td><img src=".github/media/enviar-arquivo-salvo.png" alt="Confirmação com o caminho onde o arquivo foi salvo" /></td>
   </tr>
@@ -148,6 +162,8 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Enviar arquivo escolhendo o destino**: Downloads ou Área de Trabalho do usuário logado, Área de Trabalho pública, pasta temporária ou qualquer pasta, com o caminho exato de volta no painel.
 - **Histórico de sessões remotas**: técnico, computador, início, duração, IP e como a sessão terminou (pelo técnico, navegador fechado, conexão perdida, encerrada ou recusada no computador), com busca, filtros e exportação. Técnicos veem as próprias sessões; administradores, as de todos.
 - **Painel do usuário redesenhado** (Windows): fica no canto certo da tela com qualquer escala, mostra quem está conectado, o que está fazendo e há quanto tempo, com botão "Encerrar acesso", tudo em português.
+- **Aceite do usuário e regras de sessão**: perguntar e aceitar sozinho em X segundos, sempre exigir o aceite ou não perguntar, no servidor e por grupo de dispositivos; sessão parada encerrada sozinha; aviso por e-mail ou webhook (n8n) quando alguém acessa computadores de grupos sensíveis.
+- **Permissões da sessão por perfil**: controlar ou só ver, arquivos, área de transferência e Ctrl+Alt+Del/bloqueio de entrada, conferidos no servidor.
 - **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
 - **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").
 - **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.

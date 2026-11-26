@@ -73,6 +73,34 @@ export class ViewerHubConnection {
         }
         catch (_c) { }
     }
+    /** Esconde o que o perfil do técnico não permite. O servidor também bloqueia. */
+    ApplyPermissions(options) {
+        const hide = (element, condition) => {
+            if (element && condition) {
+                element.classList.add("d-none");
+                element.setAttribute("disabled", "disabled");
+            }
+        };
+        const noInput = options.AllowInput === false;
+        const noSystem = options.AllowSystemActions === false || noInput;
+        if (noInput) {
+            ViewerApp.ViewOnlyMode = true;
+            UI.ViewOnlyButton.classList.add("toggled");
+        }
+        hide(UI.ViewOnlyButton, noInput);
+        hide(UI.KeyboardButton, noInput);
+        hide(UI.FileTransferButton, options.AllowFiles === false);
+        hide(UI.ClipboardTransferButton, options.AllowClipboard === false || noInput);
+        hide(UI.BlockInputButton, noSystem);
+        hide(UI.CtrlAltDelButton, noSystem);
+        hide(UI.WindowsSessionMenuButton, noSystem);
+        if (noInput) {
+            ShowToast("Sessão só de visualização (perfil de acesso).");
+        }
+        else if (options.AllowFiles === false || options.AllowClipboard === false || options.AllowSystemActions === false) {
+            ShowToast("Seu perfil de acesso limita algumas ações nesta sessão.");
+        }
+    }
     async ChangeWindowsSession(sessionID) {
         if (ViewerApp.Mode == RemoteControlMode.Unattended) {
             await this.Connection.invoke("ChangeWindowsSession", sessionID);
@@ -123,6 +151,8 @@ export class ViewerHubConnection {
             UI.SetStatusMessage(result.Reason);
             return;
         }
+        // As permissões do perfil só valem depois que a sessão é aceita.
+        this.ApplyPermissions(await this.GetRemoteControlViewerOptions());
         const streamingState = new StreamingState();
         ProcessStream(streamingState);
         if (viewerOptions.ShouldRecordSession) {

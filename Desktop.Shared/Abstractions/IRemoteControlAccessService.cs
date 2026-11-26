@@ -6,5 +6,6 @@ public interface IRemoteControlAccessService
 {
     bool IsPromptOpen { get; }
 
-    Task<PromptForAccessResult> PromptForAccess(string requesterName, string organizationName);
+    /// <param name="autoAcceptSeconds">Se maior que zero, aceita sozinho quando o usuário não responde nesse tempo.</param>
+    Task<PromptForAccessResult> PromptForAccess(string requesterName, string organizationName, int autoAcceptSeconds = 0);
 }

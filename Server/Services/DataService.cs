@@ -95,6 +95,9 @@ public interface IDataService
 
     Task<Result> DeleteDeviceGroup(string orgId, string deviceGroupId);
 
+    /// <summary>Aceite do usuário (null = padrão do servidor) e aviso de sessões do grupo.</summary>
+    Task<Result> UpdateDeviceGroupRemoteSettings(string orgId, string deviceGroupId, string? consent, bool notifyRemoteSessions);
+
     Task<Result> DeleteInvite(string orgId, string inviteId);
 
     Task DeleteSavedScript(Guid scriptId);
@@ -1275,6 +1278,24 @@ public class DataService : IDataService
         }
 
         dbContext.ApiTokens.Remove(token);
+        await dbContext.SaveChangesAsync();
+        return Result.Ok();
+    }
+
+    public async Task<Result> UpdateDeviceGroupRemoteSettings(string orgId, string deviceGroupId, string? consent, bool notifyRemoteSessions)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        var group = await dbContext.DeviceGroups.FirstOrDefaultAsync(x =>
+            x.ID == deviceGroupId &&
+            x.OrganizationID == orgId);
+
+        if (group is null)
+        {
+            return Result.Fail("Grupo não encontrado.");
+        }
+
+        group.RemoteControlConsent = string.IsNullOrWhiteSpace(consent) ? null : RemoteControlPolicy.Normalize(consent);
+        group.NotifyRemoteSessions = notifyRemoteSessions;
         await dbContext.SaveChangesAsync();
         return Result.Ok();
     }

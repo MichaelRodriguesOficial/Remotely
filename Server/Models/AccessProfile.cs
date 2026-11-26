@@ -26,6 +26,21 @@ public class AccessProfile
     /// </summary>
     public bool AllowRepairs { get; set; }
 
+    // Detalhes do acesso remoto (valem quando AllowRemoteControl está ligado). Ligados por padrão:
+    // perfis criados antes destas opções continuam com o mesmo acesso de antes.
+
+    /// <summary>Controlar mouse e teclado. Desligado = só visualizar.</summary>
+    public bool AllowRemoteInput { get; set; } = true;
+
+    /// <summary>Enviar e baixar arquivos durante a sessão.</summary>
+    public bool AllowRemoteFiles { get; set; } = true;
+
+    /// <summary>Área de transferência e "digitar" texto.</summary>
+    public bool AllowRemoteClipboard { get; set; } = true;
+
+    /// <summary>Ctrl+Alt+Del, bloquear teclado e mouse e trocar a sessão do Windows.</summary>
+    public bool AllowRemoteSystemActions { get; set; } = true;
+
     /// <summary>
     /// Quando ligado, os usuários do perfil passam a enxergar só os grupos em <see cref="DeviceGroupIds"/>.
     /// </summary>

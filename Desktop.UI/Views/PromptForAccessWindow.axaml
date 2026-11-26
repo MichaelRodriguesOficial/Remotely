@@ -13,7 +13,7 @@
         Title="Pedido de acesso remoto" 
         MinHeight="200"
         MinWidth="250"
-        Height="275" 
+        Height="310" 
         Width="450"
 		Topmost="True"
 		ShowActivated="True"
@@ -39,6 +39,14 @@
                  Margin="10"
                  TextWrapping="Wrap"
                  Text="{Binding RequestMessage}"></TextBlock>
+
+      <TextBlock FontSize="14"
+                 Margin="10,0,10,10"
+                 Foreground="#4338CA"
+                 FontWeight="SemiBold"
+                 TextWrapping="Wrap"
+                 IsVisible="{Binding HasCountdown}"
+                 Text="{Binding CountdownText}"></TextBlock>
 
     </StackPanel>
 

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Remotely.Server.Components.ModalContents;
+using Remotely.Server.Enums;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Entities;
@@ -130,6 +131,21 @@ public partial class ManageOrganization : AuthComponentBase
         await DataService.DeleteInvite(User.OrganizationID, invite.ID);
         _invites.RemoveAll(x => x.ID == invite.ID);
         ToastService.ShowToast("Convite excluído.");
+    }
+
+    private async Task UpdateGroupRemote(DeviceGroup group, string? consent, bool notify)
+    {
+        EnsureUserSet();
+        var result = await DataService.UpdateDeviceGroupRemoteSettings(User.OrganizationID, group.ID, consent, notify);
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, ToastType.Warning);
+            return;
+        }
+
+        group.RemoteControlConsent = string.IsNullOrWhiteSpace(consent) ? null : consent;
+        group.NotifyRemoteSessions = notify;
+        ToastService.ShowToast2($"Grupo {group.Name}: aceite \"{RemoteControlPolicy.Describe(group.RemoteControlConsent).ToLowerInvariant()}\"{(notify ? ", com aviso de sessões" : "")}.", ToastType.Success);
     }
 
     private async Task DeleteDeviceGroup(string deviceGroupId)

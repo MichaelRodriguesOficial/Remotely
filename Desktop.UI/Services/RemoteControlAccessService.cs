@@ -23,24 +23,28 @@ public class RemoteControlAccessService : IRemoteControlAccessService
 
     public bool IsPromptOpen => _promptCount > 0;
 
-    public async Task<PromptForAccessResult> PromptForAccess(string requesterName, string organizationName)
+    public async Task<PromptForAccessResult> PromptForAccess(string requesterName, string organizationName, int autoAcceptSeconds = 0)
     {
         return await _dispatcher.InvokeAsync(async () =>
         {
             try
             {
                 Interlocked.Increment(ref _promptCount);
-                var viewModel = _viewModelFactory.CreatePromptForAccessViewModel(requesterName, organizationName);
+                var viewModel = _viewModelFactory.CreatePromptForAccessViewModel(requesterName, organizationName, autoAcceptSeconds);
                 var promptWindow = new PromptForAccessWindow()
                 {
                     DataContext = viewModel
                 };
 
-                var result = await _dispatcher.Show(promptWindow, TimeSpan.FromMinutes(1));
+                var timeout = autoAcceptSeconds > 0 ? TimeSpan.FromSeconds(autoAcceptSeconds) : TimeSpan.FromMinutes(1);
+                var result = await _dispatcher.Show(promptWindow, timeout);
 
                 if (!result)
                 {
-                    return PromptForAccessResult.TimedOut;
+                    // Ninguém respondeu: no modo "perguntar e aceitar sozinho", a sessão começa.
+                    return autoAcceptSeconds > 0
+                        ? PromptForAccessResult.Accepted
+                        : PromptForAccessResult.TimedOut;
                 }
                 
                 return viewModel.PromptResult ?

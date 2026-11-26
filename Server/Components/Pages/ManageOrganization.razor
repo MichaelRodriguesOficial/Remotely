@@ -75,8 +75,24 @@ else if (User is not null)
                     }
                     @foreach (var deviceGroup in _deviceGroups)
                     {
-                        <div class="list-item" @key="deviceGroup.ID">
-                            <span><i class="fa-solid fa-folder me-2 text-muted"></i>@deviceGroup.Name</span>
+                        <div class="list-item group-item" @key="deviceGroup.ID">
+                            <span class="group-item-name"><i class="fa-solid fa-folder me-2 text-muted"></i>@deviceGroup.Name</span>
+                            <select class="form-select form-select-sm group-item-consent" title="Aceite do usuário no controle remoto"
+                                    aria-label="Aceite do usuário em @deviceGroup.Name"
+                                    value="@(deviceGroup.RemoteControlConsent ?? "")"
+                                    @onchange="e => UpdateGroupRemote(deviceGroup, e.Value?.ToString(), deviceGroup.NotifyRemoteSessions)">
+                                <option value="">Aceite: padrão do servidor</option>
+                                @foreach (var option in RemoteControlPolicy.ConsentOptions)
+                                {
+                                    <option value="@option.Value">Aceite: @option.Label.ToLowerInvariant()</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm @(deviceGroup.NotifyRemoteSessions ? "text-warning" : "")"
+                                    title="@(deviceGroup.NotifyRemoteSessions ? "Avisa quando alguém abre uma sessão (clique para desligar)" : "Avisar quando alguém abrir uma sessão")"
+                                    aria-pressed="@deviceGroup.NotifyRemoteSessions"
+                                    @onclick="() => UpdateGroupRemote(deviceGroup, deviceGroup.RemoteControlConsent, !deviceGroup.NotifyRemoteSessions)">
+                                <i class="fa-@(deviceGroup.NotifyRemoteSessions ? "solid" : "regular") fa-bell"></i>
+                            </button>
                             <button type="button" class="btn btn-ghost btn-icon btn-sm" title="Excluir grupo"
                                     @onclick="() => DeleteDeviceGroup(deviceGroup.ID)">
                                 <i class="fa-solid fa-trash-can"></i>
@@ -230,6 +246,29 @@ else if (User is not null)
                     </label>
                 </div>
 
+                @if (_editingProfile.AllowRemoteControl)
+                {
+                    <div class="profile-remote-perms">
+                        <span class="profile-remote-title"><i class="fa-solid fa-desktop"></i> Na sessão de controle remoto, pode:</span>
+                        <label class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_editingProfile.AllowRemoteInput" />
+                            <span class="form-check-label">Controlar mouse e teclado <small class="text-muted">(desligado: só vê a tela)</small></span>
+                        </label>
+                        <label class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_editingProfile.AllowRemoteFiles" />
+                            <span class="form-check-label">Enviar e baixar arquivos</span>
+                        </label>
+                        <label class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_editingProfile.AllowRemoteClipboard" />
+                            <span class="form-check-label">Usar a área de transferência</span>
+                        </label>
+                        <label class="form-check">
+                            <input class="form-check-input" type="checkbox" @bind="_editingProfile.AllowRemoteSystemActions" />
+                            <span class="form-check-label">Ctrl+Alt+Del, bloquear teclado e mouse e trocar a sessão do Windows</span>
+                        </label>
+                    </div>
+                }
+
                 <div class="row g-3 mt-1">
                     <div class="col-lg-6">
                         <div class="d-flex align-items-center justify-content-between mb-2">
@@ -336,6 +375,13 @@ else if (User is not null)
                             <span class="pill @(profile.AllowScripts ? "success" : "")"><i class="fa-solid @(profile.AllowScripts ? "fa-check" : "fa-xmark")"></i> Scripts</span>
                             <span class="pill @(profile.AllowDeviceManagement ? "success" : "")"><i class="fa-solid @(profile.AllowDeviceManagement ? "fa-check" : "fa-xmark")"></i> Gerenciar</span>
                             <span class="pill @(profile.AllowRepairs ? "success" : "")"><i class="fa-solid @(profile.AllowRepairs ? "fa-check" : "fa-xmark")"></i> Reparos</span>
+                            @if (profile.AllowRemoteControl && !(profile.AllowRemoteInput && profile.AllowRemoteFiles && profile.AllowRemoteClipboard && profile.AllowRemoteSystemActions))
+                            {
+                                <span class="pill warning" title="Acesso remoto com restrições">
+                                    <i class="fa-solid fa-lock"></i>
+                                    @string.Join(", ", new[] { profile.AllowRemoteInput ? null : "só vê a tela", profile.AllowRemoteFiles ? null : "sem arquivos", profile.AllowRemoteClipboard ? null : "sem área de transferência", profile.AllowRemoteSystemActions ? null : "sem Ctrl+Alt+Del" }.Where(x => x is not null))
+                                </span>
+                            }
                         </div>
                         <dl class="profile-meta">
                             <dt>Grupos</dt>

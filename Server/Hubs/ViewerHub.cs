@@ -1,9 +1,10 @@
-using Remotely.Server.Enums;
+﻿using Remotely.Server.Enums;
 using Remotely.Server.Filters;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
 using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
+using Remotely.Shared.Models.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Caching.Memory;
@@ -23,6 +24,8 @@ public class ViewerHub : Hub<IViewerHubClient>
     private readonly ILogger<ViewerHub> _logger;
     private readonly IDesktopStreamCache _streamCache;
     private readonly IRemoteControlAuditService _audit;
+    private readonly IAccessProfileService _accessProfiles;
+    private readonly IRemoteSessionNotifier _notifier;
 
     public ViewerHub(
         IRemoteControlSessionCache desktopSessionCache,
@@ -32,9 +35,13 @@ public class ViewerHub : Hub<IViewerHubClient>
         ISessionRecordingSink sessionRecordingSink,
         IDataService dataService,
         IRemoteControlAuditService audit,
+        IAccessProfileService accessProfiles,
+        IRemoteSessionNotifier notifier,
         ILogger<ViewerHub> logger)
     {
+        _notifier = notifier;
         _audit = audit;
+        _accessProfiles = accessProfiles;
         _desktopSessionCache = desktopSessionCache;
         _streamCache = streamCache;
         _desktopHub = desktopHub;
@@ -103,6 +110,11 @@ public class ViewerHub : Hub<IViewerHubClient>
     {
         try
         {
+            if (!Permissions.SystemActions || !Permissions.Input || SessionInfo.ViewOnly)
+            {
+                return Result.Fail("Seu perfil não permite trocar a sessão do Windows.");
+            }
+
             if (SessionInfo.Mode != RemoteControlMode.Unattended)
             {
                 return Result.Fail("Disponível apenas no modo autônomo.");
@@ -175,17 +187,59 @@ public class ViewerHub : Hub<IViewerHubClient>
         }
     }
 
+    private const string PermissionsKey = "RemoteControlPermissions";
+    internal const string LastInputKey = "RemoteControlLastInput";
+
+    internal static bool IsInputDto(DtoType dtoType) => dtoType is
+        DtoType.MouseMove or DtoType.MouseDown or DtoType.MouseUp or DtoType.Tap or
+        DtoType.MouseWheel or DtoType.KeyDown or DtoType.KeyUp or DtoType.KeyPress;
+
+    /// <summary>Permissões desta conexão (definidas quando a sessão é aceita).</summary>
+    private RemoteControlPermissions Permissions =>
+        Context.Items.TryGetValue(PermissionsKey, out var value) && value is RemoteControlPermissions permissions
+            ? permissions
+            : RemoteControlPermissions.Full;
+
     public async Task<RemoteControlViewerOptions> GetViewerOptions()
     {
         var settings = await _dataService.GetSettings();
+        var permissions = Permissions;
         return new RemoteControlViewerOptions()
         {
-            ShouldRecordSession = settings.EnableRemoteControlRecording
+            ShouldRecordSession = settings.EnableRemoteControlRecording,
+            AllowInput = permissions.Input && !SessionInfo.ViewOnly,
+            AllowFiles = permissions.Files,
+            AllowClipboard = permissions.Clipboard,
+            AllowSystemActions = permissions.SystemActions,
+            IdleTimeoutMinutes = Math.Max(0, settings.RemoteControlIdleMinutes)
+        };
+    }
+
+    /// <summary>
+    /// Confere no servidor se o tipo de mensagem é permitido para esta conexão. O visualizador esconde
+    /// os botões, mas a regra vale aqui: um visualizador alterado não passa por cima do perfil.
+    /// </summary>
+    public static bool IsDtoAllowed(DtoType dtoType, RemoteControlPermissions permissions, bool viewOnly)
+    {
+        return dtoType switch
+        {
+            DtoType.MouseMove or DtoType.MouseDown or DtoType.MouseUp or DtoType.Tap or
+            DtoType.MouseWheel or DtoType.KeyDown or DtoType.KeyUp or DtoType.KeyPress or
+            DtoType.SetKeyStatesUp => permissions.Input && !viewOnly,
+            DtoType.ClipboardText or DtoType.TextTransfer => permissions.Clipboard && permissions.Input && !viewOnly,
+            DtoType.File or DtoType.OpenFileTransferWindow => permissions.Files,
+            DtoType.CtrlAltDel or DtoType.ToggleBlockInput => permissions.SystemActions && permissions.Input && !viewOnly,
+            _ => true
         };
     }
 
     public async Task InvokeCtrlAltDel()
     {
+        if (!IsDtoAllowed(DtoType.CtrlAltDel, Permissions, SessionInfo.ViewOnly))
+        {
+            return;
+        }
+
         try
         {
             await _agentHub.Clients.Client(SessionInfo.AgentConnectionId).InvokeCtrlAltDel();
@@ -202,6 +256,27 @@ public class ViewerHub : Hub<IViewerHubClient>
     private const string CloseTokenKey = "ViewerCloseToken";
     private const string CloseNotifiedKey = "ViewerCloseNotified";
     private static readonly ConcurrentDictionary<string, HubCallerContext> _closeTokens = new();
+
+    // Conexões com sessão aceita, para o monitor de sessão parada.
+    private static readonly ConcurrentDictionary<string, HubCallerContext> _activeViewers = new();
+    internal const string IdleWarnedKey = "RemoteControlIdleWarned";
+
+    /// <summary>Conexões com sessão ativa (usado pelo <see cref="RemoteControlIdleMonitor"/>).</summary>
+    internal static IReadOnlyCollection<HubCallerContext> ActiveViewers => _activeViewers.Values.ToList();
+
+    /// <summary>Sessão só de visualização (não conta para o encerramento por inatividade).</summary>
+    internal static bool IsViewOnly(HubCallerContext context)
+    {
+        var viewOnly = context.Items.TryGetValue(nameof(SessionInfo), out var value) &&
+            value is RemoteControlSession { ViewOnly: true };
+        var noInput = context.Items.TryGetValue(PermissionsKey, out var perms) &&
+            perms is RemoteControlPermissions { Input: false };
+        return viewOnly || noInput;
+    }
+
+    /// <summary>Encerra a conexão do servidor (ex.: inatividade), avisando o computador e o histórico.</summary>
+    internal static Task EndFromServer(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit, string reason) =>
+        EndViewerConnection(context, desktopHub, audit, reason);
 
     /// <summary>Token de uso único que permite encerrar esta conexão por sendBeacon ao fechar a página.</summary>
     public string GetCloseToken()
@@ -220,7 +295,7 @@ public class ViewerHub : Hub<IViewerHubClient>
     /// <summary>O viewer está saindo (aba fechada, navegação ou navegador encerrado).</summary>
     public Task ViewerClosing()
     {
-        return EndViewerConnection(Context, _desktopHub, _audit);
+        return EndViewerConnection(Context, _desktopHub, _audit, RemoteControlAuditService.BrowserClosed);
     }
 
     /// <summary>Encerra a conexão do viewer dono do token. Usado pelo endpoint de sendBeacon.</summary>
@@ -231,18 +306,19 @@ public class ViewerHub : Hub<IViewerHubClient>
             return false;
         }
 
-        await EndViewerConnection(context, desktopHub, audit);
+        await EndViewerConnection(context, desktopHub, audit, RemoteControlAuditService.BrowserClosed);
         return true;
     }
 
-    private static async Task EndViewerConnection(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit)
+    private static async Task EndViewerConnection(HubCallerContext context, IHubContext<DesktopHub, IDesktopHubClient> desktopHub, IRemoteControlAuditService audit, string reason)
     {
         if (context.Items.ContainsKey(CloseNotifiedKey))
         {
             return;
         }
         context.Items[CloseNotifiedKey] = true;
-        await audit.SessionEnded(context.ConnectionId, RemoteControlAuditService.BrowserClosed);
+        _activeViewers.TryRemove(context.ConnectionId, out _);
+        await audit.SessionEnded(context.ConnectionId, reason);
 
         if (context.Items.TryGetValue(nameof(SessionInfo), out var value) &&
             value is RemoteControlSession session)
@@ -261,6 +337,7 @@ public class ViewerHub : Hub<IViewerHubClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        _activeViewers.TryRemove(Context.ConnectionId, out _);
         await _audit.SessionEnded(
             Context.ConnectionId,
             exception is null ? RemoteControlAuditService.EndedByTechnician : RemoteControlAuditService.ConnectionLost);
@@ -292,6 +369,28 @@ public class ViewerHub : Hub<IViewerHubClient>
         if (string.IsNullOrWhiteSpace(SessionInfo.DesktopConnectionId))
         {
             return Task.CompletedTask;
+        }
+
+        DtoType dtoType;
+        try
+        {
+            dtoType = MessagePack.MessagePackSerializer.Deserialize<DtoWrapper>(dtoWrapper).DtoType;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Invalid DTO from viewer {connectionId}.", Context.ConnectionId);
+            return Task.CompletedTask;
+        }
+
+        if (!IsDtoAllowed(dtoType, Permissions, SessionInfo.ViewOnly))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (IsInputDto(dtoType))
+        {
+            Context.Items[LastInputKey] = DateTimeOffset.Now;
+            Context.Items.Remove(IdleWarnedKey);
         }
 
         return _desktopHub.Clients
@@ -351,6 +450,19 @@ public class ViewerHub : Hub<IViewerHubClient>
 
         SessionInfo = session;
         SessionInfo.ViewerList.Add(Context.ConnectionId);
+        Context.Items[LastInputKey] = DateTimeOffset.Now;
+
+        // Sessão aberta pelo painel: vale o perfil de quem abriu. Sessão assistida (ID de 9 dígitos):
+        // vale o perfil de quem está conectando, se estiver logado.
+        if (session.Mode == RemoteControlMode.Unattended)
+        {
+            Context.Items[PermissionsKey] = session.Permissions;
+        }
+        else if (Context.User?.Identity?.IsAuthenticated == true &&
+                 await _dataService.GetUserByName($"{Context.User.Identity.Name}") is { IsSuccess: true } viewerUser)
+        {
+            Context.Items[PermissionsKey] = _accessProfiles.GetRemoteControlPermissions(viewerUser.Value);
+        }
         SessionInfo.StreamId = Guid.NewGuid();
         RequesterDisplayName = requesterName;
 
@@ -378,7 +490,8 @@ public class ViewerHub : Hub<IViewerHubClient>
                 var request = new RemoteControlAccessRequest(
                     Context.ConnectionId,
                     RequesterDisplayName,
-                    SessionInfo.OrganizationName);
+                    SessionInfo.OrganizationName,
+                    SessionInfo.ConsentAutoAcceptSeconds);
 
                 var result = await _desktopHub.Clients
                     .Client(SessionInfo.DesktopConnectionId)
@@ -386,13 +499,21 @@ public class ViewerHub : Hub<IViewerHubClient>
 
                 if (result != Shared.Enums.PromptForAccessResult.Accepted)
                 {
-                    return Result.Fail($"Acesso não concedido. Motivo: {result}");
+                    SessionInfo.ViewerList.Remove(Context.ConnectionId);
+                    return Result.Fail(result switch
+                    {
+                        Shared.Enums.PromptForAccessResult.Denied => "O usuário recusou o acesso.",
+                        Shared.Enums.PromptForAccessResult.TimedOut => "O usuário não respondeu ao pedido de acesso.",
+                        _ => "Não foi possível pedir o acesso ao usuário."
+                    });
                 }
             }
 
             SessionInfo.RequireConsent = false;
 
             await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
+            _activeViewers[Context.ConnectionId] = Context;
+            _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
 
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
@@ -406,6 +527,8 @@ public class ViewerHub : Hub<IViewerHubClient>
         {
             SessionInfo.Mode = RemoteControlMode.Attended;
             await _audit.SessionStarted(Context.ConnectionId, SessionInfo, RequesterDisplayName, ClientIp);
+            _activeViewers[Context.ConnectionId] = Context;
+            _ = _notifier.NotifySessionStarted(SessionInfo, RequesterDisplayName, ClientIp);
             await _desktopHub.Clients
                 .Client(SessionInfo.DesktopConnectionId)
                 .RequestScreenCast(

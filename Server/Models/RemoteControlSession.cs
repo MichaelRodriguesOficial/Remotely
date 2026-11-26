@@ -46,6 +46,15 @@ public class RemoteControlSession : IDisposable
     /// </summary>
     public bool RequireConsent { get; set; }
 
+    /// <summary>Com aceite pedido: segundos até aceitar sozinho se o usuário não responder (0 = exige resposta).</summary>
+    public int ConsentAutoAcceptSeconds { get; set; }
+
+    /// <summary>O que o técnico pode fazer na sessão (perfil de acesso de quem abriu).</summary>
+    public RemoteControlPermissions Permissions { get; set; } = RemoteControlPermissions.Full;
+
+    /// <summary>Grupo do computador (para avisos de sessão).</summary>
+    public string? DeviceGroupId { get; set; }
+
     public DateTimeOffset StartTime { get; internal set; }
 
     /// <summary>

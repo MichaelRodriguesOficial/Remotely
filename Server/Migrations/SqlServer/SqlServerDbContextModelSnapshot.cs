@@ -642,9 +642,16 @@ namespace Remotely.Server.Migrations.SqlServer
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<bool>("NotifyRemoteSessions")
+                        .HasColumnType("bit");
+
                     b.Property<string>("OrganizationID")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RemoteControlConsent")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.HasKey("ID");
 

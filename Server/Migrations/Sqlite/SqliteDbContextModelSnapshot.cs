@@ -635,8 +635,15 @@ namespace Remotely.Server.Migrations.Sqlite
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("NotifyRemoteSessions")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("OrganizationID")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteControlConsent")
+                        .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
                     b.HasKey("ID");

@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.12.0 — 2026-11-26
+
+Fase 2 da modernização do controle remoto, parte 1: regras e segurança da sessão.
+
+### Aceite do usuário
+- Nova opção **Aceite do usuário** (Configuração → Acesso remoto): **Perguntar e aceitar sozinho** (padrão, em 30 s, ajustável de 5 a 300), **Sempre exigir o aceite** ou **Não perguntar**. A antiga "Pedir consentimento do usuário" vira "Sempre exigir o aceite". Servidores Windows continuam sem pergunta.
+- **Regra por grupo** (Organização → Grupos de dispositivos): cada grupo pode seguir o padrão do servidor ou ter a sua (ex.: Servidores sem pergunta, Diretoria exigindo o aceite).
+- Na janela do usuário, uma contagem regressiva mostra quando o acesso será permitido. O técnico vê "Pedindo permissão ao usuário (aceita sozinho em 30 s)" e, se for recusado, "O usuário recusou o acesso" ou "O usuário não respondeu".
+
+### Permissões por perfil
+- Os perfis de acesso ganharam o que o técnico pode fazer **dentro da sessão**: controlar mouse e teclado (desligado = só ver a tela), enviar e baixar arquivos, usar a área de transferência e Ctrl+Alt+Del / bloquear teclado e mouse / trocar a sessão do Windows. Perfis existentes continuam com acesso completo.
+- O visualizador esconde os botões que o perfil não permite, e o **servidor bloqueia** as ações mesmo que alguém altere a página. "Somente visualizar" também passou a ser garantido pelo servidor.
+
+### Sessão parada e avisos
+- **Encerrar sessão parada**: sem mouse ou teclado do técnico por 15 minutos (ajustável; 0 desliga), a sessão é encerrada, com aviso 1 minuto antes. Sessões só de visualização não contam. No histórico, aparece como "Encerrada por inatividade".
+- **Avisar início de sessão**: em grupos com o sino ligado, cada nova sessão envia e-mail para a lista configurada e/ou um POST em JSON para um webhook (ex.: n8n) com computador, grupo, técnico, login, IP, modo e horário.
+
 ## v1.11.0 — 2026-11-26
 
 Primeira fase da modernização do controle remoto (Etapa 2).

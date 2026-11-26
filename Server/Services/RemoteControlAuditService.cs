@@ -45,6 +45,7 @@ public class RemoteControlAuditService : IRemoteControlAuditService
     public const string EndedOnComputer = "Encerrada no computador";
     public const string DeniedByUser = "Recusada pelo usuário";
     public const string ServerRestarted = "Servidor reiniciado";
+    public const string IdleTimeout = "Encerrada por inatividade";
 
     private readonly ConcurrentDictionary<string, string> _openLogs = new();
     private readonly IAppDbFactory _dbFactory;

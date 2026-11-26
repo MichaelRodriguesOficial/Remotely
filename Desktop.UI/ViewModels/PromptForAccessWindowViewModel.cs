@@ -13,6 +13,8 @@ public interface IPromptForAccessWindowViewModel : IBrandedViewModelBase
     bool PromptResult { get; set; }
     string RequesterName { get; set; }
     string RequestMessage { get; }
+    string CountdownText { get; }
+    bool HasCountdown { get; }
     ICommand SetResultNo { get; }
     ICommand SetResultYes { get; }
 }
@@ -24,9 +26,16 @@ public class PromptForAccessWindowViewModel : BrandedViewModelBase, IPromptForAc
         string organizationName,
         IBrandingProvider brandingProvider,
         IUiDispatcher dispatcher,
-        ILogger<BrandedViewModelBase> logger)
+        ILogger<BrandedViewModelBase> logger,
+        int autoAcceptSeconds = 0)
         : base(brandingProvider, dispatcher, logger)
     {
+        _remaining = autoAcceptSeconds;
+        if (autoAcceptSeconds > 0)
+        {
+            _timer = new System.Threading.Timer(_ => _dispatcher.Post(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        }
+
         if (!string.IsNullOrWhiteSpace(requesterName))
         {
             RequesterName = requesterName;
@@ -59,6 +68,28 @@ public class PromptForAccessWindowViewModel : BrandedViewModelBase, IPromptForAc
             Set(value);
             NotifyPropertyChanged(nameof(RequestMessage));
         }
+    }
+
+    private readonly System.Threading.Timer? _timer;
+    private int _remaining;
+
+    public bool HasCountdown => _timer is not null;
+
+    public string CountdownText => _remaining > 0
+        ? $"Sem resposta, o acesso será permitido em {_remaining} s."
+        : "Permitindo o acesso...";
+
+    private void Tick()
+    {
+        if (_remaining > 0)
+        {
+            _remaining--;
+        }
+        if (_remaining <= 0)
+        {
+            _timer?.Dispose();
+        }
+        NotifyPropertyChanged(nameof(CountdownText));
     }
 
     public string RequestMessage

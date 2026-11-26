@@ -336,15 +336,30 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         var sessionId = Guid.NewGuid();
         var accessKey = RandomGenerator.GenerateAccessKey();
 
+        // Aceite do usuário: o do grupo do computador ou o padrão do servidor.
+        DeviceGroup? deviceGroup = null;
+        if (!string.IsNullOrWhiteSpace(targetDevice.DeviceGroupID))
+        {
+            var groupResult = await _dataService.GetDeviceGroup(targetDevice.DeviceGroupID);
+            deviceGroup = groupResult.IsSuccess ? groupResult.Value : null;
+        }
+        var consent = RemoteControlPolicy.Resolve(settings, deviceGroup);
+
+        // O perfil de acesso define o que o técnico pode fazer; sem "controlar", a sessão é só de visualização.
+        var permissions = _accessProfiles.GetRemoteControlPermissions(User);
+
         var session = new RemoteControlSession()
         {
             UnattendedSessionId = sessionId,
             UserConnectionId = ConnectionId,
             AgentConnectionId = serviceConnectionId,
             DeviceId = deviceId,
-            ViewOnly = viewOnly,
+            DeviceGroupId = deviceGroup?.ID,
+            ViewOnly = viewOnly || !permissions.Input,
+            Permissions = permissions,
             OrganizationId = User.OrganizationID,
-            RequireConsent = settings.EnforceAttendedAccess,
+            RequireConsent = consent.RequireConsent,
+            ConsentAutoAcceptSeconds = consent.AutoAcceptSeconds,
             NotifyUserOnStart = settings.RemoteControlNotifyUser
         };
 
