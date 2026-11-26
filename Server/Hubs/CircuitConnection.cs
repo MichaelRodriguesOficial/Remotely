@@ -100,6 +100,7 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
     private readonly IMessenger _messenger;
     private readonly IToastService _toastService;
     private readonly IAccessProfileService _accessProfiles;
+    private readonly IRemoteControlLauncher _launcher;
     private RemotelyUser? _user;
 
     public CircuitConnection(
@@ -114,8 +115,10 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
         IAgentHubSessionCache agentSessionCache,
         IMessenger messenger,
         IAccessProfileService accessProfiles,
+        IRemoteControlLauncher launcher,
         ILogger<CircuitConnection> logger)
     {
+        _launcher = launcher;
         _accessProfiles = accessProfiles;
         _dataService = dataService;
         _agentHubContext = agentHubContext;
@@ -299,92 +302,14 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             return Result.Fail<RemoteControlSession>("Seu perfil não permite acesso remoto.");
         }
 
-        var settings = await _dataService.GetSettings();
-
-        if (!_agentSessionCache.TryGetByDeviceId(deviceId, out var targetDevice))
+        var result = await _launcher.Launch(User, deviceId, viewOnly, ConnectionId);
+        if (!result.IsSuccess)
         {
-            var message = new DisplayNotificationMessage(
-                 "The selected device is not online.",
-                 "O dispositivo não está online.",
-                 "bg-warning");
-
-            await _messenger.Send(message, ConnectionId);
-
-            return Result.Fail<RemoteControlSession>("O dispositivo não está online.");
+            await _messenger.Send(
+                new DisplayNotificationMessage(result.Reason, result.Reason, "bg-warning"),
+                ConnectionId);
         }
-
-
-        if (!_dataService.DoesUserHaveAccessToDevice(deviceId, User))
-        {
-            var device = _dataService.GetDevice(targetDevice.ID);
-            _logger.LogWarning(
-                "Remote control attempted by unauthorized user.  Device ID: {deviceId}.  User Name: {userName}.",
-                deviceId,
-                User.UserName);
-            return Result.Fail<RemoteControlSession>("Não autorizado.");
-
-        }
-
-        if (!_agentSessionCache.TryGetConnectionId(targetDevice.ID, out var serviceConnectionId))
-        {
-            var message = new DisplayNotificationMessage(
-                "Conexão com o agente não encontrada.",
-                "Conexão com o agente não encontrada.",
-                "bg-warning");
-            
-            await _messenger.Send(message, ConnectionId);
-            return Result.Fail<RemoteControlSession>("Conexão com o agente não encontrada.");
-        }
-
-        var sessionId = Guid.NewGuid();
-        var accessKey = RandomGenerator.GenerateAccessKey();
-
-        // Aceite do usuário: o do grupo do computador ou o padrão do servidor.
-        DeviceGroup? deviceGroup = null;
-        if (!string.IsNullOrWhiteSpace(targetDevice.DeviceGroupID))
-        {
-            var groupResult = await _dataService.GetDeviceGroup(targetDevice.DeviceGroupID);
-            deviceGroup = groupResult.IsSuccess ? groupResult.Value : null;
-        }
-        var consent = RemoteControlPolicy.Resolve(settings, deviceGroup);
-
-        // O perfil de acesso define o que o técnico pode fazer; sem "controlar", a sessão é só de visualização.
-        var permissions = _accessProfiles.GetRemoteControlPermissions(User);
-
-        var session = new RemoteControlSession()
-        {
-            UnattendedSessionId = sessionId,
-            UserConnectionId = ConnectionId,
-            AgentConnectionId = serviceConnectionId,
-            DeviceId = deviceId,
-            DeviceGroupId = deviceGroup?.ID,
-            ViewOnly = viewOnly || !permissions.Input,
-            Permissions = permissions,
-            OrganizationId = User.OrganizationID,
-            RequireConsent = consent.RequireConsent,
-            ConsentAutoAcceptSeconds = consent.AutoAcceptSeconds,
-            NotifyUserOnStart = settings.RemoteControlNotifyUser
-        };
-
-        _remoteControlSessionCache.AddOrUpdate($"{sessionId}", session);
-
-        var orgResult = await _dataService.GetOrganizationNameByUserName($"{User.UserName}");
-
-        if (!orgResult.IsSuccess)
-        {
-            _toastService.ShowToast2(orgResult.Reason, Enums.ToastType.Warning);
-            return Result.Fail<RemoteControlSession>(orgResult.Reason);
-        }
-
-        await _agentHubContext.Clients.Client(serviceConnectionId).RemoteControl(
-            sessionId,
-            accessKey,
-            ConnectionId,
-            $"{User.UserOptions?.DisplayName}",
-            orgResult.Value,
-            User.OrganizationID);
-
-        return Result.Ok(session);
+        return result;
     }
 
     public Task RemoveDevices(string[] deviceIDs)

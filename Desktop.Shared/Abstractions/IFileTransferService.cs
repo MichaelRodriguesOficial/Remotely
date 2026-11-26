@@ -11,10 +11,13 @@ public interface IFileTransferService
     /// Recebe um arquivo do visualizador. <paramref name="destination"/> vem no primeiro pedaço:
     /// vazio, "drop:x;y" (pasta sob o ponto onde foi solto) ou "path:..." (pasta escolhida).
     /// </summary>
-    Task ReceiveFile(byte[] buffer, string fileName, string messageId, bool endOfFile, bool startOfFile, string? destination, IViewer viewer);
+    Task ReceiveFile(Remotely.Shared.Models.Dtos.FileDto dto, IViewer viewer);
 
     /// <summary>Pastas de um caminho do computador, para o visualizador escolher onde salvar.</summary>
-    Remotely.Shared.Models.Dtos.FolderListDto ListFolders(string? path);
+    Remotely.Shared.Models.Dtos.FolderListDto ListFolders(string? path, bool includeFiles = false);
+
+    /// <summary>"Baixar arquivos" do visualizador: envia os arquivos ao técnico, com a janela de progresso na tela.</summary>
+    Task SendFilesToViewer(IReadOnlyList<string> paths, IViewer viewer);
     void OpenFileTransferWindow(IViewer viewer);
     Task UploadFile(FileUpload file, IViewer viewer, Action<double> progressUpdateCallback, CancellationToken cancelToken);
 }

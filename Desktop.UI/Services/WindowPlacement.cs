@@ -19,7 +19,7 @@ public static class WindowPlacement
         public void Reset(bool flushRight = false) => ResetAction?.Invoke(flushRight);
     }
 
-    public static Anchor KeepBottomRight(Window window, int margin = 12)
+    public static Anchor KeepBottomRight(Window window, int margin = 12, int bottomOffset = 0)
     {
         var anchor = new Anchor();
         var userMoved = false;
@@ -52,7 +52,7 @@ public static class WindowPlacement
 
             window.Position = new PixelPoint(
                 Math.Max(area.X, area.Right - width - (flush ? 0 : gap)),
-                Math.Max(area.Y, area.Bottom - height - gap));
+                Math.Max(area.Y, area.Bottom - height - gap - (int)Math.Round(bottomOffset * scaling)));
         }
 
         anchor.ResetAction = flushRight =>

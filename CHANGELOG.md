@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.15.0 — 2026-11-26
+
+Correções e pedidos do teste da v1.14.0.
+
+### Controle remoto: a causa dos problemas do teste
+- **O aceite de 30 s terminava em uns 8 s.** Enquanto o usuário via o pedido de permissão, o serviço que reabre a tela remota quando ela cai achava a sessão parada e reabria o app do usuário, fechando o pedido. Agora ele espera o aceite e não mexe numa sessão com o app conectado.
+- **Sessão "sem dados".** Ao ser reaberto, o app criava uma sessão nova no servidor, sem o computador, a organização e as permissões do técnico. Por isso o Painel e o modo de segurança não apareciam, "Reiniciar" dizia "Disponível só no acesso aberto pelo painel", o Ctrl+Alt+Del não funcionava e o histórico de Sessões remotas não mostrava os acessos. O servidor não aceita mais sessão criada pelo app: ela sempre vem do painel, com as regras certas.
+- A mensagem "Pedindo permissão ao usuário (aceita sozinho em 30 s)" conta para baixo.
+
+### Sessão encerrada
+- Botão **Reconectar** (principal) e **Fechar esta aba**. Reconectar abre uma sessão nova no mesmo computador, com o aceite e o perfil de sempre, e troca a página sozinha.
+
+### Copiar e colar
+- **Automático**: o botão "Copiar e colar" saiu da barra. Ctrl+C no seu computador e Ctrl+V na tela remota cola lá o texto ou os **arquivos** copiados (os arquivos vão para a pasta aberta no Explorador ou para a Área de Trabalho). Texto copiado no computador remoto chega na sua área de transferência.
+- **Arquivos copiados no computador remoto**: aparece um aviso com os nomes e o botão **Baixar** (o navegador não deixa colocar arquivos no seu Ctrl+V, então eles vão para a pasta Downloads).
+- "Digitar texto..." foi para o menu Mais opções. "Copiar e colar automático" liga e desliga tudo isso.
+
+### Arquivos
+- **Baixar arquivos do computador** no mesmo padrão do Enviar: começa no disco C:, sem atalhos, com os arquivos, tamanho e data; marque e clique em Baixar. Nada aparece para o usuário antes de começar.
+- **Janela de progresso na tela do usuário** ao enviar ou baixar: arquivos, barra de progresso, tempo estimado e **Cancelar**. Se o usuário cancela, os arquivos incompletos são apagados e o técnico é avisado. A barra de envio do técnico também ganhou Cancelar.
+- Corrigido: arquivos baixados quebravam as métricas da sessão (faltava um "break" no tratamento das mensagens).
+
+### Dispositivo
+- **IP local** nos dados do computador (placas de rede físicas, do inventário), além do IP público.
+
 ## v1.14.0 — 2026-11-26
 
 Correções e pedidos do teste da v1.13.0.

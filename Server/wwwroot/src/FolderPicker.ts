@@ -1,6 +1,7 @@
 import { ViewerApp } from "./App.js";
-import { FolderItemDto, FolderListDto } from "./Interfaces/Dtos.js";
+import { FolderItemDto, FolderListDto, FileItemDto } from "./Interfaces/Dtos.js";
 import { FileTransferInput, ShowToast } from "./UI.js";
+import { FormatSize } from "./FileTransferService.js";
 
 let pending: ((dto: FolderListDto | null) => void) | null = null;
 
@@ -11,7 +12,7 @@ export function HandleFolderList(dto: FolderListDto) {
     resolve?.(dto);
 }
 
-function RequestFolders(path: string): Promise<FolderListDto | null> {
+function RequestFolders(path: string, includeFiles = false): Promise<FolderListDto | null> {
     pending?.(null);
     return new Promise(resolve => {
         pending = resolve;
@@ -21,7 +22,7 @@ function RequestFolders(path: string): Promise<FolderListDto | null> {
                 resolve(null);
             }
         }, 15000);
-        ViewerApp.MessageSender.SendFolderListRequest(path);
+        ViewerApp.MessageSender.SendFolderListRequest(path, includeFiles);
     });
 }
 
@@ -55,15 +56,31 @@ function icon(kind: string): HTMLElement {
  * "Enviar arquivo": mostra as pastas do computador remoto para escolher onde salvar,
  * depois abre a escolha de arquivos e envia para lá.
  */
-export async function PickFolderAndUpload() {
+export function PickFolderAndUpload() {
+    return OpenPicker("upload");
+}
+
+/** "Baixar arquivos": navega pelas pastas do computador remoto e escolhe os arquivos. */
+export function PickFilesAndDownload() {
+    return OpenPicker("download");
+}
+
+async function OpenPicker(mode: "upload" | "download") {
+    const download = mode == "download";
+    const selected = new Map<string, FileItemDto>();
     const backdrop = el("div", "modal-confirm");
     const card = el("div", "confirm-card folder-picker");
     card.setAttribute("role", "dialog");
     card.setAttribute("aria-modal", "true");
 
-    const heading = el("h3", "", "Enviar arquivos para o computador");
-    const intro = el("p", "", "Escolha a pasta onde os arquivos vão ser salvos. Arrastar arquivos para a tela remota também funciona: eles vão para a pasta ou Área de Trabalho onde forem soltos.");
+    const heading = el("h3", "", download ? "Baixar arquivos do computador" : "Enviar arquivos para o computador");
+    const intro = el("p", "", download
+        ? "Marque os arquivos e clique em Baixar. O usuário vê uma janela com o progresso e pode cancelar."
+        : "Escolha a pasta onde os arquivos vão ser salvos. Arrastar arquivos para a tela remota ou colar com Ctrl+V também funciona.");
     const places = el("div", "fp-places");
+    if (download) {
+        places.classList.add("d-none");
+    }
     const bar = el("div", "fp-bar");
     const up = el("button", "fp-up");
     up.title = "Pasta acima";
@@ -75,7 +92,15 @@ export async function PickFolderAndUpload() {
     list.setAttribute("role", "listbox");
     const actions = el("div", "confirm-actions");
     const cancel = el("button", "", "Cancelar");
-    const ok = el("button", "confirm-ok", "Escolher arquivos e enviar aqui");
+    const ok = el("button", "confirm-ok", download ? "Baixar" : "Escolher arquivos e enviar aqui");
+    const updateOk = () => {
+        if (!download) {
+            return;
+        }
+        const total = Array.from(selected.values()).reduce((sum, x) => sum + (x.Size || 0), 0);
+        ok.textContent = selected.size == 0 ? "Baixar" : `Baixar ${selected.size} arquivo(s) · ${FormatSize(total)}`;
+        ok.disabled = selected.size == 0;
+    };
     ok.disabled = true;
     actions.append(cancel, ok);
     card.append(heading, intro, places, bar, list, actions);
@@ -98,7 +123,7 @@ export async function PickFolderAndUpload() {
     const open = async (path: string) => {
         message("Carregando...");
         ok.disabled = true;
-        const dto = await RequestFolders(path);
+        const dto = await RequestFolders(path, download);
         if (!document.body.contains(backdrop)) {
             return;
         }
@@ -118,8 +143,11 @@ export async function PickFolderAndUpload() {
         }
 
         if (!path && dto.Places?.length) {
-            // Começa pela Área de Trabalho do usuário.
-            await open(dto.Places[0].Path);
+            // Enviar: começa pela Área de Trabalho do usuário. Baixar: pelo disco C:.
+            const start = download
+                ? (dto.Places.find(x => x.Kind == "drive" && /^c:/i.test(x.Path)) || dto.Places.find(x => x.Kind == "drive") || dto.Places[0])
+                : dto.Places[0];
+            await open(start.Path);
             return;
         }
 
@@ -134,12 +162,13 @@ export async function PickFolderAndUpload() {
         list.innerHTML = "";
         if (dto.Error) {
             message(dto.Error, "fp-empty fp-error");
-            ok.disabled = !current || dto.Error.indexOf("não encontrada") >= 0;
+            ok.disabled = download ? selected.size == 0 : (!current || dto.Error.indexOf("não encontrada") >= 0);
             return;
         }
         ok.disabled = !current;
-        if (!dto.Folders?.length) {
-            message("Nenhuma subpasta. Os arquivos vão ser salvos aqui.");
+        updateOk();
+        if (!dto.Folders?.length && !(download && dto.Files?.length)) {
+            message(download ? "Pasta vazia." : "Nenhuma subpasta. Os arquivos vão ser salvos aqui.");
             return;
         }
         dto.Folders.forEach((folder: FolderItemDto) => {
@@ -150,6 +179,31 @@ export async function PickFolderAndUpload() {
             item.onclick = () => open(folder.Path);
             list.appendChild(item);
         });
+
+        if (download) {
+            (dto.Files || []).forEach((file: FileItemDto) => {
+                const item = el("button", "fp-item fp-file");
+                item.setAttribute("role", "option");
+                const check = el("i", selected.has(file.Path) ? "fas fa-square-check" : "far fa-square");
+                const name = el("span", "", file.Name);
+                const meta = el("small", "", `${FormatSize(file.Size)}${file.Modified ? " · " + file.Modified : ""}`);
+                item.append(check, name, meta);
+                item.title = file.Path;
+                item.classList.toggle("selected", selected.has(file.Path));
+                item.onclick = () => {
+                    if (selected.has(file.Path)) {
+                        selected.delete(file.Path);
+                    } else {
+                        selected.set(file.Path, file);
+                    }
+                    const on = selected.has(file.Path);
+                    item.classList.toggle("selected", on);
+                    check.className = on ? "fas fa-square-check" : "far fa-square";
+                    updateOk();
+                };
+                list.appendChild(item);
+            });
+        }
     };
 
     up.onclick = () => parent && open(parent);
@@ -167,6 +221,16 @@ export async function PickFolderAndUpload() {
     };
     card.onkeyup = ev => ev.stopPropagation();
     ok.onclick = () => {
+        if (download) {
+            if (selected.size == 0) {
+                return;
+            }
+            const paths = Array.from(selected.keys());
+            close();
+            ViewerApp.MessageSender.SendDownloadRequest(paths);
+            ShowToast(`Baixando ${paths.length} arquivo(s). O navegador salva na sua pasta Downloads.`, 8000);
+            return;
+        }
         if (!current) {
             return;
         }

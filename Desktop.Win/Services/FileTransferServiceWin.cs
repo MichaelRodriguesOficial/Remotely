@@ -25,13 +25,16 @@ public class FileTransferServiceWin : IFileTransferService
     private readonly ILogger<FileTransferServiceWin> _logger;
     private readonly IViewModelFactory _viewModelFactory;
     private readonly IDialogProvider _dialogProvider;
+    private readonly IFileTransferProgressService _progressService;
 
     public FileTransferServiceWin(
         IUiDispatcher dispatcher,
         IViewModelFactory viewModelFactory,
         IDialogProvider dialogProvider,
+        IFileTransferProgressService progressService,
         ILogger<FileTransferServiceWin> logger)
     {
+        _progressService = progressService;
         _dispatcher = dispatcher;
         _viewModelFactory = viewModelFactory;
         _dialogProvider = dialogProvider;
@@ -69,91 +72,26 @@ public class FileTransferServiceWin : IFileTransferService
         });
     }
 
-    private sealed record PartialFile(FileStream Stream, string Path, string FileName);
-    private static readonly ConcurrentDictionary<string, PartialFile> _partialFiles = new();
-
     [SupportedOSPlatform("windows")]
-    public async Task ReceiveFile(byte[] buffer, string fileName, string messageId, bool endOfFile, bool startOfFile, string? destination, IViewer viewer)
+    public Task ReceiveFile(FileDto dto, IViewer viewer)
     {
-        PartialFile? finished = null;
-        string? failure = null;
-        try
-        {
-            await _writeLock.WaitAsync();
+        return FileTransferCore.ReceiveFile(
+            dto,
+            viewer,
+            ResolveDirectory,
+            () =>
+            {
+                var baseDir = GetBaseDirectory();
+                SetFileOrFolderPermissions(baseDir);
+                return baseDir;
+            },
+            _progressService,
+            _logger);
+    }
 
-            if (startOfFile)
-            {
-                var safeName = ReceivedFiles.SafeFileName(fileName);
-                var directory = ResolveDirectory(destination, viewer);
-                string filePath;
-                FileStream stream;
-                try
-                {
-                    filePath = ReceivedFiles.GetAvailablePath(directory, safeName);
-                    stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
-                }
-                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
-                {
-                    // Sem permissão na pasta escolhida: salva na pasta compartilhada do app.
-                    _logger.LogWarning(ex, "Could not write to {directory}. Using the shared folder.", directory);
-                    var baseDir = GetBaseDirectory();
-                    SetFileOrFolderPermissions(baseDir);
-                    filePath = ReceivedFiles.GetAvailablePath(baseDir, safeName);
-                    stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
-                }
-                _partialFiles[messageId] = new PartialFile(stream, filePath, safeName);
-            }
-
-            if (!_partialFiles.TryGetValue(messageId, out var partial))
-            {
-                return;
-            }
-
-            if (buffer?.Length > 0)
-            {
-                await partial.Stream.WriteAsync(buffer);
-            }
-
-            if (endOfFile)
-            {
-                await partial.Stream.DisposeAsync();
-                _partialFiles.TryRemove(messageId, out _);
-                finished = partial;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error while receiving file.");
-            failure = ex.Message;
-            if (_partialFiles.TryRemove(messageId, out var broken))
-            {
-                await broken.Stream.DisposeAsync();
-            }
-        }
-        finally
-        {
-            _writeLock.Release();
-        }
-
-        // Avisa o técnico onde o arquivo foi parar (sem janela na tela do usuário: o arquivo aparece na pasta).
-        if (finished is not null)
-        {
-            await viewer.SendDto(new FileSavedDto
-            {
-                FileName = finished.FileName,
-                FullPath = finished.Path,
-                Success = true
-            }, DtoType.FileSaved);
-        }
-        else if (failure is not null && (startOfFile || endOfFile))
-        {
-            await viewer.SendDto(new FileSavedDto
-            {
-                FileName = ReceivedFiles.SafeFileName(fileName),
-                Success = false,
-                Message = "Não foi possível salvar o arquivo no computador."
-            }, DtoType.FileSaved);
-        }
+    public Task SendFilesToViewer(IReadOnlyList<string> paths, IViewer viewer)
+    {
+        return FileTransferCore.SendFilesToViewer(paths, viewer, _progressService, _logger);
     }
 
     [SupportedOSPlatform("windows")]
@@ -162,6 +100,13 @@ public class FileTransferServiceWin : IFileTransferService
         if (ReceivedFiles.TryParsePath(destination) is { } chosen)
         {
             return chosen;
+        }
+
+        // Colado com Ctrl+V: na pasta da janela em primeiro plano lá (Explorador ou Área de Trabalho).
+        if (destination == ReceivedFiles.PasteDestination &&
+            UserShellFolders.GetFolderOfForegroundWindow() is { } pasted)
+        {
+            return pasted;
         }
 
         if (ReceivedFiles.TryParseDrop(destination, out var percentX, out var percentY))
@@ -189,7 +134,7 @@ public class FileTransferServiceWin : IFileTransferService
     }
 
     [SupportedOSPlatform("windows")]
-    public FolderListDto ListFolders(string? path)
+    public FolderListDto ListFolders(string? path, bool includeFiles = false)
     {
         var places = new List<FolderItemDto>();
         void AddPlace(Guid id, string name, string kind)
@@ -206,7 +151,7 @@ public class FileTransferServiceWin : IFileTransferService
         AddPlace(UserShellFolders.PublicDesktop, "Área de Trabalho pública", "public");
         ReceivedFiles.AddDrives(places);
 
-        return ReceivedFiles.BuildListing(path, places);
+        return ReceivedFiles.BuildListing(path, places, includeFiles);
     }
 
     public async Task UploadFile(

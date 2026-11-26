@@ -1,5 +1,5 @@
 import { ViewerApp } from "./App.js";
-import { CtrlAltDelDto, KeyDownDto, KeyPressDto, KeyUpDto, MouseDownDto, MouseMoveDto, MouseUpDto, MouseWheelDto, SelectScreenDto, TapDto, ToggleAudioDto, ToggleBlockInputDto, TextTransferDto, FileDto, WindowsSessionsDto, EmptyDto, FrameReceivedDto, FolderListRequestDto } from "./Interfaces/Dtos.js";
+import { CtrlAltDelDto, KeyDownDto, KeyPressDto, KeyUpDto, MouseDownDto, MouseMoveDto, MouseUpDto, MouseWheelDto, SelectScreenDto, TapDto, ToggleAudioDto, ToggleBlockInputDto, TextTransferDto, FileDto, WindowsSessionsDto, EmptyDto, FrameReceivedDto, FolderListRequestDto, FileListDto } from "./Interfaces/Dtos.js";
 import { CreateGUID } from "./Utilities.js";
 import { FileTransferProgress } from "./UI.js";
 import { DtoType } from "./Enums/DtoType.js";
@@ -67,19 +67,41 @@ export class MessageSender {
         var dto = new EmptyDto();
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.OpenFileTransferWindow);
     }
-    async SendFile(buffer, fileName, destination = null) {
+    /**
+     * Envia um arquivo em pedaços. batch: o lote (vários arquivos juntos) para a janela de progresso
+     * na tela do usuário. isCanceled: o usuário ou o técnico cancelou; para de enviar.
+     */
+    async SendFile(buffer, fileName, destination = null, batch = null, isCanceled = () => false) {
         var messageId = CreateGUID();
         let dto = new FileDto(null, fileName, messageId, false, true, destination);
+        dto.FileSize = buffer.byteLength;
+        if (batch) {
+            dto.BatchId = batch.Id;
+            dto.BatchTotalBytes = batch.TotalBytes;
+            dto.BatchFileCount = batch.Count;
+        }
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.File);
+        const total = batch ? batch.TotalBytes : buffer.byteLength;
+        const before = batch ? batch.SentBefore : 0;
         for (var i = 0; i < buffer.byteLength; i += 50000) {
+            if (isCanceled()) {
+                const cancel = new FileDto(null, fileName, messageId, true, false);
+                cancel.Canceled = true;
+                cancel.BatchId = batch === null || batch === void 0 ? void 0 : batch.Id;
+                await ViewerApp.ViewerHubConnection.SendDtoToClient(cancel, DtoType.File);
+                return false;
+            }
             let dto = new FileDto(buffer.slice(i, i + 50000), fileName, messageId, false, false);
             await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.File);
-            if (i > 0) {
-                FileTransferProgress.value = i / buffer.byteLength;
-            }
+            FileTransferProgress.value = total > 0 ? (before + i + 50000) / total : 1;
         }
         dto = new FileDto(null, fileName, messageId, true, false);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.File);
+        return true;
+    }
+    async SendDownloadRequest(paths) {
+        const dto = new FileListDto(paths.map(x => ({ Name: "", Path: x, Size: 0 })));
+        await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.DownloadFilesRequest);
     }
     async SendToggleAudio(toggleOn) {
         var dto = new ToggleAudioDto(toggleOn);
@@ -90,8 +112,8 @@ export class MessageSender {
         var dto = new ToggleBlockInputDto(toggleOn);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.ToggleBlockInput);
     }
-    async SendFolderListRequest(path) {
-        await ViewerApp.ViewerHubConnection.SendDtoToClient(new FolderListRequestDto(path), DtoType.FolderListRequest);
+    async SendFolderListRequest(path, includeFiles = false) {
+        await ViewerApp.ViewerHubConnection.SendDtoToClient(new FolderListRequestDto(path, includeFiles), DtoType.FolderListRequest);
     }
     async SendTextTransfer(text, typeText) {
         var dto = new TextTransferDto(text, typeText);

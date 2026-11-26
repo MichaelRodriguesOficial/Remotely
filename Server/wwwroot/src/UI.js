@@ -77,8 +77,22 @@ export var SessionEndedText = document.getElementById("sessionEndedText");
 export var SessionEndedClose = document.getElementById("sessionEndedClose");
 /** Fim da sessão: fecha a aba se o técnico encerrou; senão (ou se o navegador não deixar) mostra o aviso. */
 export function ShowSessionEnded(reason, tryClose) {
+    StopConsentCountdown();
     if (tryClose) {
         window.close();
+    }
+    // Reconectar abre uma sessão nova no mesmo computador (acesso aberto pelo painel).
+    const reconnect = document.getElementById("sessionEndedReconnect");
+    const canReconnect = !!ViewerApp.DeviceId;
+    reconnect === null || reconnect === void 0 ? void 0 : reconnect.classList.toggle("d-none", !canReconnect);
+    const close = document.getElementById("sessionEndedClose");
+    close === null || close === void 0 ? void 0 : close.classList.toggle("wait-primary", !canReconnect);
+    close === null || close === void 0 ? void 0 : close.classList.toggle("wait-cancel", canReconnect);
+    const hint = document.getElementById("sessionEndedHint");
+    if (hint) {
+        hint.textContent = canReconnect
+            ? "Reconectar abre uma sessão nova neste computador."
+            : "Para acessar de novo, use o botão Controle remoto no painel.";
     }
     // Se a aba não pôde ser fechada (aberta por um link fora do painel), o aviso aparece.
     window.setTimeout(() => {
@@ -89,6 +103,31 @@ export function ShowSessionEnded(reason, tryClose) {
         SessionEndedOverlay.classList.remove("d-none");
         StatusMessage.classList.add("d-none");
     }, tryClose ? 400 : 0);
+}
+var consentTimer = -1;
+/** "Pedindo permissão ao usuário (aceita sozinho em 30 s)": conta para baixo na tela. */
+export function StartConsentCountdown(seconds) {
+    StopConsentCountdown();
+    let remaining = seconds;
+    const render = () => {
+        SetStatusMessage(remaining > 0
+            ? `Pedindo permissão ao usuário (aceita sozinho em ${remaining} s)`
+            : "Pedindo permissão ao usuário (aceitando...)");
+    };
+    render();
+    consentTimer = window.setInterval(() => {
+        remaining--;
+        render();
+        if (remaining <= 0) {
+            StopConsentCountdown();
+        }
+    }, 1000);
+}
+export function StopConsentCountdown() {
+    if (consentTimer >= 0) {
+        window.clearInterval(consentTimer);
+        consentTimer = -1;
+    }
 }
 /** Janela para escrever ou colar um texto. Retorna null se cancelar. */
 export function PromptText(title, message, note, okText, initial) {
@@ -304,6 +343,9 @@ export function ShowToast(message, durationMs = 5000) {
     }, Math.max(durationMs, 5000));
 }
 export function ToggleConnectUI(shown) {
+    if (!shown) {
+        StopConsentCountdown();
+    }
     if (shown) {
         ConnectButton.innerText = "Conectar";
         Screen2DContext.clearRect(0, 0, ScreenViewer.width, ScreenViewer.height);

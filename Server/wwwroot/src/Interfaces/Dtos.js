@@ -20,9 +20,15 @@ export class FileDto {
         this.StartOfFile = startOfFile;
     }
 }
+export class FileListDto {
+    constructor(files) {
+        this.Files = files;
+    }
+}
 export class FolderListRequestDto {
-    constructor(path) {
+    constructor(path, includeFiles = false) {
         this.Path = path || "";
+        this.IncludeFiles = includeFiles;
     }
 }
 export class KeyDownDto {

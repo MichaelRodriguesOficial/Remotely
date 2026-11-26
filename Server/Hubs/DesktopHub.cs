@@ -223,7 +223,18 @@ public class DesktopHub : Hub<IDesktopHubClient>
             return Task.FromResult(result);
         }
 
-        SessionInfo = _sessionCache.GetOrAdd($"{unattendedSessionId}", (key) => SessionInfo);
+        // Sessões autônomas são criadas pelo servidor (painel ou API) antes de o app abrir.
+        // Sem ela no cache, o app não cria uma sessão nova: ela viria sem computador, organização,
+        // permissões do técnico nem aceite do usuário.
+        if (!_sessionCache.TryGetValue($"{unattendedSessionId}", out var serverSession))
+        {
+            _logger.LogWarning(
+                "Desktop app tried to join unattended session {sessionId}, which doesn't exist on the server.",
+                unattendedSessionId);
+            return Task.FromResult(Result.Fail("Sessão não encontrada no servidor."));
+        }
+
+        SessionInfo = serverSession;
 
         SessionInfo.Mode = RemoteControlMode.Unattended;
         SessionInfo.DesktopConnectionId = Context.ConnectionId;

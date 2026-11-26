@@ -6,20 +6,18 @@ export class ClipboardWatcher {
     LastClipboardText: string;
     NewClipboardText: string;
 
+    /**
+     * Copiar e colar automático. Daqui para lá: o Ctrl+V na tela remota (evento "paste", sem pedir
+     * permissão de leitura ao navegador). De lá para cá: o texto copiado no computador remoto chega
+     * pelo servidor e é colocado na área de transferência daqui quando esta janela está em foco.
+     */
     async WatchClipboard() {
-        if (!location.protocol.includes("https") &&
-            !location.origin.includes("localhost")) {
+        if (!window.isSecureContext || !navigator.clipboard?.writeText) {
             console.warn("Clipboard API only works in a secure context (i.e. HTTPS or localhost).");
             return;
         }
 
-        if (!navigator.clipboard?.readText) {
-            console.warn("Clipboard API not supported.")
-            return;
-        }
-
         if (this.ClipboardTimer) {
-            console.log("ClipboardWatcher is already running.");
             return;
         }
 
@@ -27,31 +25,8 @@ export class ClipboardWatcher {
             return;
         }
 
-        try {
-            // This will throw on Firefox, Safari, and possibly other browsers.
-            // MDN states that they have no intention of implementing clipboard
-            // permissions.
-            await navigator.permissions.query({
-                name: "clipboard-read" as PermissionName
-            });
-        }
-        catch (ex) {
-            console.error(ex);
-            if (!localStorage.getItem("clipboardWarning")) {
-                localStorage.setItem("clipboardWarning", "true");
-                alert("A sincronização da área de transferência não está disponível neste navegador. Veja o console para detalhes.");
-            }
-
-            console.warn(
-                "New restrictions have been placed on the Clipboard API in " +
-                "some browsers that make it impossible to sync the clipboard " +
-                "in the background.  You can read more about this topic here: " +
-                "https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API#security_considerations");
-            return;
-        }
-
         this.ClipboardTimer = window.setInterval(async () => {
-            if (!document.hasFocus()) {
+            if (!document.hasFocus() || !this.NewClipboardText) {
                 return;
             }
 
@@ -60,35 +35,15 @@ export class ClipboardWatcher {
                 return;
             }
 
-            if (this.NewClipboardText && navigator.clipboard.writeText) {
-                try {
-                    await navigator.clipboard.writeText(this.NewClipboardText);
-                }
-                catch {
-                    return;
-                }
-                this.LastClipboardText = this.NewClipboardText;
-                this.NewClipboardText = null;
-                ShowToast("Área de transferência atualizada.");
-                return;
-            }
-
-            if (ViewerApp.ViewOnlyMode) {
-                return;
-            }
-
-            var newText: string;
             try {
-                newText = await navigator.clipboard.readText();
+                await navigator.clipboard.writeText(this.NewClipboardText);
             }
             catch {
-                // Sem permissão ou documento sem foco: tenta de novo no próximo ciclo.
                 return;
             }
-            if (this.LastClipboardText != newText) {
-                this.LastClipboardText = newText;
-                ViewerApp.MessageSender.SendTextTransfer(newText, false);
-            }
+            this.LastClipboardText = this.NewClipboardText;
+            this.NewClipboardText = null;
+            ShowToast("Texto copiado no computador remoto: já pode colar aqui.");
         }, 500);
     }
 

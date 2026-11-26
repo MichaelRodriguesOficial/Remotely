@@ -342,6 +342,7 @@ services.AddSingleton<IDesktopStreamCache, DesktopStreamCache>();
 services.AddSingleton<IRemoteControlSessionCache, RemoteControlSessionCache>();
 services.AddSingleton<IRemoteControlAuditService, RemoteControlAuditService>();
 services.AddSingleton<IRemoteSessionNotifier, RemoteSessionNotifier>();
+services.AddSingleton<IRemoteControlLauncher, RemoteControlLauncher>();
 services.AddHostedService<RemoteControlIdleMonitor>();
 services.AddSingleton<ISystemTime, SystemTime>();
 services.AddSingleton<IAgentHubSessionCache, AgentHubSessionCache>();
@@ -534,6 +535,39 @@ app.MapPost("/api/viewer/closed", async (HttpContext http, IHubContext<DesktopHu
     await ViewerHub.CloseByToken(token, desktopHub, audit);
     return Results.NoContent();
 }).DisableAntiforgery();
+// "Reconectar" do visualizador: abre uma sessão nova no mesmo computador (com as regras de
+// aceite e o perfil de quem pede) e devolve o endereço do visualizador quando o app está pronto.
+app.MapPost("/api/viewer/reconnect", async (HttpContext http, ViewerReconnectRequest request, IDataService dataService, IRemoteControlLauncher launcher) =>
+{
+    if (string.IsNullOrWhiteSpace(request.DeviceId) || http.User.Identity?.Name is not { } userName)
+    {
+        return Results.BadRequest();
+    }
+
+    var userResult = await dataService.GetUserByName(userName);
+    if (!userResult.IsSuccess)
+    {
+        return Results.Unauthorized();
+    }
+
+    var launch = await launcher.Launch(userResult.Value, request.DeviceId, request.ViewOnly, $"viewer-reconnect-{Guid.NewGuid():N}");
+    if (!launch.IsSuccess)
+    {
+        return Results.Json(new { error = launch.Reason }, statusCode: StatusCodes.Status409Conflict);
+    }
+
+    var session = launch.Value;
+    if (!await session.WaitForSessionReady(TimeSpan.FromSeconds(30)))
+    {
+        return Results.Json(new { error = "O computador não abriu o acesso a tempo. Tente de novo." }, statusCode: StatusCodes.Status504GatewayTimeout);
+    }
+
+    return Results.Json(new
+    {
+        url = $"/Viewer?mode=Unattended&sessionId={session.UnattendedSessionId}&accessKey={Uri.EscapeDataString(session.AccessKey)}&viewonly={request.ViewOnly}"
+    });
+}).RequireAuthorization(PolicyNames.TwoFactorRequired).DisableAntiforgery();
+
 app.MapHub<AgentHub>("/hubs/service");
 app.MapControllers();
 
@@ -658,3 +692,6 @@ void ConfigureSerilog(WebApplicationBuilder webAppBuilder, SettingsModel setting
         Console.WriteLine($"Failed to configure Serilog file logging.  Error: {ex.Message}");
     }
 }
+
+/// <summary>Pedido de "Reconectar" do visualizador.</summary>
+internal sealed record ViewerReconnectRequest(string DeviceId, bool ViewOnly);

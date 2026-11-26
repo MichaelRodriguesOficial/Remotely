@@ -14,9 +14,10 @@ import {
     DtoWrapper,
     SessionMetricsDto,
     FolderListDto,
-    FileSavedDto
+    FileSavedDto,
+    FileListDto
 } from "./Interfaces/Dtos.js";
-import { ReceiveFile, HandleFileSaved } from "./FileTransferService.js";
+import { ReceiveFile, HandleFileSaved, HandleClipboardFiles } from "./FileTransferService.js";
 import { HandleFolderList } from "./FolderPicker.js";
 import { TryComplete } from "./DtoChunker.js";
 import { MessagePack } from "./Interfaces/MessagePack.js";
@@ -47,6 +48,13 @@ export class DtoMessageHandler {
                 }
                 break;
             }
+            case DtoType.ClipboardFiles: {
+                const copied = TryComplete<FileListDto>(wrapper);
+                if (copied) {
+                    HandleClipboardFiles(copied);
+                }
+                break;
+            }
             case DtoType.FileSaved: {
                 const saved = TryComplete<FileSavedDto>(wrapper);
                 if (saved) {
@@ -62,8 +70,10 @@ export class DtoMessageHandler {
                 break;
             case DtoType.File:
                 this.HandleFile(wrapper);
+                break;
             case DtoType.SessionMetrics:
                 await this.HandleSessionMetrics(wrapper);
+                break;
             default:
                 break;
         }

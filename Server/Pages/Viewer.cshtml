@@ -52,19 +52,12 @@
     </div>
 
     <div id="clipboardTransferMenu" class="popup-menu">
-        <button id="sendClipboardButton" title="Coloca o texto copiado aqui na área de transferência do computador remoto.">
-            <i class="fas fa-paste"></i>
-            Colar meu texto lá
-        </button>
-        <button id="typeClipboardButton" title="Digita um texto tecla por tecla. Use onde colar não funciona: login do Windows, UAC, BitLocker.">
-            <i class="fas fa-keyboard"></i>
-            Digitar texto...
-        </button>
+        <button id="sendClipboardButton" class="d-none"></button>
     </div>
 
     <div id="fileTransferMenu" class="popup-menu">
-        <button id="fileUploadButton"><i class="fas fa-upload"></i> Enviar arquivo</button>
-        <button id="fileDownloadButton"><i class="fas fa-download"></i> Baixar arquivo</button>
+        <button id="fileUploadButton"><i class="fas fa-upload"></i> Enviar arquivos para o computador</button>
+        <button id="fileDownloadButton"><i class="fas fa-download"></i> Baixar arquivos do computador</button>
     </div>
 
     <div id="windowsSessionMenu" class="popup-menu">
@@ -98,10 +91,15 @@
             Convidar outras pessoas
         </button>
 
+        <button id="typeClipboardButton" title="Digita um texto tecla por tecla. Use onde colar não funciona: login do Windows, UAC, BitLocker.">
+            <i class="fas fa-keyboard"></i>
+            Digitar texto...
+        </button>
+
         <button id="clipboardSyncButton"
-                title="Copia e cola automaticamente entre o seu computador e o remoto (texto).">
+                title="Ctrl+C e Ctrl+V entre o seu computador e o remoto: texto e arquivos.">
             <i class="fas fa-arrows-rotate"></i>
-            Sincronizar área de transferência
+            Copiar e colar automático
         </button>
 
         <button id="metricsButton"
@@ -217,11 +215,7 @@
                     </div>
 
                     <div class="rc-group">
-                        <button id="clipboardTransferButton" class="rc-btn"
-                                title="Área de transferência.">
-                            <i class="fas fa-clipboard"></i>
-                            <span class="rc-label">Copiar e colar</span>
-                        </button>
+                        <button id="clipboardTransferButton" class="rc-btn d-none" aria-hidden="true" tabindex="-1"></button>
 
                         <button id="fileTransferButton" class="rc-btn"
                                 title="Enviar ou baixar arquivos.">
@@ -300,10 +294,10 @@
             <div class="wait-spinner ended"><i class="fas fa-power-off"></i></div>
             <h2>Sessão encerrada</h2>
             <p id="sessionEndedText">A sessão de controle remoto terminou.</p>
-            <p class="ended-hint">Para acessar de novo, use o botão Controle remoto no painel.</p>
+            <p id="sessionEndedHint" class="ended-hint">Para acessar de novo, use o botão Controle remoto no painel.</p>
             <div class="ended-actions">
-                <a href="/" class="wait-cancel">Ir para o painel</a>
-                <button id="sessionEndedClose" class="wait-primary">Fechar esta aba</button>
+                <button id="sessionEndedReconnect" class="wait-primary d-none"><i class="fas fa-rotate"></i> Reconectar</button>
+                <button id="sessionEndedClose" class="wait-cancel">Fechar esta aba</button>
             </div>
         </div>
     </div>
@@ -315,6 +309,7 @@
     <div id="fileTransferDiv" hidden="hidden">
         <span id="fileTransferNameSpan" class="me-1 font-weight-bold" style="vertical-align: middle;"></span>
         <progress id="fileTransferProgress"></progress>
+        <button id="fileTransferCancel" class="ft-cancel" title="Cancelar o envio">Cancelar</button>
     </div>
 
     <footer>

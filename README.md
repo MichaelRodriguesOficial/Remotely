@@ -87,6 +87,14 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td align="center">Eventos do Windows: Sistema, Aplicativo, Segurança e Instalação, com filtros e CSV</td>
   </tr>
   <tr>
+    <td><img src=".github/media/visualizador-baixar.png" alt="Baixar arquivos do computador remoto escolhendo os arquivos" /></td>
+    <td><img src=".github/media/visualizador-reconectar.png" alt="Sessão encerrada com o botão Reconectar" /></td>
+  </tr>
+  <tr>
+    <td align="center">Baixar arquivos: navegue pelo disco do computador e marque os arquivos</td>
+    <td align="center">Sessão encerrada: Reconectar abre uma sessão nova no mesmo computador</td>
+  </tr>
+  <tr>
     <td colspan="2"><img src=".github/media/sessoes-remotas.png" alt="Histórico de sessões remotas com técnico, computador, duração e como terminou" /></td>
   </tr>
   <tr>
@@ -187,6 +195,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Aceite do usuário e regras de sessão**: perguntar e aceitar sozinho em X segundos, sempre exigir o aceite ou não perguntar, no servidor e por grupo de dispositivos; sessão parada encerrada sozinha; aviso por e-mail ou webhook (n8n) quando alguém acessa computadores de grupos sensíveis.
 - **Visualizador do controle remoto renovado**: barra agrupada com nome do computador e tempo de sessão, monitores direto na barra, tela cheia que manda Win e Alt+Tab ao computador remoto, copiar e colar automático (com botão para ligar e desligar), painel lateral com dados, terminal, scripts e envio de arquivo, e **Reiniciar e voltar**, que reinicia o computador e reconecta sozinho.
 - **Eventos do Windows no painel**: aba Eventos no dispositivo com os logs Sistema, Aplicativo, Segurança e Instalação (journal no Linux), filtro por nível, período e texto, mensagem completa e exportação em CSV.
+- **Copiar e colar entre os dois computadores**: Ctrl+C aqui e Ctrl+V na tela remota cola o texto ou os arquivos lá (na pasta aberta ou na Área de Trabalho); texto copiado lá chega aqui, e arquivos copiados lá podem ser baixados com um clique. O usuário vê uma janela com o progresso, o tempo estimado e o botão Cancelar.
 - **Arquivos no lugar certo**: arrastar para a tela remota salva na pasta (ou Área de Trabalho) onde o arquivo foi solto; o botão Enviar mostra as pastas do computador para escolher o destino.
 - **Reiniciar em modo de segurança com rede** pelo visualizador, com reconexão automática e volta ao modo normal no reinício seguinte.
 - **Permissões da sessão por perfil**: controlar ou só ver, arquivos, área de transferência e Ctrl+Alt+Del/bloqueio de entrada, conferidos no servidor.

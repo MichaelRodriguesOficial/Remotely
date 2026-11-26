@@ -21,13 +21,16 @@ public class FileTransferServiceLinux : IFileTransferService
     private readonly IUiDispatcher _dispatcher;
     private readonly IDialogProvider _dialogProvider;
     private readonly ILogger<FileTransferServiceLinux> _logger;
+    private readonly IFileTransferProgressService _progressService;
 
     public FileTransferServiceLinux(
         IViewModelFactory viewModelFactory,
         IUiDispatcher dispatcher,
         IDialogProvider dialogProvider,
+        IFileTransferProgressService progressService,
         ILogger<FileTransferServiceLinux> logger)
     {
+        _progressService = progressService;
         _viewModelFactory = viewModelFactory;
         _dispatcher = dispatcher;
         _dialogProvider = dialogProvider;
@@ -69,59 +72,23 @@ public class FileTransferServiceLinux : IFileTransferService
         });
     }
 
-    public async Task ReceiveFile(byte[] buffer, string fileName, string messageId, bool endOfFile, bool startOfFile, string? destination, IViewer viewer)
+    public Task ReceiveFile(FileDto dto, IViewer viewer)
     {
-        string? savedPath = null;
-        try
-        {
-            await _writeLock.WaitAsync();
-
-            if (startOfFile)
-            {
-                var directory = ReceivedFiles.TryParsePath(destination) ?? GetBaseDirectory();
-                var filePath = ReceivedFiles.GetAvailablePath(directory, ReceivedFiles.SafeFileName(fileName));
-                var fs = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
-                _partialTransfers.AddOrUpdate(messageId, fs, (k, v) => fs);
-            }
-
-            if (!_partialTransfers.TryGetValue(messageId, out var fileStream))
-            {
-                return;
-            }
-
-            if (buffer?.Length > 0)
-            {
-                await fileStream.WriteAsync(buffer);
-            }
-
-            if (endOfFile)
-            {
-                savedPath = fileStream.Name;
-                fileStream.Close();
-                _partialTransfers.Remove(messageId, out _);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error while receiving file.");
-        }
-        finally
-        {
-            _writeLock.Release();
-        }
-
-        if (savedPath is not null)
-        {
-            await viewer.SendDto(new FileSavedDto
-            {
-                FileName = Path.GetFileName(savedPath),
-                FullPath = savedPath,
-                Success = true
-            }, DtoType.FileSaved);
-        }
+        return FileTransferCore.ReceiveFile(
+            dto,
+            viewer,
+            (destination, _) => ReceivedFiles.TryParsePath(destination) ?? GetBaseDirectory(),
+            GetBaseDirectory,
+            _progressService,
+            _logger);
     }
 
-    public FolderListDto ListFolders(string? path)
+    public Task SendFilesToViewer(IReadOnlyList<string> paths, IViewer viewer)
+    {
+        return FileTransferCore.SendFilesToViewer(paths, viewer, _progressService, _logger);
+    }
+
+    public FolderListDto ListFolders(string? path, bool includeFiles = false)
     {
         var places = new List<FolderItemDto>
         {
@@ -133,7 +100,7 @@ public class FileTransferServiceLinux : IFileTransferService
         }
         places.Add(new FolderItemDto { Name = "/tmp", Path = "/tmp", Kind = "folder" });
         ReceivedFiles.AddDrives(places);
-        return ReceivedFiles.BuildListing(path, places);
+        return ReceivedFiles.BuildListing(path, places, includeFiles);
     }
 
     public async Task UploadFile(

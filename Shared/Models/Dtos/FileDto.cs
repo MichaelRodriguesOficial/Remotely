@@ -27,4 +27,22 @@ public class FileDto
     /// </summary>
     [DataMember(Name = "Destination")]
     public string? Destination { get; set; }
+
+    /// <summary>Tamanho do arquivo (no primeiro pedaço), para a barra de progresso.</summary>
+    [DataMember(Name = "FileSize")]
+    public long FileSize { get; set; }
+
+    /// <summary>Envio de vários arquivos de uma vez: mesmo ID, total de bytes e de arquivos.</summary>
+    [DataMember(Name = "BatchId")]
+    public string? BatchId { get; set; }
+
+    [DataMember(Name = "BatchTotalBytes")]
+    public long BatchTotalBytes { get; set; }
+
+    [DataMember(Name = "BatchFileCount")]
+    public int BatchFileCount { get; set; }
+
+    /// <summary>A transferência foi cancelada: descartar o que chegou deste arquivo.</summary>
+    [DataMember(Name = "Canceled")]
+    public bool Canceled { get; set; }
 }

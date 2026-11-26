@@ -80,6 +80,7 @@ public class Viewer : IViewer
         _logger = logger;
 
         _clipboardService.ClipboardTextChanged += ClipboardService_ClipboardTextChanged;
+        _clipboardService.ClipboardFilesChanged += ClipboardService_ClipboardFilesChanged;
         _audioCapturer.AudioSampleReady += AudioCapturer_AudioSampleReady;
     }
 
@@ -185,7 +186,8 @@ public class Viewer : IViewer
                 EndOfFile = false,
                 FileName = fileUpload.DisplayName,
                 MessageId = messageId,
-                StartOfFile = true
+                StartOfFile = true,
+                FileSize = new FileInfo(fileUpload.FilePath).Length
             };
 
             await TrySendToViewer(fileDto, DtoType.File, ViewerConnectionId);
@@ -196,6 +198,14 @@ public class Viewer : IViewer
             {
                 if (cancelToken.IsCancellationRequested)
                 {
+                    // Avisa o visualizador para descartar o que já chegou deste arquivo.
+                    await TrySendToViewer(new FileDto
+                    {
+                        EndOfFile = true,
+                        Canceled = true,
+                        FileName = fileUpload.DisplayName,
+                        MessageId = messageId
+                    }, DtoType.File, ViewerConnectionId);
                     return;
                 }
 
@@ -352,6 +362,22 @@ public class Viewer : IViewer
     private async void ClipboardService_ClipboardTextChanged(object? sender, string clipboardText)
     {
         await SendClipboardText(clipboardText);
+    }
+
+    private async void ClipboardService_ClipboardFilesChanged(object? sender, string[] paths)
+    {
+        try
+        {
+            var files = ReceivedFiles.DescribeFiles(paths);
+            if (files.Count > 0)
+            {
+                await TrySendToViewer(new FileListDto { Files = files }, DtoType.ClipboardFiles, ViewerConnectionId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error while sending the copied files list.");
+        }
     }
 
     private async Task TrySendToViewer<T>(T dto, DtoType type, string viewerConnectionId)

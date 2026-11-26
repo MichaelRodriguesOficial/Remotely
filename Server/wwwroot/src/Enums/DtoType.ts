@@ -25,5 +25,7 @@
     SessionMetrics = 28,
     FolderListRequest = 29,
     FolderList = 30,
-    FileSaved = 31
+    FileSaved = 31,
+    ClipboardFiles = 32,
+    DownloadFilesRequest = 33
 }

@@ -2,8 +2,8 @@ import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferBut
 import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
 import { ViewerApp } from "./App.js";
-import { UploadFiles } from "./FileTransferService.js";
-import { PickFolderAndUpload } from "./FolderPicker.js";
+import { UploadFiles, CancelCurrentUpload } from "./FileTransferService.js";
+import { PickFolderAndUpload, PickFilesAndDownload } from "./FolderPicker.js";
 import { RemoteControlMode } from "./Enums/RemoteControlMode.js";
 import { GetDistanceBetween } from "./Utilities.js";
 import { ShowToast } from "./UI.js";
@@ -24,8 +24,12 @@ var lastScrollTime;
 var lastScrollTouchY1;
 var lastScrollTouchY2;
 var lastPointerMove = Date.now();
+var pendingPaste = false;
+var pendingPasteTimer = -1;
+var suppressVKeyUp = false;
 var pointerMoveTimeout = -1;
 export function ApplyInputHandlers() {
+    var _a, _b;
     AudioButton.addEventListener("click", async (ev) => {
         AudioButton.classList.toggle("toggled");
         var toggleOn = AudioButton.classList.contains("toggled");
@@ -112,6 +116,7 @@ export function ApplyInputHandlers() {
         ViewerApp.EndedByTechnician = true;
         ViewerApp.ViewerHubConnection.Connection.stop();
     });
+    (_a = document.getElementById("sessionEndedReconnect")) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => Reconnect());
     SessionEndedClose.addEventListener("click", () => {
         window.close();
         window.setTimeout(() => ShowToast("O navegador não deixou fechar esta aba. Feche pelo X da aba."), 300);
@@ -170,11 +175,36 @@ export function ApplyInputHandlers() {
         PickFolderAndUpload();
     });
     FileDownloadButton.addEventListener("click", async (ev) => {
-        if (ViewerApp.ViewOnlyMode) {
-            alert("O modo somente visualização está ativado.");
+        CloseAllPopupMenus(null);
+        // Sem nada na tela do usuário até o técnico escolher os arquivos.
+        PickFilesAndDownload();
+    });
+    (_b = document.getElementById("fileTransferCancel")) === null || _b === void 0 ? void 0 : _b.addEventListener("click", () => CancelCurrentUpload());
+    // Ctrl+V na tela remota: cola lá o que foi copiado aqui (texto ou arquivos).
+    document.addEventListener("paste", async (e) => {
+        var _a, _b, _c, _d;
+        if (!pendingPaste) {
             return;
         }
-        await ViewerApp.MessageSender.SendOpenFileTransferWindow();
+        e.preventDefault();
+        pendingPaste = false;
+        window.clearTimeout(pendingPasteTimer);
+        const files = Array.from(((_a = e.clipboardData) === null || _a === void 0 ? void 0 : _a.files) || []);
+        if (files.length > 0) {
+            if (((_b = ViewerApp.Settings.ViewerOptions) === null || _b === void 0 ? void 0 : _b.AllowFiles) === false) {
+                ShowToast("Seu perfil não permite enviar arquivos.");
+                return;
+            }
+            ShowToast(files.length == 1 ? `Colando ${files[0].name} no computador remoto...` : `Colando ${files.length} arquivos no computador remoto...`);
+            await UploadFiles(files, "paste");
+            return;
+        }
+        const text = (_c = e.clipboardData) === null || _c === void 0 ? void 0 : _c.getData("text/plain");
+        if (text && ((_d = ViewerApp.Settings.ViewerOptions) === null || _d === void 0 ? void 0 : _d.AllowClipboard) !== false) {
+            ViewerApp.ClipboardWatcher.LastClipboardText = text;
+            await ViewerApp.MessageSender.SendTextTransfer(text, false);
+        }
+        await ViewerApp.MessageSender.SendKeyPress("v");
     });
     FileTransferInput.addEventListener("change", (ev) => {
         const destination = ViewerApp.PendingUploadDestination;
@@ -648,6 +678,23 @@ export function ApplyInputHandlers() {
         if (ViewerApp.ViewOnlyMode) {
             return;
         }
+        // Ctrl+V: deixa o navegador entregar o evento "paste" (com o texto ou os arquivos
+        // copiados aqui) e só depois manda o Ctrl+V para o computador remoto.
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() == "v" &&
+            ViewerApp.Settings.ClipboardSync !== false) {
+            if (!e.repeat) {
+                pendingPaste = true;
+                suppressVKeyUp = true;
+                window.clearTimeout(pendingPasteTimer);
+                pendingPasteTimer = window.setTimeout(async () => {
+                    if (pendingPaste) {
+                        pendingPaste = false;
+                        await ViewerApp.MessageSender.SendKeyPress("v");
+                    }
+                }, 400);
+            }
+            return;
+        }
         if (!e.ctrlKey || !e.shiftKey || e.key.toLowerCase() != "i") {
             e.preventDefault();
         }
@@ -660,6 +707,11 @@ export function ApplyInputHandlers() {
         }
         e.preventDefault();
         if (ViewerApp.ViewOnlyMode) {
+            return;
+        }
+        if (suppressVKeyUp && e.key.toLowerCase() == "v") {
+            // O "v" do Ctrl+V já foi mandado (tecla inteira) junto com o que foi colado.
+            suppressVKeyUp = false;
             return;
         }
         await ViewerApp.MessageSender.SendKeyUp(e.key);
@@ -760,5 +812,37 @@ async function RestartRemote(mode) {
     }
     ViewerApp.IsWaitingForRestart = true;
     ShowWaitOverlay(mode == "safe" ? "Reiniciando em modo de segurança" : "Reiniciando o computador", "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");
+}
+/** "Reconectar": abre uma sessão nova no mesmo computador e troca esta página por ela. */
+async function Reconnect() {
+    const button = document.getElementById("sessionEndedReconnect");
+    const hint = document.getElementById("sessionEndedHint");
+    if (!ViewerApp.DeviceId || !button) {
+        return;
+    }
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Reconectando...';
+    hint.textContent = "Abrindo o acesso no computador. Se o aceite estiver ligado, o usuário precisa permitir de novo.";
+    try {
+        const response = await fetch("/api/viewer/reconnect", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ deviceId: ViewerApp.DeviceId, viewOnly: ViewerApp.ViewOnlyMode })
+        });
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("json") ? await response.json() : null;
+        if (response.ok && (data === null || data === void 0 ? void 0 : data.url)) {
+            location.replace(data.url);
+            return;
+        }
+        hint.textContent = (data === null || data === void 0 ? void 0 : data.error) || (response.status == 401 || response.redirected
+            ? "Sua sessão no painel expirou. Entre de novo e abra o controle remoto pelo painel."
+            : "Não foi possível reconectar. Tente pelo painel.");
+    }
+    catch (_a) {
+        hint.textContent = "Sem conexão com o servidor. Tente de novo.";
+    }
+    button.disabled = false;
+    button.innerHTML = '<i class="fas fa-rotate"></i> Reconectar';
 }
 //# sourceMappingURL=InputEventHandlers.js.map

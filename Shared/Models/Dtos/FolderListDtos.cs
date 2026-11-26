@@ -8,6 +8,34 @@ public class FolderListRequestDto
     /// <summary>Caminho a listar. Vazio = só os atalhos (Área de Trabalho, Downloads, unidades).</summary>
     [DataMember(Name = "Path")]
     public string Path { get; set; } = string.Empty;
+
+    /// <summary>Também os arquivos (para "Baixar arquivos").</summary>
+    [DataMember(Name = "IncludeFiles")]
+    public bool IncludeFiles { get; set; }
+}
+
+[DataContract]
+public class FileItemDto
+{
+    [DataMember(Name = "Name")]
+    public string Name { get; set; } = string.Empty;
+
+    [DataMember(Name = "Path")]
+    public string Path { get; set; } = string.Empty;
+
+    [DataMember(Name = "Size")]
+    public long Size { get; set; }
+
+    [DataMember(Name = "Modified")]
+    public string? Modified { get; set; }
+}
+
+/// <summary>Arquivos copiados no computador remoto, ou pedidos pelo visualizador.</summary>
+[DataContract]
+public class FileListDto
+{
+    [DataMember(Name = "Files")]
+    public List<FileItemDto> Files { get; set; } = [];
 }
 
 [DataContract]
@@ -39,6 +67,9 @@ public class FolderListDto
     [DataMember(Name = "Places")]
     public List<FolderItemDto> Places { get; set; } = [];
 
+    [DataMember(Name = "Files")]
+    public List<FileItemDto> Files { get; set; } = [];
+
     [DataMember(Name = "Error")]
     public string? Error { get; set; }
 }
@@ -57,4 +88,11 @@ public class FileSavedDto
 
     [DataMember(Name = "Message")]
     public string? Message { get; set; }
+
+    /// <summary>O usuário cancelou: o visualizador para de enviar o resto deste lote.</summary>
+    [DataMember(Name = "Canceled")]
+    public bool Canceled { get; set; }
+
+    [DataMember(Name = "BatchId")]
+    public string? BatchId { get; set; }
 }

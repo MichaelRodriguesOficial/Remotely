@@ -50,10 +50,16 @@ internal class RemoteControlSessionReconnector : BackgroundService
                     //   - In the process of shutting down
                     //   - Have had a state change in the last 5 seconds
                     //   - Have no viewers connected
+                    //   - Still waiting for the user's consent, or the desktop app is still
+                    //     connected (e.g. the consent prompt is open). Restarting it here
+                    //     closed the prompt after a few seconds and the session started
+                    //     without the user's answer, on a session without device data.
                     if (session.StreamerState.HasFlag(StreamerState.Connected) ||
                         session.StreamerState.HasFlag(StreamerState.WindowsShuttingDown) ||
                         session.LastStateChange > DateTimeOffset.Now.AddSeconds(-5) ||
-                        !session.ViewerList.Any())
+                        !session.ViewerList.Any() ||
+                        session.RequireConsent ||
+                        session.IsSessionReady)
                     {
                         continue;
                     }

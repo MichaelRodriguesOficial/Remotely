@@ -43,6 +43,7 @@
     @Row("Versão do agente", Device.AgentVersion)
     @Row("Última conexão", Device.LastOnline == default ? null : Device.LastOnline.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
     @Row("Inventário", Device.InventoryUpdatedAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm"))
+    @Row("IP local", LocalAddresses(Inventory), mono: true)
     @Row("IP público", Device.PublicIP, mono: true)
     @Row("Endereços MAC", string.Join(", ", Device.MacAddresses ?? Array.Empty<string>()), mono: true)
     @Row("ID do dispositivo", Device.ID, mono: true, small: true)
@@ -65,6 +66,19 @@
     /// <summary>Estilo compacto do card.</summary>
     [Parameter]
     public bool Compact { get; set; }
+
+    /// <summary>IPv4 das placas de rede físicas (sem loopback, APIPA nem adaptadores virtuais), do inventário.</summary>
+    public static string? LocalAddresses(DeviceInventory? inventory)
+    {
+        var addresses = (inventory?.NetworkPorts ?? [])
+            .Where(x => x.Virtual != true && !string.Equals(x.Type, "Loopback", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.Connected == true)
+            .SelectMany(x => x.IPv4)
+            .Where(x => !string.IsNullOrWhiteSpace(x) && !x.StartsWith("127.") && !x.StartsWith("169.254."))
+            .Distinct()
+            .ToList();
+        return addresses.Count == 0 ? null : string.Join(", ", addresses);
+    }
 
     /// <summary>"15.7 GB": só o total.</summary>
     public static string? FormatGb(double gigabytes) =>

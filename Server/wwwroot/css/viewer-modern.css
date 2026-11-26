@@ -823,3 +823,117 @@ body {
     opacity: .5;
     cursor: default;
 }
+
+/* Baixar arquivos: lista com seleção */
+.fp-item.fp-file i {
+    color: #94a3b8;
+}
+
+.fp-item.fp-file small {
+    margin-left: auto;
+    padding-left: 12px;
+    color: #64748b;
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+.fp-item.fp-file.selected {
+    background: rgba(99, 102, 241, 0.18);
+}
+
+    .fp-item.fp-file.selected i {
+        color: #a5b4fc;
+    }
+
+/* Arquivos copiados no computador remoto */
+.clipboard-files-card {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: min(560px, 92vw);
+    padding: 10px 10px 10px 16px;
+    border-radius: 12px;
+    background: rgba(17, 24, 39, 0.97);
+    border: 1px solid rgba(129, 140, 248, 0.35);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+    color: #e2e8f0;
+    font-size: 13px;
+}
+
+    .clipboard-files-card div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .clipboard-files-card span {
+        color: #94a3b8;
+        font-size: 12px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .clipboard-files-card .cf-download {
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        border: none;
+        background: #4f46e5;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .clipboard-files-card .cf-close {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: #94a3b8;
+    }
+
+/* Barra de envio do técnico */
+#fileTransferDiv {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 320px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(17, 24, 39, 0.97);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    color: #e2e8f0;
+    font-size: 12.5px;
+}
+
+    #fileTransferDiv[hidden] {
+        display: none;
+    }
+
+    #fileTransferDiv progress {
+        flex: 1;
+        height: 6px;
+        accent-color: #6366f1;
+    }
+
+.ft-cancel {
+    height: 28px;
+    min-width: 0;
+    padding: 0 10px;
+    border-radius: 7px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: transparent;
+    color: #cbd5e1;
+    font: inherit;
+    font-size: 12px;
+}

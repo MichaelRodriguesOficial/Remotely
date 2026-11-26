@@ -11,6 +11,7 @@ public static class IServiceCollectionExtensions
         services.AddSingleton<IUiDispatcher, UiDispatcher>();
         services.AddSingleton<IChatUiService, ChatUiService>();
         services.AddSingleton<IClipboardService, ClipboardService>();
+        services.AddSingleton<IFileTransferProgressService, FileTransferProgressService>();
         services.AddSingleton<ISessionIndicator, SessionIndicator>();
         services.AddSingleton<IRemoteControlAccessService, RemoteControlAccessService>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();

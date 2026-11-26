@@ -70,6 +70,7 @@ public class CircuitConnectionTests
             _agentSessionCache.Object,
             _messenger.Object,
             _accessProfiles.Object,
+            new Mock<IRemoteControlLauncher>().Object,
             _logger.Object);
     }
 

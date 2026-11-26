@@ -130,6 +130,9 @@ public class RemoteControlSession : IDisposable
         });
     }
 
+    /// <summary>O app de controle remoto do computador está conectado a esta sessão.</summary>
+    public bool IsSessionReady => !_disposedValue && _sessionReadySignal.IsSet;
+
     internal void SetSessionReadyState(bool isReady)
     {
         if (isReady)

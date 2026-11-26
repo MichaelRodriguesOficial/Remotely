@@ -27,5 +27,7 @@ export var DtoType;
     DtoType[DtoType["FolderListRequest"] = 29] = "FolderListRequest";
     DtoType[DtoType["FolderList"] = 30] = "FolderList";
     DtoType[DtoType["FileSaved"] = 31] = "FileSaved";
+    DtoType[DtoType["ClipboardFiles"] = 32] = "ClipboardFiles";
+    DtoType[DtoType["DownloadFilesRequest"] = 33] = "DownloadFilesRequest";
 })(DtoType || (DtoType = {}));
 //# sourceMappingURL=DtoType.js.map

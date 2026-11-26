@@ -2,7 +2,7 @@ import * as UI from "./UI.js";
 import { DtoType } from "./Enums/DtoType.js";
 import { ViewerApp } from "./App.js";
 import { Sound } from "./Sound.js";
-import { ReceiveFile, HandleFileSaved } from "./FileTransferService.js";
+import { ReceiveFile, HandleFileSaved, HandleClipboardFiles } from "./FileTransferService.js";
 import { HandleFolderList } from "./FolderPicker.js";
 import { TryComplete } from "./DtoChunker.js";
 const MsgPack = window["MessagePack"];
@@ -29,6 +29,13 @@ export class DtoMessageHandler {
                 }
                 break;
             }
+            case DtoType.ClipboardFiles: {
+                const copied = TryComplete(wrapper);
+                if (copied) {
+                    HandleClipboardFiles(copied);
+                }
+                break;
+            }
             case DtoType.FileSaved: {
                 const saved = TryComplete(wrapper);
                 if (saved) {
@@ -44,8 +51,10 @@ export class DtoMessageHandler {
                 break;
             case DtoType.File:
                 this.HandleFile(wrapper);
+                break;
             case DtoType.SessionMetrics:
                 await this.HandleSessionMetrics(wrapper);
+                break;
             default:
                 break;
         }

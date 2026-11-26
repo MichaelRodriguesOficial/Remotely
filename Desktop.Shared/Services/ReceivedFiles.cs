@@ -8,6 +8,8 @@ public static class ReceivedFiles
 {
     public const string DropPrefix = "drop:";
     public const string PathPrefix = "path:";
+    /// <summary>Colado com Ctrl+V no visualizador: a pasta da janela em primeiro plano.</summary>
+    public const string PasteDestination = "paste";
 
     /// <summary>Só o nome do arquivo: um nome com "..\" ou caminho completo não escapa da pasta escolhida.</summary>
     public static string SafeFileName(string? fileName)
@@ -63,7 +65,7 @@ public static class ReceivedFiles
     }
 
     /// <summary>Subpastas de <paramref name="path"/> (sem as ocultas/de sistema) e os atalhos.</summary>
-    public static FolderListDto BuildListing(string? path, List<FolderItemDto> places)
+    public static FolderListDto BuildListing(string? path, List<FolderItemDto> places, bool includeFiles = false)
     {
         var listing = new FolderListDto { Places = places };
         if (string.IsNullOrWhiteSpace(path))
@@ -102,6 +104,33 @@ public static class ReceivedFiles
                 .Take(500)
                 .Select(x => new FolderItemDto { Name = x.Name, Path = x.FullName })
                 .ToList();
+
+            if (includeFiles)
+            {
+                listing.Files = directory
+                    .EnumerateFiles()
+                    .Where(x =>
+                    {
+                        try
+                        {
+                            return (x.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0;
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    })
+                    .OrderBy(x => x.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .Take(1000)
+                    .Select(x => new FileItemDto
+                    {
+                        Name = x.Name,
+                        Path = x.FullName,
+                        Size = x.Length,
+                        Modified = x.LastWriteTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)
+                    })
+                    .ToList();
+            }
         }
         catch (UnauthorizedAccessException)
         {
@@ -113,6 +142,29 @@ public static class ReceivedFiles
         }
 
         return listing;
+    }
+
+    /// <summary>Arquivos existentes (sem pastas) com tamanho, para enviar ao técnico.</summary>
+    public static List<FileItemDto> DescribeFiles(IEnumerable<string> paths)
+    {
+        var files = new List<FileItemDto>();
+        foreach (var path in paths.Distinct(StringComparer.OrdinalIgnoreCase).Take(100))
+        {
+            try
+            {
+                if (!Path.IsPathFullyQualified(path) || !File.Exists(path))
+                {
+                    continue;
+                }
+                var info = new FileInfo(path);
+                files.Add(new FileItemDto { Name = info.Name, Path = info.FullName, Size = info.Length });
+            }
+            catch
+            {
+                // Sem acesso ao arquivo.
+            }
+        }
+        return files;
     }
 
     public static void AddDrives(List<FolderItemDto> places)

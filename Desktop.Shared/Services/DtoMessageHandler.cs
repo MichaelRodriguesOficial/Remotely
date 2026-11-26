@@ -117,6 +117,9 @@ public class DtoMessageHandler : IDtoMessageHandler
                 case DtoType.FolderListRequest:
                     await ListFolders(wrapper, viewer);
                     break;
+                case DtoType.DownloadFilesRequest:
+                    await DownloadFilesRequest(wrapper, viewer);
+                    break;
                 case DtoType.WindowsSessions:
                     await GetWindowsSessions(viewer);
                     break;
@@ -173,13 +176,25 @@ public class DtoMessageHandler : IDtoMessageHandler
             return;
         }
 
-        await _fileTransferService.ReceiveFile(dto!.Buffer,
-            dto.FileName,
-            dto.MessageId,
-            dto.EndOfFile,
-            dto.StartOfFile,
-            dto.Destination,
-            viewer);
+        await _fileTransferService.ReceiveFile(dto, viewer);
+    }
+
+    private async Task DownloadFilesRequest(DtoWrapper wrapper, IViewer viewer)
+    {
+        if (!DtoChunker.TryComplete<FileListDto>(wrapper, out var dto))
+        {
+            return;
+        }
+
+        var paths = dto.Files.Select(x => x.Path).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+        if (paths.Count == 0)
+        {
+            return;
+        }
+
+        // Não segura as outras mensagens (mouse, teclado) enquanto envia.
+        _ = Task.Run(() => _fileTransferService.SendFilesToViewer(paths, viewer));
+        await Task.CompletedTask;
     }
 
     private async Task ListFolders(DtoWrapper wrapper, IViewer viewer)
@@ -192,7 +207,7 @@ public class DtoMessageHandler : IDtoMessageHandler
         FolderListDto listing;
         try
         {
-            listing = _fileTransferService.ListFolders(dto.Path);
+            listing = _fileTransferService.ListFolders(dto.Path, dto.IncludeFiles);
         }
         catch (Exception ex)
         {

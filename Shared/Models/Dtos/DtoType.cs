@@ -60,5 +60,11 @@ public enum DtoType
     FolderList = 30,
     /// <summary>O computador avisa onde salvou um arquivo enviado pelo visualizador.</summary>
     [EnumMember]
-    FileSaved = 31
+    FileSaved = 31,
+    /// <summary>O usuário copiou arquivos no computador remoto (o técnico pode baixar).</summary>
+    [EnumMember]
+    ClipboardFiles = 32,
+    /// <summary>Visualizador pede arquivos do computador remoto.</summary>
+    [EnumMember]
+    DownloadFilesRequest = 33
 }

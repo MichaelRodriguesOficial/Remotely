@@ -60,7 +60,18 @@ public static class UserShellFolders
     public static string? GetFolderAtPoint(int x, int y)
     {
         Win32Interop.SwitchToInputDesktop();
-        var hwnd = WindowFromPoint(new POINT { X = x, Y = y });
+        return GetFolderOfWindow(WindowFromPoint(new POINT { X = x, Y = y }));
+    }
+
+    /// <summary>Pasta da janela em primeiro plano (para Ctrl+V de arquivos no visualizador).</summary>
+    public static string? GetFolderOfForegroundWindow()
+    {
+        Win32Interop.SwitchToInputDesktop();
+        return GetFolderOfWindow(GetForegroundWindow());
+    }
+
+    private static string? GetFolderOfWindow(nint hwnd)
+    {
         if (hwnd == 0)
         {
             return null;
@@ -239,6 +250,9 @@ public static class UserShellFolders
 
     [DllImport("user32.dll")]
     private static extern nint WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern nint GetForegroundWindow();
 
     [DllImport("user32.dll")]
     private static extern nint GetAncestor(nint hwnd, uint flags);

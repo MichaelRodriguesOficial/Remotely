@@ -67,13 +67,34 @@ export class FileDto {
     EndOfFile: boolean;
     StartOfFile: boolean;
     Destination: string;
+    FileSize?: number;
+    BatchId?: string;
+    BatchTotalBytes?: number;
+    BatchFileCount?: number;
+    Canceled?: boolean;
+}
+
+export interface FileItemDto {
+    Name: string;
+    Path: string;
+    Size: number;
+    Modified?: string;
+}
+
+export class FileListDto {
+    constructor(files: FileItemDto[]) {
+        this.Files = files;
+    }
+    Files: FileItemDto[];
 }
 
 export class FolderListRequestDto {
-    constructor(path: string) {
+    constructor(path: string, includeFiles = false) {
         this.Path = path || "";
+        this.IncludeFiles = includeFiles;
     }
     Path: string;
+    IncludeFiles: boolean;
 }
 
 export interface FolderItemDto {
@@ -87,6 +108,7 @@ export interface FolderListDto {
     ParentPath?: string;
     Folders: FolderItemDto[];
     Places: FolderItemDto[];
+    Files?: FileItemDto[];
     Error?: string;
 }
 
@@ -95,6 +117,8 @@ export interface FileSavedDto {
     FullPath: string;
     Success: boolean;
     Message?: string;
+    Canceled?: boolean;
+    BatchId?: string;
 }
 
 export class KeyDownDto {

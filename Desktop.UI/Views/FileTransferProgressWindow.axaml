@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Remotely.Desktop.UI.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="380" d:DesignHeight="260"
+        x:Class="Remotely.Desktop.UI.Views.FileTransferProgressWindow"
+        x:DataType="vm:FileTransferProgressViewModel"
+        Title="Transferência de arquivos"
+        WindowStartupLocation="Manual"
+        SystemDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        CanResize="False"
+        ShowInTaskbar="True"
+        Topmost="True"
+        SizeToContent="WidthAndHeight">
+
+  <Border Background="#FFFFFF"
+          BorderBrush="#C7D2FE"
+          BorderThickness="1"
+          CornerRadius="12"
+          Padding="16,14"
+          Width="360"
+          Margin="8"
+          BoxShadow="0 8 24 0 #33111827">
+    <StackPanel Spacing="10">
+      <Grid ColumnDefinitions="Auto,12,*">
+        <Border Grid.Column="0" Width="36" Height="36" CornerRadius="18" Background="#E0E7FF" VerticalAlignment="Top">
+          <Path Data="M 6,0 L 6,9 M 2,5 L 6,9 L 10,5 M 0,12 L 12,12"
+                Stroke="#4F46E5" StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center">
+          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" Foreground="#111827" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#4B5563" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+
+      <ScrollViewer MaxHeight="132" VerticalScrollBarVisibility="Auto">
+        <ItemsControl ItemsSource="{Binding Files}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:FileTransferProgressItem">
+              <Grid ColumnDefinitions="*,8,Auto" Margin="0,2">
+                <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12.5" Foreground="#1F2937" TextTrimming="CharacterEllipsis" />
+                <TextBlock Grid.Column="2" FontSize="11.5" Foreground="#6B7280">
+                  <Run Text="{Binding SizeText}" />
+                  <Run Text=" · " />
+                  <Run Text="{Binding StatusText}" />
+                </TextBlock>
+              </Grid>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+
+      <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" Height="6" MinHeight="6"
+                   Foreground="#4F46E5" Background="#E5E7EB" CornerRadius="3" />
+      <TextBlock Text="{Binding DetailText}" FontSize="12" Foreground="#4B5563" TextWrapping="Wrap" />
+
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+        <Button Classes="Ghost" Content="Cancelar" Command="{Binding CancelCommand}" IsVisible="{Binding IsRunning}"
+                IsEnabled="{Binding !IsCanceling}" />
+        <Button Classes="Ghost" Content="Fechar" Command="{Binding CloseCommand}" IsVisible="{Binding IsFinished}" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

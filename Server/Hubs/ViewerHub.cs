@@ -308,7 +308,8 @@ public class ViewerHub : Hub<IViewerHubClient>
             DtoType.MouseWheel or DtoType.KeyDown or DtoType.KeyUp or DtoType.KeyPress or
             DtoType.SetKeyStatesUp => permissions.Input && !viewOnly,
             DtoType.ClipboardText or DtoType.TextTransfer => permissions.Clipboard && permissions.Input && !viewOnly,
-            DtoType.File or DtoType.OpenFileTransferWindow or DtoType.FolderListRequest => permissions.Files,
+            DtoType.File or DtoType.OpenFileTransferWindow or DtoType.FolderListRequest or
+            DtoType.DownloadFilesRequest => permissions.Files,
             DtoType.CtrlAltDel or DtoType.ToggleBlockInput => permissions.SystemActions && permissions.Input && !viewOnly,
             _ => true
         };

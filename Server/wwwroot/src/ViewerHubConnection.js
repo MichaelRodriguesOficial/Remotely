@@ -102,6 +102,7 @@ export class ViewerHubConnection {
             ViewerApp.ClipboardWatcher.WatchClipboard();
         }
         hide(UI.ClipboardSyncButton, options.AllowClipboard === false || noInput);
+        hide(UI.TypeClipboardButton, noInput);
         hide(UI.RestartButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended);
         hide(UI.RestartSafeButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended ||
             !(options.DevicePlatform || "").toLowerCase().includes("windows"));
@@ -185,6 +186,12 @@ export class ViewerHubConnection {
         if (!result.IsSuccess) {
             ViewerApp.IsWaitingForRestart = false;
             UI.HideWaitOverlay();
+            // Recusado ou sem resposta: guarda o computador para o "Reconectar".
+            try {
+                const options = await this.Connection.invoke("GetViewerOptions");
+                ViewerApp.DeviceId = (options === null || options === void 0 ? void 0 : options.DeviceId) || ViewerApp.DeviceId;
+            }
+            catch (_a) { }
             this.Connection.stop();
             UI.SetStatusMessage(result.Reason);
             return;
@@ -284,6 +291,12 @@ export class ViewerHubConnection {
             UI.UpdateCursor(cursor.ImageBytes, cursor.HotSpot.X, cursor.HotSpot.Y, cursor.CssOverride);
         });
         hubConnection.on("ShowMessage", (message) => {
+            const consent = /aceita sozinho em (\d+) s/.exec(message || "");
+            if (consent) {
+                UI.StartConsentCountdown(Number(consent[1]));
+                return;
+            }
+            UI.StopConsentCountdown();
             if (ViewerApp.IsWaitingForRestart) {
                 UI.ShowWaitOverlay("Reiniciando o computador", message);
                 return;
