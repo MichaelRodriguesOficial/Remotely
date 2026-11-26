@@ -65,6 +65,9 @@ public interface ICircuitConnection
     /// <summary>Reinicia ou desliga os dispositivos online (ação "restart" ou "shutdown"). Devolve quantos receberam o comando.</summary>
     Task<Result<int>> PowerAction(string[] deviceIds, string action, int delaySeconds);
 
+    /// <summary>Eventos do Windows (ou journal do Linux) de um dispositivo online, para a aba Eventos.</summary>
+    Task<Result<DeviceEventResult>> GetEventLog(string deviceId, DeviceEventQuery query);
+
     Task UninstallAgents(string[] deviceIDs);
     Task UpdateTags(string deviceID, string tags);
 
@@ -721,6 +724,36 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
             User?.UserName);
 
         return Result.Ok(sent.Count);
+    }
+
+    public async Task<Result<DeviceEventResult>> GetEventLog(string deviceId, DeviceEventQuery query)
+    {
+        if (!HasPermission(AccessPermission.ManageDevices) && !HasPermission(AccessPermission.Repairs))
+        {
+            return Result.Fail<DeviceEventResult>("Seu perfil não permite ver os eventos do computador.");
+        }
+
+        var (canAccess, connectionId) = CanAccessDevice(deviceId);
+        if (!canAccess)
+        {
+            return Result.Fail<DeviceEventResult>("Dispositivo offline ou sem acesso.");
+        }
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            var result = await _agentHubContext.Clients.Client(connectionId).GetEventLog(query.Normalize(), cts.Token);
+            return Result.Ok(result ?? new DeviceEventResult { Error = "O agente não respondeu." });
+        }
+        catch (OperationCanceledException)
+        {
+            return Result.Fail<DeviceEventResult>("O computador demorou demais para responder. Diminua o período ou use a busca.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error while reading the event log of device {deviceId}.", deviceId);
+            return Result.Fail<DeviceEventResult>("Não foi possível ler os eventos. O agente pode estar numa versão antiga: atualize-o.");
+        }
     }
 
     private static string ActiveRunMessage(DeviceDiagnosticRun active) =>

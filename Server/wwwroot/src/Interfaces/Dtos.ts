@@ -50,8 +50,10 @@ export class FileDto {
         fileName: string,
         messageId: string,
         endOfFile: boolean,
-        startOfFile: boolean) {
+        startOfFile: boolean,
+        destination: string = null) {
 
+        this.Destination = destination;
         this.Buffer = buffer;
         this.FileName = fileName;
         this.MessageId = messageId;
@@ -64,6 +66,35 @@ export class FileDto {
     MessageId: string;
     EndOfFile: boolean;
     StartOfFile: boolean;
+    Destination: string;
+}
+
+export class FolderListRequestDto {
+    constructor(path: string) {
+        this.Path = path || "";
+    }
+    Path: string;
+}
+
+export interface FolderItemDto {
+    Name: string;
+    Path: string;
+    Kind: string;
+}
+
+export interface FolderListDto {
+    Path: string;
+    ParentPath?: string;
+    Folders: FolderItemDto[];
+    Places: FolderItemDto[];
+    Error?: string;
+}
+
+export interface FileSavedDto {
+    FileName: string;
+    FullPath: string;
+    Success: boolean;
+    Message?: string;
 }
 
 export class KeyDownDto {
@@ -143,6 +174,7 @@ export interface RemoteControlViewerOptions {
     IdleTimeoutMinutes?: number;
     DeviceId?: string;
     DeviceName?: string;
+    DevicePlatform?: string;
 }
 
 export interface ScreenDataDto {

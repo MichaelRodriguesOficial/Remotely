@@ -252,7 +252,7 @@ public class MainViewViewModel : BrandedViewModelBase, IMainViewViewModel
             serverUri.Scheme != Uri.UriSchemeHttp && serverUri.Scheme != Uri.UriSchemeHttps)
         {
             _logger.LogWarning("Server URL is not valid.");
-            await _dialogProvider.Show("Server URL must be a valid Uri (e.g. https://example.com).", "Invalid Server URL", MessageBoxType.OK);
+            await _dialogProvider.Show("O endereço do servidor precisa ser uma URL válida (ex.: https://suporte.empresa.com.br).", "Endereço inválido", MessageBoxType.OK);
             return;
         }
 

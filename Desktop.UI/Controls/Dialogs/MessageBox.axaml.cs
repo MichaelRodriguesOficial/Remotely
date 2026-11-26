@@ -11,6 +11,14 @@ public partial class MessageBox : Window
     public MessageBox()
     {
         InitializeComponent();
+        // Sem barra de título: arrasta pelo próprio cartão.
+        PointerPressed += (_, e) =>
+        {
+            if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            {
+                BeginMoveDrag(e);
+            }
+        };
     }
 
     public static async Task<MessageBoxResult> Show(string message, string caption, MessageBoxType type)

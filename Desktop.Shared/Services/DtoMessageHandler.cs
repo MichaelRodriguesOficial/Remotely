@@ -112,7 +112,10 @@ public class DtoMessageHandler : IDtoMessageHandler
                     await KeyPress(wrapper);
                     break;
                 case DtoType.File:
-                    await DownloadFile(wrapper);
+                    await DownloadFile(wrapper, viewer);
+                    break;
+                case DtoType.FolderListRequest:
+                    await ListFolders(wrapper, viewer);
                     break;
                 case DtoType.WindowsSessions:
                     await GetWindowsSessions(viewer);
@@ -163,7 +166,7 @@ public class DtoMessageHandler : IDtoMessageHandler
         }
     }
 
-    private async Task DownloadFile(DtoWrapper wrapper)
+    private async Task DownloadFile(DtoWrapper wrapper, IViewer viewer)
     {
         if (!DtoChunker.TryComplete<FileDto>(wrapper, out var dto))
         {
@@ -174,7 +177,29 @@ public class DtoMessageHandler : IDtoMessageHandler
             dto.FileName,
             dto.MessageId,
             dto.EndOfFile,
-            dto.StartOfFile);
+            dto.StartOfFile,
+            dto.Destination,
+            viewer);
+    }
+
+    private async Task ListFolders(DtoWrapper wrapper, IViewer viewer)
+    {
+        if (!DtoChunker.TryComplete<FolderListRequestDto>(wrapper, out var dto))
+        {
+            return;
+        }
+
+        FolderListDto listing;
+        try
+        {
+            listing = _fileTransferService.ListFolders(dto.Path);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error while listing folders.");
+            listing = new FolderListDto { Path = dto.Path, Error = "Não foi possível abrir esta pasta." };
+        }
+        await viewer.SendDto(listing, DtoType.FolderList);
     }
 
     private async Task GetWindowsSessions(IViewer viewer)

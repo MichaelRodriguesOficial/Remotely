@@ -222,7 +222,11 @@ public class ViewerHub : Hub<IViewerHubClient>
                 !string.IsNullOrWhiteSpace(SessionInfo.DeviceId)
                     ? SessionInfo.DeviceId
                     : null,
-            DeviceName = string.IsNullOrWhiteSpace(SessionInfo.MachineName) ? null : SessionInfo.MachineName
+            DeviceName = string.IsNullOrWhiteSpace(SessionInfo.MachineName) ? null : SessionInfo.MachineName,
+            DevicePlatform = !string.IsNullOrWhiteSpace(SessionInfo.DeviceId) &&
+                _agentCache.TryGetByDeviceId(SessionInfo.DeviceId, out var sessionDevice)
+                    ? sessionDevice.Platform
+                    : null
         };
     }
 
@@ -230,8 +234,9 @@ public class ViewerHub : Hub<IViewerHubClient>
     /// "Reiniciar e voltar": reinicia o computador sem encerrar a sessão. Quando o agente volta,
     /// o servidor reabre a tela remota (AgentHub.CheckForPendingRemoteControlSessions) e o visualizador reconecta.
     /// </summary>
-    public async Task<Result> RestartDevice()
+    public async Task<Result> RestartDevice(string? mode)
     {
+        var safeMode = string.Equals(mode, "safe", StringComparison.OrdinalIgnoreCase);
         var session = SessionInfo;
         if (session.Mode != RemoteControlMode.Unattended || string.IsNullOrWhiteSpace(session.DeviceId))
         {
@@ -253,6 +258,13 @@ public class ViewerHub : Hub<IViewerHubClient>
             return Result.Fail("O agente do computador não está conectado.");
         }
 
+        if (safeMode &&
+            (!_agentCache.TryGetByDeviceId(session.DeviceId, out var device) ||
+             device.Platform?.Contains("Windows", StringComparison.OrdinalIgnoreCase) != true))
+        {
+            return Result.Fail("O modo de segurança só existe no Windows.");
+        }
+
         // Desconexão esperada: a sessão fica guardada até o agente voltar, sem tentar reabrir antes.
         session.StreamerState = StreamerState.WindowsShuttingDown | StreamerState.DisconnectExpected;
         session.AgentConnectionId = agentConnectionId;
@@ -260,12 +272,13 @@ public class ViewerHub : Hub<IViewerHubClient>
         Context.Items.Remove(IdleWarnedKey);
 
         _logger.LogInformation(
-            "Restart requested from remote control. Device: {deviceId}. User: {user}. Viewer: {connectionId}.",
+            "Restart ({mode}) requested from remote control. Device: {deviceId}. User: {user}. Viewer: {connectionId}.",
+            safeMode ? "safe mode" : "normal",
             session.DeviceId,
             Context.User?.Identity?.Name,
             Context.ConnectionId);
 
-        await _agentHub.Clients.Client(agentConnectionId).PowerAction("restart", 0);
+        await _agentHub.Clients.Client(agentConnectionId).PowerAction(safeMode ? "restart-safe" : "restart", 0);
 
         var others = session.ViewerList.Where(x => x != Context.ConnectionId).ToList();
         if (others.Count > 0)
@@ -295,7 +308,7 @@ public class ViewerHub : Hub<IViewerHubClient>
             DtoType.MouseWheel or DtoType.KeyDown or DtoType.KeyUp or DtoType.KeyPress or
             DtoType.SetKeyStatesUp => permissions.Input && !viewOnly,
             DtoType.ClipboardText or DtoType.TextTransfer => permissions.Clipboard && permissions.Input && !viewOnly,
-            DtoType.File or DtoType.OpenFileTransferWindow => permissions.Files,
+            DtoType.File or DtoType.OpenFileTransferWindow or DtoType.FolderListRequest => permissions.Files,
             DtoType.CtrlAltDel or DtoType.ToggleBlockInput => permissions.SystemActions && permissions.Input && !viewOnly,
             _ => true
         };

@@ -37,6 +37,8 @@ public interface IViewer : IDisposable
     Task SendScreenSize(int width, int height);
     Task SendSessionMetrics(SessionMetricsDto metrics);
     Task SendWindowsSessions();
+    /// <summary>Envia um DTO qualquer a este visualizador (ex.: lista de pastas, arquivo salvo).</summary>
+    Task SendDto<T>(T dto, DtoType type);
     void SetLastFrameReceived(DateTimeOffset timestamp);
     Task<bool> WaitForViewer();
 }
@@ -253,6 +255,11 @@ public class Viewer : IViewer
     public async Task SendSessionMetrics(SessionMetricsDto metrics)
     {
         await TrySendToViewer(metrics, DtoType.SessionMetrics, ViewerConnectionId);
+    }
+
+    public Task SendDto<T>(T dto, DtoType type)
+    {
+        return TrySendToViewer(dto, type, ViewerConnectionId);
     }
 
     public async Task SendWindowsSessions()

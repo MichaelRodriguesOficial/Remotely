@@ -1,8 +1,9 @@
-import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
+import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, PromptText, RestartSafeButton, SessionEndedClose, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
 import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
 import { ViewerApp } from "./App.js";
 import { UploadFiles } from "./FileTransferService.js";
+import { PickFolderAndUpload } from "./FolderPicker.js";
 import { RemoteControlMode } from "./Enums/RemoteControlMode.js";
 import { GetDistanceBetween } from "./Utilities.js";
 import { ShowToast } from "./UI.js";
@@ -69,13 +70,22 @@ export function ApplyInputHandlers() {
         ViewerApp.ViewOnlyMode = ViewOnlyButton.classList.contains("toggled");
     });
     TypeClipboardButton.addEventListener("click", async (ev) => {
+        var _a;
         CloseAllPopupMenus(null);
         if (ViewerApp.ViewOnlyMode) {
             ShowToast("O modo somente visualização está ativado.");
             return;
         }
-        const text = await ReadClipboardText();
-        if (text == null) {
+        // Já vem com o texto copiado, quando o navegador deixa ler.
+        let initial = "";
+        try {
+            if (window.isSecureContext && ((_a = navigator.clipboard) === null || _a === void 0 ? void 0 : _a.readText)) {
+                initial = await navigator.clipboard.readText();
+            }
+        }
+        catch (_b) { }
+        const text = await PromptText("Digitar texto no computador remoto", "O texto é digitado tecla por tecla onde estiver o cursor lá. Use onde colar não funciona: tela de login do Windows, janela de administrador (UAC), chave do BitLocker, programas que bloqueiam Ctrl+V.", "Clique antes no campo de destino na tela remota. Ctrl+Enter digita.", "Digitar", initial);
+        if (!text) {
             return;
         }
         await ViewerApp.MessageSender.SendTextTransfer(text, true);
@@ -98,11 +108,13 @@ export function ApplyInputHandlers() {
     DisconnectButton.addEventListener("click", (ev) => {
         ConnectButton.removeAttribute("disabled");
         ConnectButton.innerText = "Conectar";
-        SetStatusMessage("Conexão encerrada.");
+        SetStatusMessage("Sessão encerrada por você.");
+        ViewerApp.EndedByTechnician = true;
         ViewerApp.ViewerHubConnection.Connection.stop();
-        if (location.search.includes("fromApi=true")) {
-            window.close();
-        }
+    });
+    SessionEndedClose.addEventListener("click", () => {
+        window.close();
+        window.setTimeout(() => ShowToast("O navegador não deixou fechar esta aba. Feche pelo X da aba."), 300);
     });
     [SessionIDInput, RequesterNameInput].forEach((x) => {
         x.addEventListener("keypress", (ev) => {
@@ -154,7 +166,8 @@ export function ApplyInputHandlers() {
         }, { once: true });
     });
     FileUploadButtton.addEventListener("click", (ev) => {
-        FileTransferInput.click();
+        CloseAllPopupMenus(null);
+        PickFolderAndUpload();
     });
     FileDownloadButton.addEventListener("click", async (ev) => {
         if (ViewerApp.ViewOnlyMode) {
@@ -164,7 +177,9 @@ export function ApplyInputHandlers() {
         await ViewerApp.MessageSender.SendOpenFileTransferWindow();
     });
     FileTransferInput.addEventListener("change", (ev) => {
-        UploadFiles(FileTransferInput.files);
+        const destination = ViewerApp.PendingUploadDestination;
+        ViewerApp.PendingUploadDestination = null;
+        UploadFiles(FileTransferInput.files, destination);
     });
     FitToScreenButton.addEventListener("click", (ev) => {
         FitToScreenButton.classList.toggle("toggled");
@@ -272,13 +287,21 @@ export function ApplyInputHandlers() {
         if (!confirmed) {
             return;
         }
-        const result = await ViewerApp.ViewerHubConnection.RestartDevice();
-        if (!(result === null || result === void 0 ? void 0 : result.IsSuccess)) {
-            ShowToast((result === null || result === void 0 ? void 0 : result.Reason) || "Não foi possível reiniciar o computador.");
+        await RestartRemote("normal");
+    });
+    RestartSafeButton.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        CloseAllPopupMenus(null);
+        if (ViewerApp.ViewOnlyMode) {
+            ShowToast("O modo somente visualização está ativado.");
             return;
         }
-        ViewerApp.IsWaitingForRestart = true;
-        ShowWaitOverlay("Reiniciando o computador", "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");
+        const confirmed = await Confirm("Reiniciar em modo de segurança?", "O computador reinicia em modo de segurança com rede, só desta vez, e esta janela reconecta sozinha. " +
+            "Para voltar ao Windows normal, use \"Reiniciar e voltar\" quando terminar a manutenção.", "Reiniciar em modo de segurança");
+        if (!confirmed) {
+            return;
+        }
+        await RestartRemote("safe");
     });
     WaitOverlayCancel.addEventListener("click", () => {
         HideWaitOverlay();
@@ -659,7 +682,17 @@ export function ApplyInputHandlers() {
         if (e.dataTransfer.files.length < 1) {
             return;
         }
-        UploadFiles(e.dataTransfer.files);
+        // Solto sobre a tela remota: salva na pasta (ou Área de Trabalho) que está sob o ponto.
+        const rect = ScreenViewer.getBoundingClientRect();
+        let destination = null;
+        if (rect.width > 0 && rect.height > 0 &&
+            e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            destination = `drop:${x.toFixed(4)};${y.toFixed(4)}`;
+        }
+        UploadFiles(e.dataTransfer.files, destination);
     };
 }
 function resetTouchState() {
@@ -718,5 +751,14 @@ export function ToggleSidePanel(show) {
     if (!show) {
         (_a = ScreenViewer.focus) === null || _a === void 0 ? void 0 : _a.call(ScreenViewer);
     }
+}
+async function RestartRemote(mode) {
+    const result = await ViewerApp.ViewerHubConnection.RestartDevice(mode);
+    if (!(result === null || result === void 0 ? void 0 : result.IsSuccess)) {
+        ShowToast((result === null || result === void 0 ? void 0 : result.Reason) || "Não foi possível reiniciar o computador.");
+        return;
+    }
+    ViewerApp.IsWaitingForRestart = true;
+    ShowWaitOverlay(mode == "safe" ? "Reiniciando em modo de segurança" : "Reiniciando o computador", "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");
 }
 //# sourceMappingURL=InputEventHandlers.js.map

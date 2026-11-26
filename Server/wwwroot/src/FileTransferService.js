@@ -2,7 +2,11 @@ import { FileTransferProgress, FileTransferInput, FileTransferNameSpan } from ".
 import { ViewerApp } from "./App.js";
 import { ShowToast } from "./UI.js";
 const PartialDownloads = {};
-export async function UploadFiles(fileList) {
+/**
+ * Envia arquivos ao computador remoto. destination: "drop:x;y" (soltos na tela: a pasta sob o ponto),
+ * "path:C:\\pasta" (escolhida no visualizador) ou vazio (Área de Trabalho do usuário).
+ */
+export async function UploadFiles(fileList, destination = null) {
     if (!FileTransferProgress.parentElement.hasAttribute("hidden")) {
         FileTransferInput.value = null;
         ShowToast("Já há uma transferência de arquivo em andamento.");
@@ -15,9 +19,8 @@ export async function UploadFiles(fileList) {
         for (var i = 0; i < fileList.length; i++) {
             FileTransferNameSpan.textContent = fileList[i].name;
             var buffer = await fileList[i].arrayBuffer();
-            await ViewerApp.MessageSender.SendFile(new Uint8Array(buffer), fileList[i].name);
+            await ViewerApp.MessageSender.SendFile(new Uint8Array(buffer), fileList[i].name, destination);
         }
-        ShowToast("Envio do arquivo concluído.");
     }
     catch (_a) {
         ShowToast("Falha no envio do arquivo.");
@@ -50,6 +53,15 @@ export async function ReceiveFile(file) {
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
         }, 100);
+    }
+}
+/** O computador avisou onde salvou. */
+export function HandleFileSaved(dto) {
+    if (dto.Success) {
+        ShowToast(`${dto.FileName} salvo em ${dto.FullPath}`, 9000);
+    }
+    else {
+        ShowToast(dto.Message || `Não foi possível salvar ${dto.FileName}.`);
     }
 }
 //# sourceMappingURL=FileTransferService.js.map

@@ -10,9 +10,20 @@ namespace Remotely.Desktop.UI.Services;
 /// </summary>
 public static class WindowPlacement
 {
-    public static void KeepBottomRight(Window window, int margin = 12)
+    /// <summary>Controle do posicionamento de uma janela.</summary>
+    public sealed class Anchor
     {
+        internal Action<bool>? ResetAction { get; set; }
+
+        /// <summary>Volta ao canto (mesmo que o usuário tenha arrastado). flushRight: colada na borda direita.</summary>
+        public void Reset(bool flushRight = false) => ResetAction?.Invoke(flushRight);
+    }
+
+    public static Anchor KeepBottomRight(Window window, int margin = 12)
+    {
+        var anchor = new Anchor();
         var userMoved = false;
+        var flush = false;
 
         void Place()
         {
@@ -40,9 +51,18 @@ public static class WindowPlacement
             var gap = (int)Math.Round(margin * scaling);
 
             window.Position = new PixelPoint(
-                Math.Max(area.X, area.Right - width - gap),
+                Math.Max(area.X, area.Right - width - (flush ? 0 : gap)),
                 Math.Max(area.Y, area.Bottom - height - gap));
         }
+
+        anchor.ResetAction = flushRight =>
+        {
+            userMoved = false;
+            flush = flushRight;
+            Place();
+            // O tamanho muda depois do layout (SizeToContent): posiciona de novo.
+            Avalonia.Threading.Dispatcher.UIThread.Post(Place, Avalonia.Threading.DispatcherPriority.Background);
+        };
 
         window.Opened += (_, _) =>
         {
@@ -58,5 +78,7 @@ public static class WindowPlacement
                 userMoved = true;
             }
         };
+
+        return anchor;
     }
 }

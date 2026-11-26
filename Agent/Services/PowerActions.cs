@@ -9,6 +9,20 @@ internal static class PowerActions
 {
     public static (bool Success, string Output) Execute(string action, int delaySeconds)
     {
+        if (action == RestartSafeMode)
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                return (false, "Modo de segurança só existe no Windows.");
+            }
+            var (prepared, prepareOutput) = PrepareSafeBoot();
+            if (!prepared)
+            {
+                return (false, prepareOutput);
+            }
+            action = "restart";
+        }
+
         var restart = action == "restart";
         if (!restart && action != "shutdown")
         {
@@ -51,6 +65,102 @@ internal static class PowerActions
             psi.RedirectStandardOutput = true;
             psi.RedirectStandardError = true;
 
+            using var process = Process.Start(psi);
+            if (process is null)
+            {
+                return (false, "Não foi possível iniciar o comando.");
+            }
+            var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            process.WaitForExit(15_000);
+            return (process.ExitCode == 0, output.Trim());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>Reiniciar em modo de segurança com rede (só Windows), pedido no visualizador.</summary>
+    public const string RestartSafeMode = "restart-safe";
+
+    private const string ServiceName = "Remotely_Service";
+    private static string SafeBootMarker => Path.Combine(AppContext.BaseDirectory, "safeboot.pending");
+
+    private static string SystemTool(string exe) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+        Environment.Is64BitOperatingSystem && !Environment.Is64BitProcess ? "Sysnative" : "System32",
+        exe);
+
+    /// <summary>
+    /// Liga o agente no modo de segurança com rede (chave SafeBoot\Network) e marca o próximo boot
+    /// como modo de segurança. A marca é retirada pelo agente assim que ele inicia (<see cref="ClearPendingSafeBoot"/>),
+    /// então só um reinício cai no modo de segurança: o seguinte já volta ao normal.
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static (bool Success, string Output) PrepareSafeBoot()
+    {
+        try
+        {
+            using (var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey(
+                $@"SYSTEM\CurrentControlSet\Control\SafeBoot\Network\{ServiceName}"))
+            {
+                key.SetValue(string.Empty, "Service");
+            }
+
+            var (ok, output) = RunTool(SystemTool("bcdedit.exe"), "/set", "{current}", "safeboot", "network");
+            if (!ok)
+            {
+                return (false, $"bcdedit falhou: {output}");
+            }
+
+            File.WriteAllText(SafeBootMarker, DateTimeOffset.Now.ToString("O"));
+            return (true, output);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    /// <summary>Chamado na inicialização do agente: desfaz o modo de segurança agendado pelo painel.</summary>
+    public static void ClearPendingSafeBoot(Microsoft.Extensions.Logging.ILogger logger)
+    {
+        if (!OperatingSystem.IsWindows() || !File.Exists(SafeBootMarker))
+        {
+            return;
+        }
+
+        var (ok, output) = RunTool(SystemTool("bcdedit.exe"), "/deletevalue", "{current}", "safeboot");
+        Microsoft.Extensions.Logging.LoggerExtensions.LogInformation(logger,
+            "Safe boot flag removed after restart in safe mode. Success: {success}. {output}", ok, output);
+        if (ok || output.Contains("not found", StringComparison.OrdinalIgnoreCase) || output.Contains("não", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                File.Delete(SafeBootMarker);
+            }
+            catch
+            {
+                // Tenta de novo no próximo início.
+            }
+        }
+    }
+
+    private static (bool Success, string Output) RunTool(string file, params string[] args)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo(file)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var arg in args)
+            {
+                psi.ArgumentList.Add(arg);
+            }
             using var process = Process.Start(psi);
             if (process is null)
             {

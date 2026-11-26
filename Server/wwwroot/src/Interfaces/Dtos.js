@@ -11,12 +11,18 @@ export class TextTransferDto {
 export class CtrlAltDelDto {
 }
 export class FileDto {
-    constructor(buffer, fileName, messageId, endOfFile, startOfFile) {
+    constructor(buffer, fileName, messageId, endOfFile, startOfFile, destination = null) {
+        this.Destination = destination;
         this.Buffer = buffer;
         this.FileName = fileName;
         this.MessageId = messageId;
         this.EndOfFile = endOfFile;
         this.StartOfFile = startOfFile;
+    }
+}
+export class FolderListRequestDto {
+    constructor(path) {
+        this.Path = path || "";
     }
 }
 export class KeyDownDto {

@@ -106,8 +106,14 @@ public interface IAgentHubClient
     /// <summary>Interrompe o diagnóstico/reparo em andamento e desfaz um teste de memória agendado.</summary>
     Task CancelDiagnostics();
 
-    /// <summary>Reinicia ("restart") ou desliga ("shutdown") o computador com aviso ao usuário.</summary>
+    /// <summary>
+    /// Reinicia ("restart"), desliga ("shutdown") ou reinicia em modo de segurança com rede ("restart-safe")
+    /// o computador com aviso ao usuário.
+    /// </summary>
     Task PowerAction(string action, int delaySeconds);
+
+    /// <summary>Eventos do Windows (ou do journal no Linux) para a aba Eventos. Resultado direto do agente.</summary>
+    Task<Remotely.Shared.Models.DeviceEventResult> GetEventLog(Remotely.Shared.Models.DeviceEventQuery query, CancellationToken cancellationToken);
 
     Task WakeDevice(string macAddress);
 }

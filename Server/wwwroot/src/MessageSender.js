@@ -1,5 +1,5 @@
 import { ViewerApp } from "./App.js";
-import { CtrlAltDelDto, KeyDownDto, KeyPressDto, KeyUpDto, MouseDownDto, MouseMoveDto, MouseUpDto, MouseWheelDto, SelectScreenDto, TapDto, ToggleAudioDto, ToggleBlockInputDto, TextTransferDto, FileDto, WindowsSessionsDto, EmptyDto, FrameReceivedDto } from "./Interfaces/Dtos.js";
+import { CtrlAltDelDto, KeyDownDto, KeyPressDto, KeyUpDto, MouseDownDto, MouseMoveDto, MouseUpDto, MouseWheelDto, SelectScreenDto, TapDto, ToggleAudioDto, ToggleBlockInputDto, TextTransferDto, FileDto, WindowsSessionsDto, EmptyDto, FrameReceivedDto, FolderListRequestDto } from "./Interfaces/Dtos.js";
 import { CreateGUID } from "./Utilities.js";
 import { FileTransferProgress } from "./UI.js";
 import { DtoType } from "./Enums/DtoType.js";
@@ -67,9 +67,9 @@ export class MessageSender {
         var dto = new EmptyDto();
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.OpenFileTransferWindow);
     }
-    async SendFile(buffer, fileName) {
+    async SendFile(buffer, fileName, destination = null) {
         var messageId = CreateGUID();
-        let dto = new FileDto(null, fileName, messageId, false, true);
+        let dto = new FileDto(null, fileName, messageId, false, true, destination);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.File);
         for (var i = 0; i < buffer.byteLength; i += 50000) {
             let dto = new FileDto(buffer.slice(i, i + 50000), fileName, messageId, false, false);
@@ -89,6 +89,9 @@ export class MessageSender {
     async SendToggleBlockInput(toggleOn) {
         var dto = new ToggleBlockInputDto(toggleOn);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.ToggleBlockInput);
+    }
+    async SendFolderListRequest(path) {
+        await ViewerApp.ViewerHubConnection.SendDtoToClient(new FolderListRequestDto(path), DtoType.FolderListRequest);
     }
     async SendTextTransfer(text, typeText) {
         var dto = new TextTransferDto(text, typeText);

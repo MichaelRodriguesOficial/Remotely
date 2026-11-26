@@ -24,5 +24,8 @@ export var DtoType;
     DtoType[DtoType["FrameReceived"] = 25] = "FrameReceived";
     DtoType[DtoType["OpenFileTransferWindow"] = 27] = "OpenFileTransferWindow";
     DtoType[DtoType["SessionMetrics"] = 28] = "SessionMetrics";
+    DtoType[DtoType["FolderListRequest"] = 29] = "FolderListRequest";
+    DtoType[DtoType["FolderList"] = 30] = "FolderList";
+    DtoType[DtoType["FileSaved"] = 31] = "FileSaved";
 })(DtoType || (DtoType = {}));
 //# sourceMappingURL=DtoType.js.map

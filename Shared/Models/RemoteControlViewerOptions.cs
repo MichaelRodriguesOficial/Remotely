@@ -31,4 +31,8 @@ public class RemoteControlViewerOptions
 
     [DataMember]
     public string? DeviceName { get; init; }
+
+    /// <summary>Windows, Linux... (o modo de segurança só aparece no Windows).</summary>
+    [DataMember]
+    public string? DevicePlatform { get; init; }
 }

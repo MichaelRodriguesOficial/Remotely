@@ -297,9 +297,69 @@ internal static class WindowsDiagnostics
 
         DiskErrors(test, group);
 
-        AddEventCount(test, group, "Eventos críticos (7 dias)", "System",
-            "*[System[(Level=1) and TimeCreated[timediff(@SystemTime) <= 604800000]]]",
-            warnAt: 1, errorAt: 5, null);
+        CriticalEvents(test, group);
+    }
+
+    /// <summary>
+    /// Outros eventos críticos dos últimos 7 dias. Desligamento inesperado (Kernel-Power 41) e tela azul
+    /// já têm linha própria: contá-los de novo aqui deixava o computador em "Atenção" por um único
+    /// desligamento forçado. Um ou dois eventos isolados só informam; a partir de 3 vira atenção.
+    /// </summary>
+    private static void CriticalEvents(DiagnosticTestResult test, string group)
+    {
+        const string label = "Outros eventos críticos (7 dias)";
+        try
+        {
+            var events = new List<(string Source, int Id, DateTime Time)>();
+            var query = new EventLogQuery("System", PathType.LogName,
+                "*[System[(Level=1) and TimeCreated[timediff(@SystemTime) <= 604800000]]]")
+            {
+                ReverseDirection = true
+            };
+            using var reader = new EventLogReader(query);
+            for (var record = reader.ReadEvent(); record is not null && events.Count < 500; record = reader.ReadEvent())
+            {
+                using (record)
+                {
+                    var source = record.ProviderName ?? "?";
+                    var counted =
+                        (source.Equals("Microsoft-Windows-Kernel-Power", StringComparison.OrdinalIgnoreCase) && record.Id == 41) ||
+                        source.Equals("BugCheck", StringComparison.OrdinalIgnoreCase) ||
+                        source.Equals("Microsoft-Windows-WER-SystemErrorReporting", StringComparison.OrdinalIgnoreCase);
+                    if (!counted)
+                    {
+                        events.Add((source.Replace("Microsoft-Windows-", ""), record.Id, record.TimeCreated ?? DateTime.MinValue));
+                    }
+                }
+            }
+
+            if (events.Count == 0)
+            {
+                test.Items.Add(Item(label, "Nenhum", DiagnosticStatus.Ok, group: group));
+                return;
+            }
+
+            var sources = string.Join(", ", events
+                .GroupBy(x => $"{x.Source} {x.Id}")
+                .OrderByDescending(x => x.Count())
+                .Take(3)
+                .Select(x => x.Count() > 1 ? $"{x.Key} ({x.Count()}x)" : x.Key));
+            var status = events.Count >= 10 ? DiagnosticStatus.Error
+                : events.Count >= 3 ? DiagnosticStatus.Warning
+                : DiagnosticStatus.Info;
+            test.Items.Add(Item(
+                label,
+                $"{events.Count} (último em {events.Max(x => x.Time):dd/MM/yyyy HH:mm}): {sources}",
+                status,
+                status == DiagnosticStatus.Info
+                    ? "Evento isolado. Veja os detalhes na aba Eventos; só preocupa se repetir."
+                    : "Eventos críticos repetidos. Veja os detalhes na aba Eventos do dispositivo.",
+                group));
+        }
+        catch (Exception ex)
+        {
+            test.Items.Add(Item(label, $"Não foi possível ler o log ({ex.GetType().Name})", DiagnosticStatus.Info, group: group));
+        }
     }
 
     /// <summary>

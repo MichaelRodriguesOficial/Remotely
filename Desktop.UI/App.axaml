@@ -17,6 +17,87 @@
 			<Setter Property="HorizontalContentAlignment" Value="Center" />
 			<Setter Property="VerticalContentAlignment" Value="Center" />
 		</Style>
+		<!-- Botões dos avisos na tela do usuário (painel, pedido de acesso, mensagens). -->
+		<Style Selector="Button.Primary, Button.Danger, Button.Ghost, Button.SoftDanger, Button.Tab">
+			<Setter Property="CornerRadius" Value="8" />
+			<Setter Property="Padding" Value="14,7" />
+			<Setter Property="FontWeight" Value="SemiBold" />
+			<Setter Property="FontSize" Value="13" />
+			<Setter Property="Cursor" Value="Hand" />
+			<Setter Property="HorizontalContentAlignment" Value="Center" />
+			<Setter Property="VerticalContentAlignment" Value="Center" />
+		</Style>
+		<Style Selector="Button.Primary">
+			<Setter Property="Background" Value="#4F46E5" />
+			<Setter Property="Foreground" Value="White" />
+			<Setter Property="BorderThickness" Value="0" />
+		</Style>
+		<Style Selector="Button.Primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#4338CA" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+		<Style Selector="Button.Primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#3730A3" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+		<Style Selector="Button.Danger">
+			<Setter Property="Background" Value="#DC2626" />
+			<Setter Property="Foreground" Value="White" />
+			<Setter Property="BorderThickness" Value="0" />
+		</Style>
+		<Style Selector="Button.Danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#B91C1C" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+		<Style Selector="Button.Danger:pressed /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#991B1B" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+		<Style Selector="Button.Ghost">
+			<Setter Property="Background" Value="White" />
+			<Setter Property="Foreground" Value="#374151" />
+			<Setter Property="BorderBrush" Value="#D1D5DB" />
+			<Setter Property="BorderThickness" Value="1" />
+		</Style>
+		<Style Selector="Button.Ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#F3F4F6" />
+			<Setter Property="Foreground" Value="#111827" />
+			<Setter Property="BorderBrush" Value="#9CA3AF" />
+		</Style>
+		<Style Selector="Button.SoftDanger">
+			<Setter Property="Background" Value="#FEE2E2" />
+			<Setter Property="Foreground" Value="#991B1B" />
+			<Setter Property="BorderBrush" Value="#FCA5A5" />
+			<Setter Property="BorderThickness" Value="1" />
+		</Style>
+		<Style Selector="Button.SoftDanger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#FECACA" />
+			<Setter Property="Foreground" Value="#7F1D1D" />
+			<Setter Property="BorderBrush" Value="#F87171" />
+		</Style>
+		<Style Selector="Button.Tab">
+			<Setter Property="Background" Value="#4F46E5" />
+			<Setter Property="Foreground" Value="White" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="CornerRadius" Value="12,0,0,12" />
+			<Setter Property="Padding" Value="0" />
+		</Style>
+		<Style Selector="Button.Tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#4338CA" />
+			<Setter Property="Foreground" Value="White" />
+		</Style>
+		<Style Selector="Button.Link">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Foreground" Value="#6B7280" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="Padding" Value="4,4" />
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="Cursor" Value="Hand" />
+		</Style>
+		<Style Selector="Button.Link:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#F3F4F6" />
+			<Setter Property="Foreground" Value="#111827" />
+		</Style>
 		<Style Selector="Button.HyperlinkButton">
 			<Setter Property="Foreground" Value="DodgerBlue"></Setter>
 			<Setter Property="BorderThickness" Value="0"></Setter>

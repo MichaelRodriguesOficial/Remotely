@@ -469,6 +469,7 @@ else
     }
 }
 
+app.UseViewerAssetVersioning();
 ConfigureStaticFiles();
 
 app.UseRouting();

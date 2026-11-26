@@ -74,6 +74,79 @@ export var WaitOverlayTitle = document.getElementById("waitOverlayTitle") as HTM
 export var WaitOverlayText = document.getElementById("waitOverlayText") as HTMLElement;
 export var WaitOverlayTimer = document.getElementById("waitOverlayTimer") as HTMLElement;
 export var WaitOverlayCancel = document.getElementById("waitOverlayCancel") as HTMLButtonElement;
+export var RestartSafeButton = document.getElementById("restartSafeButton") as HTMLButtonElement;
+export var SessionEndedOverlay = document.getElementById("sessionEndedOverlay") as HTMLDivElement;
+export var SessionEndedText = document.getElementById("sessionEndedText") as HTMLElement;
+export var SessionEndedClose = document.getElementById("sessionEndedClose") as HTMLButtonElement;
+
+/** Fim da sessão: fecha a aba se o técnico encerrou; senão (ou se o navegador não deixar) mostra o aviso. */
+export function ShowSessionEnded(reason: string, tryClose: boolean) {
+    if (tryClose) {
+        window.close();
+    }
+    // Se a aba não pôde ser fechada (aberta por um link fora do painel), o aviso aparece.
+    window.setTimeout(() => {
+        if (!SessionEndedOverlay) {
+            return;
+        }
+        SessionEndedText.textContent = reason || "A sessão de controle remoto terminou.";
+        SessionEndedOverlay.classList.remove("d-none");
+        StatusMessage.classList.add("d-none");
+    }, tryClose ? 400 : 0);
+}
+
+/** Janela para escrever ou colar um texto. Retorna null se cancelar. */
+export function PromptText(title: string, message: string, note: string, okText: string, initial: string): Promise<string | null> {
+    return new Promise(resolve => {
+        const backdrop = document.createElement("div");
+        backdrop.className = "modal-confirm";
+        const card = document.createElement("div");
+        card.className = "confirm-card";
+        card.setAttribute("role", "dialog");
+        card.setAttribute("aria-modal", "true");
+        const heading = document.createElement("h3");
+        heading.textContent = title;
+        const body = document.createElement("p");
+        body.textContent = message;
+        const input = document.createElement("textarea");
+        input.value = initial || "";
+        input.spellcheck = false;
+        input.setAttribute("aria-label", title);
+        const hint = document.createElement("div");
+        hint.className = "confirm-note";
+        hint.textContent = note;
+        const actions = document.createElement("div");
+        actions.className = "confirm-actions";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancelar";
+        const ok = document.createElement("button");
+        ok.className = "confirm-ok";
+        ok.textContent = okText;
+        actions.append(cancel, ok);
+        card.append(heading, body, input, hint, actions);
+        backdrop.appendChild(card);
+        document.body.appendChild(backdrop);
+        input.focus();
+        input.select();
+
+        const finish = (value: string | null) => {
+            backdrop.remove();
+            resolve(value);
+        };
+        ok.onclick = () => finish(input.value ? input.value : null);
+        cancel.onclick = () => finish(null);
+        card.onkeydown = ev => {
+            ev.stopPropagation();
+            if (ev.key == "Escape") {
+                finish(null);
+            }
+            else if (ev.key == "Enter" && (ev.ctrlKey || ev.metaKey)) {
+                finish(input.value ? input.value : null);
+            }
+        };
+        card.onkeyup = ev => ev.stopPropagation();
+    });
+}
 
 function FormatElapsed(ms: number): string {
     const total = Math.max(0, Math.floor(ms / 1000));
@@ -247,16 +320,19 @@ export function SetStatusMessage(message: string) {
     StatusMessage.innerText = message;
 }
 
-export function ShowToast(message: string) {
+export function ShowToast(message: string, durationMs: number = 5000) {
     var messageDiv = document.createElement("div");
     messageDiv.classList.add("toast-message");
+    if (durationMs > 5000) {
+        messageDiv.style.animationDelay = `${(durationMs - 3000) / 1000}s`;
+    }
     // Messages can originate from the remote device (e.g. file names),
     // so never render them as HTML.
     messageDiv.textContent = message;
     ToastsWrapper.appendChild(messageDiv);
     window.setTimeout(() => {
         messageDiv.remove();
-    }, 5000);
+    }, Math.max(durationMs, 5000));
 }
 
 

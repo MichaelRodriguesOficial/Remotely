@@ -97,6 +97,11 @@ public class FakeMainViewViewModel : FakeBrandedViewModelBase, IMainViewViewMode
             return Task.CompletedTask;
         }
 
+        public Task SendDto<T>(T dto, Remotely.Shared.Models.Dtos.DtoType type)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task CalculateMetrics()
         {
             return Task.CompletedTask;

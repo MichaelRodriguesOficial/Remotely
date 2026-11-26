@@ -601,3 +601,225 @@ body {
     text-transform: uppercase;
     color: #94a3b8;
 }
+
+/* Sessão encerrada */
+#sessionEndedOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(5, 7, 13, 0.6);
+}
+
+    #sessionEndedOverlay.d-none {
+        display: none !important;
+    }
+
+.wait-spinner.ended {
+    background: rgba(148, 163, 184, 0.16);
+    color: #cbd5e1;
+}
+
+.ended-hint {
+    margin-top: 6px !important;
+    font-size: 12.5px !important;
+}
+
+.ended-actions {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+    .ended-actions a.wait-cancel {
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+.wait-primary {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid #4f46e5;
+    background: #4f46e5;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+    .wait-primary:hover {
+        background: #4338ca;
+        border-color: #4338ca;
+    }
+
+/* Digitar texto */
+.modal-confirm textarea {
+    width: 100%;
+    min-height: 110px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    resize: vertical;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: #0d1320;
+    color: #e2e8f0;
+    font: 13.5px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    outline: none;
+}
+
+    .modal-confirm textarea:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+    }
+
+.modal-confirm .confirm-note {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+/* Escolher a pasta do computador remoto */
+.modal-confirm .confirm-card.folder-picker {
+    width: min(600px, 94vw);
+}
+
+.fp-places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 14px 0 10px;
+}
+
+.fp-place {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 11px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
+    font: inherit;
+    font-size: 12.5px;
+    max-width: 220px;
+}
+
+    .fp-place span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .fp-place i {
+        color: #a5b4fc;
+    }
+
+    .fp-place:hover {
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .fp-place.active {
+        background: rgba(99, 102, 241, 0.22);
+        border-color: rgba(129, 140, 248, 0.45);
+        color: #e0e7ff;
+    }
+
+.fp-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    border-radius: 10px;
+    background: #0d1320;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.fp-up {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    border-radius: 7px;
+    border: none;
+    background: rgba(255, 255, 255, 0.06);
+    color: #cbd5e1;
+}
+
+    .fp-up:disabled {
+        opacity: .35;
+        cursor: default;
+    }
+
+.fp-path {
+    flex: 1;
+    min-width: 0;
+    font: 12.5px ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
+    text-align: left;
+}
+
+.fp-list {
+    height: 280px;
+    max-height: 45vh;
+    overflow-y: auto;
+    margin-top: 8px;
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.fp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #e2e8f0;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+}
+
+    .fp-item i {
+        color: #fbbf24;
+    }
+
+    .fp-item span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .fp-item:hover {
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+.fp-empty {
+    padding: 24px 12px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+    .fp-empty.fp-error {
+        color: #fca5a5;
+    }
+
+.modal-confirm .confirm-actions button:disabled {
+    opacity: .5;
+    cursor: default;
+}

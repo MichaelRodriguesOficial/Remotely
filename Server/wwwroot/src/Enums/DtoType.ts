@@ -22,5 +22,8 @@
     SetKeyStatesUp = 24,
     FrameReceived = 25,
     OpenFileTransferWindow = 27,
-    SessionMetrics = 28
+    SessionMetrics = 28,
+    FolderListRequest = 29,
+    FolderList = 30,
+    FileSaved = 31
 }

@@ -66,6 +66,12 @@ export class ViewerHubConnection {
                 UI.SetStatusMessage("Conexão encerrada.");
             }
             UI.ToggleConnectUI(true);
+
+            // No acesso aberto pelo painel, a aba fecha quando o técnico encerra; nos outros casos
+            // aparece o motivo (recusado, encerrado no computador, sessão parada...).
+            if (ViewerApp.Mode == RemoteControlMode.Unattended) {
+                UI.ShowSessionEnded(UI.StatusMessage.innerText, ViewerApp.EndedByTechnician);
+            }
         });
 
     }
@@ -121,6 +127,8 @@ export class ViewerHubConnection {
         }
         hide(UI.ClipboardSyncButton, options.AllowClipboard === false || noInput);
         hide(UI.RestartButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended);
+        hide(UI.RestartSafeButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended ||
+            !(options.DevicePlatform || "").toLowerCase().includes("windows"));
 
         if (noInput) {
             ViewerApp.ViewOnlyMode = true;
@@ -143,12 +151,12 @@ export class ViewerHubConnection {
     }
 
     /** Reinicia o computador; a sessão continua e reconecta quando ele voltar. */
-    async RestartDevice(): Promise<Result> {
+    async RestartDevice(mode: string): Promise<Result> {
         if (this.Connection?.state != HubConnectionState.Connected) {
             return { IsSuccess: false, Reason: "Sem conexão com o servidor." } as Result;
         }
         try {
-            return await this.Connection.invoke<Result>("RestartDevice");
+            return await this.Connection.invoke<Result>("RestartDevice", mode);
         }
         catch (e) {
             console.error(e);

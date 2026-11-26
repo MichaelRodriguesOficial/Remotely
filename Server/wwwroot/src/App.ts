@@ -28,6 +28,10 @@ export const ViewerApp = {
     DeviceId: "",
     /** Reiniciado pelo técnico: a página espera o computador voltar. */
     IsWaitingForRestart: false,
+    /** O técnico clicou em Encerrar: a aba fecha sozinha. */
+    EndedByTechnician: false,
+    /** Pasta escolhida em "Enviar arquivo" para o próximo envio. */
+    PendingUploadDestination: null as string | null,
     Settings: GetSettings(),
 
     Init: () => {

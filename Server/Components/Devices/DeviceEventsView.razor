@@ -1,0 +1,308 @@
+@inherits AuthComponentBase
+@inject ICircuitConnection CircuitConnection
+@inject IJsInterop JsInterop
+
+@* Aba Eventos: log de eventos do Windows (ou journal do Linux) lido na hora pelo agente. *@
+<section class="panel ev-panel">
+    <div class="diag-launcher-head">
+        <div>
+            <h2 class="panel-title"><i class="fa-solid fa-list-ul"></i> Eventos do @(IsWindows ? "Windows" : "sistema")</h2>
+            <p class="panel-description mb-0">
+                Lidos na hora no computador, como no Visualizador de Eventos. Escolha o log, o período e os níveis.
+            </p>
+        </div>
+        <div class="diag-launcher-actions">
+            <button type="button" class="btn btn-primary" disabled="@(!CanLoad || _loading)" @onclick="Load">
+                <i class="fa-solid @(_loading ? "fa-circle-notch fa-spin" : "fa-magnifying-glass")"></i>
+                @(_result is null ? "Buscar eventos" : "Atualizar")
+            </button>
+        </div>
+    </div>
+
+    <div class="ev-filters">
+        @if (IsWindows)
+        {
+            <div class="ev-field">
+                <label class="form-label" for="ev-log-@Device.ID">Log</label>
+                <select id="ev-log-@Device.ID" class="form-select form-select-sm" @bind="_log" @bind:after="Load">
+                    <option value="System">Sistema</option>
+                    <option value="Application">Aplicativo</option>
+                    <option value="Security">Segurança</option>
+                    <option value="Setup">Instalação</option>
+                </select>
+            </div>
+        }
+        <div class="ev-field">
+            <label class="form-label" for="ev-period-@Device.ID">Período</label>
+            <select id="ev-period-@Device.ID" class="form-select form-select-sm" @bind="_hours" @bind:after="Load">
+                <option value="1">Última hora</option>
+                <option value="24">Últimas 24 horas</option>
+                <option value="72">Últimos 3 dias</option>
+                <option value="168">Últimos 7 dias</option>
+                <option value="720">Últimos 30 dias</option>
+            </select>
+        </div>
+        <div class="ev-field ev-levels">
+            <span class="form-label">@(_log == "Security" ? "Auditoria" : "Níveis")</span>
+            <div class="ev-level-chips" role="group">
+                @foreach (var level in Levels)
+                {
+                    var on = _levels.Contains(level.Value);
+                    <button type="button" class="ev-chip ev-chip-@level.Css @(on ? "active" : "")" aria-pressed="@on"
+                            @onclick="() => ToggleLevel(level.Value)">
+                        <i class="@level.Icon"></i> @(_log == "Security" ? level.AuditLabel : level.Label)
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="ev-field ev-search">
+            <label class="form-label" for="ev-search-@Device.ID">Buscar</label>
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input id="ev-search-@Device.ID" class="form-control" placeholder="Texto, origem ou ID (ex.: 41, Disk, DNS)"
+                       @bind="_search" @bind:event="oninput" @onkeydown="OnSearchKey" />
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (!Device.IsOnline)
+{
+    <div class="empty-state mt-3">
+        <div class="empty-icon"><i class="fa-solid fa-plug-circle-xmark"></i></div>
+        <h3>Dispositivo offline</h3>
+        <p>Os eventos são lidos na hora: o computador precisa estar online.</p>
+    </div>
+}
+else if (!CanView)
+{
+    <div class="empty-state mt-3">
+        <div class="empty-icon"><i class="fa-solid fa-lock"></i></div>
+        <h3>Sem permissão</h3>
+        <p>Seu perfil não permite ver os eventos do computador.</p>
+    </div>
+}
+else if (_loading && _result is null)
+{
+    <div class="panel mt-3 ev-loading"><span class="diag-loading-dot"></span> Lendo os eventos no computador...</div>
+}
+else if (_error is not null)
+{
+    <div class="diag-notice diag-notice-danger mt-3"><i class="fa-solid fa-triangle-exclamation"></i><span>@_error</span></div>
+}
+else if (_result is null)
+{
+    <div class="empty-state mt-3">
+        <div class="empty-icon"><i class="fa-solid fa-list-ul"></i></div>
+        <h3>Escolha os filtros e busque</h3>
+        <p>Comece por <strong>Sistema</strong>, <strong>Erro</strong> e <strong>Crítico</strong> nas últimas 24 horas.</p>
+    </div>
+}
+else
+{
+    <section class="panel mt-3 ev-results @(_loading ? "is-loading" : "")">
+        <div class="ev-summary">
+            <span>
+                <strong>@_result.Entries.Count</strong> evento(s)
+                @if (_result.Truncated)
+                {
+                    <span class="text-muted">(mostrando os mais recentes; refine o período ou a busca)</span>
+                }
+            </span>
+            <span class="ev-counts">
+                @foreach (var group in _result.Entries.GroupBy(x => x.Level).OrderBy(x => x.Key))
+                {
+                    var level = LevelFor(group.Key);
+                    <span class="ev-count ev-count-@level.Css"><i class="@level.Icon"></i> @group.Count() @(_log == "Security" ? level.AuditLabel.ToLower() : level.Label.ToLower())</span>
+                }
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm ms-auto" disabled="@(_result.Entries.Count == 0)" @onclick="ExportCsv">
+                <i class="fa-solid fa-file-csv"></i> Exportar CSV
+            </button>
+        </div>
+
+        @if (_result.Entries.Count == 0)
+        {
+            <div class="empty-state py-4">
+                <div class="empty-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <h3>Nenhum evento</h3>
+                <p>Nada com esses filtros no período escolhido.</p>
+            </div>
+        }
+        else
+        {
+            <div class="ev-table" role="table">
+                <div class="ev-row ev-head" role="row">
+                    <span role="columnheader">Nível</span>
+                    <span role="columnheader">Data e hora</span>
+                    <span role="columnheader">Origem</span>
+                    <span role="columnheader">ID</span>
+                    <span role="columnheader">Mensagem</span>
+                </div>
+                @foreach (var entry in _result.Entries.Take(_shown))
+                {
+                    var level = LevelFor(entry.Level);
+                    var open = _expanded.Contains(entry);
+                    <div class="ev-row @(open ? "open" : "")" role="row" @onclick="() => Toggle(entry)" title="Clique para ver a mensagem inteira">
+                        <span role="cell"><span class="ev-badge ev-badge-@level.Css"><i class="@level.Icon"></i> @(entry.Audit ?? level.Label)</span></span>
+                        <span role="cell" class="ev-time">@entry.TimeCreated.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</span>
+                        <span role="cell" class="ev-source" title="@entry.Source">@entry.Source</span>
+                        <span role="cell" class="ev-id">@(entry.EventId == 0 ? "" : entry.EventId.ToString())</span>
+                        <span role="cell" class="ev-message">@(open ? entry.Message : FirstLine(entry.Message))</span>
+                    </div>
+                }
+            </div>
+            @if (_shown < _result.Entries.Count)
+            {
+                <div class="text-center mt-2">
+                    <button type="button" class="btn btn-ghost btn-sm" @onclick="() => _shown += 100">
+                        Mostrar mais (@(_result.Entries.Count - _shown) restantes)
+                    </button>
+                </div>
+            }
+        }
+    </section>
+}
+
+@code {
+    private sealed record LevelInfo(int Value, string Label, string AuditLabel, string Css, string Icon);
+
+    private static readonly LevelInfo[] Levels =
+    [
+        new(1, "Crítico", "Crítico", "critical", "fa-solid fa-circle-exclamation"),
+        new(2, "Erro", "Falha", "error", "fa-solid fa-circle-xmark"),
+        new(3, "Aviso", "Aviso", "warning", "fa-solid fa-triangle-exclamation"),
+        new(4, "Informação", "Sucesso", "info", "fa-solid fa-circle-info")
+    ];
+
+    private readonly HashSet<int> _levels = [1, 2];
+    private readonly HashSet<DeviceEventEntry> _expanded = [];
+    private string _log = "System";
+    private int _hours = 24;
+    private string? _search;
+    private bool _loading;
+    private string? _error;
+    private int _shown = 100;
+    private DeviceEventResult? _result;
+
+    [Parameter, EditorRequired]
+    public Device Device { get; set; } = null!;
+
+    private bool IsWindows => Device.Platform?.Contains("Windows", StringComparison.OrdinalIgnoreCase) == true;
+    private bool CanView => Permissions.ManageDevices || Permissions.Repairs;
+    private bool CanLoad => Device.IsOnline && CanView;
+
+    private static LevelInfo LevelFor(int value) => Levels.FirstOrDefault(x => x.Value == value) ?? Levels[^1];
+
+    private static string FirstLine(string message)
+    {
+        var line = message.Split('\n', 2)[0].Trim();
+        return line.Length > 220 ? line[..220] + "…" : line;
+    }
+
+    private async Task ToggleLevel(int level)
+    {
+        if (!_levels.Remove(level))
+        {
+            _levels.Add(level);
+        }
+        if (_levels.Count == 0)
+        {
+            _levels.Add(level);
+            return;
+        }
+        if (_result is not null)
+        {
+            await Load();
+        }
+    }
+
+    private void Toggle(DeviceEventEntry entry)
+    {
+        if (!_expanded.Remove(entry))
+        {
+            _expanded.Add(entry);
+        }
+    }
+
+    private async Task OnSearchKey(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await Load();
+        }
+    }
+
+    private async Task Load()
+    {
+        if (!CanLoad || _loading)
+        {
+            return;
+        }
+
+        _loading = true;
+        _error = null;
+        StateHasChanged();
+        try
+        {
+            var query = new DeviceEventQuery
+            {
+                LogName = IsWindows ? _log : "System",
+                Levels = _levels.ToList(),
+                Hours = _hours,
+                MaxEvents = 500,
+                Search = _search
+            };
+            var result = await CircuitConnection.GetEventLog(Device.ID, query);
+            if (!result.IsSuccess)
+            {
+                _error = result.Reason;
+                _result = null;
+            }
+            else if (result.Value.Error is { } error)
+            {
+                _error = error;
+                _result = null;
+            }
+            else
+            {
+                _result = result.Value;
+                _expanded.Clear();
+                _shown = 100;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportCsv()
+    {
+        if (_result is null)
+        {
+            return;
+        }
+
+        static string Cell(string? value)
+        {
+            const string quote = "\"";
+            var text = (value ?? string.Empty).Replace(quote, quote + quote).Replace('\r', ' ').Replace('\n', ' ');
+            return quote + text + quote;
+        }
+        var csv = new System.Text.StringBuilder("Nível;Data e hora;Origem;ID;Mensagem\r\n");
+        foreach (var entry in _result.Entries)
+        {
+            csv.Append(string.Join(";",
+                Cell(entry.Audit ?? LevelFor(entry.Level).Label),
+                Cell(entry.TimeCreated.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")),
+                Cell(entry.Source),
+                Cell(entry.EventId.ToString()),
+                Cell(entry.Message))).Append("\r\n");
+        }
+
+        var name = $"eventos-{Device.DeviceName}-{_log.ToLowerInvariant()}-{DateTime.Now:yyyy-MM-dd-HHmm}.csv";
+        var bytes = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        await JsInterop.DownloadFile(name, "text/csv;charset=utf-8", bytes);
+    }
+}

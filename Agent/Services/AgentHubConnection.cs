@@ -350,6 +350,16 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         return Task.CompletedTask;
     }
 
+    public async Task<DeviceEventResult> GetEventLog(DeviceEventQuery query)
+    {
+        if (!_isServerVerified)
+        {
+            return new DeviceEventResult { Error = "Servidor não verificado." };
+        }
+
+        return await Task.Run(() => Remotely.Agent.Services.Events.DeviceEventReader.Read(query));
+    }
+
     public Task PowerAction(string action, int delaySeconds)
     {
         if (!_isServerVerified)
@@ -957,6 +967,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         _hubConnection.On(nameof(CancelDiagnostics), CancelDiagnostics);
 
         _hubConnection.On<string, int>(nameof(PowerAction), PowerAction);
+
+        _hubConnection.On<DeviceEventQuery, DeviceEventResult>(nameof(GetEventLog), GetEventLog);
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
     }

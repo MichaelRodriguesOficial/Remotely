@@ -20,4 +20,11 @@ public class FileDto
 
     [DataMember(Name = "StartOfFile")]
     public bool StartOfFile { get; set; }
+
+    /// <summary>
+    /// Onde salvar (só no primeiro pedaço): vazio = padrão, "drop:x;y" = pasta sob o ponto onde o arquivo
+    /// foi solto na tela (0 a 1), "path:C:\pasta" = pasta escolhida no visualizador.
+    /// </summary>
+    [DataMember(Name = "Destination")]
+    public string? Destination { get; set; }
 }

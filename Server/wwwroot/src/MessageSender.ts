@@ -17,7 +17,8 @@ import {
     WindowsSessionsDto,
     DtoWrapper,
     EmptyDto,
-    FrameReceivedDto
+    FrameReceivedDto,
+    FolderListRequestDto
 } from "./Interfaces/Dtos.js";
 import { CreateGUID } from "./Utilities.js";
 import { FileTransferProgress } from "./UI.js";
@@ -89,9 +90,9 @@ export class MessageSender {
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.OpenFileTransferWindow);
     }
 
-    async SendFile(buffer: Uint8Array, fileName: string) {
+    async SendFile(buffer: Uint8Array, fileName: string, destination: string = null) {
         var messageId = CreateGUID();
-        let dto = new FileDto(null, fileName, messageId, false, true);
+        let dto = new FileDto(null, fileName, messageId, false, true, destination);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.File);
 
 
@@ -121,6 +122,10 @@ export class MessageSender {
         var dto = new ToggleBlockInputDto(toggleOn);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.ToggleBlockInput);
 
+    }
+
+    async SendFolderListRequest(path: string) {
+        await ViewerApp.ViewerHubConnection.SendDtoToClient(new FolderListRequestDto(path), DtoType.FolderListRequest);
     }
 
     async SendTextTransfer(text: string, typeText: boolean) {

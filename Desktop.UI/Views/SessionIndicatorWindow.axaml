@@ -4,10 +4,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Remotely.Desktop.UI.ViewModels"
         xmlns:fakes="clr-namespace:Remotely.Desktop.UI.ViewModels.Fakes"
-        mc:Ignorable="d" d:DesignWidth="320" d:DesignHeight="130"
+        mc:Ignorable="d" d:DesignWidth="340" d:DesignHeight="170"
         x:Class="Remotely.Desktop.UI.Views.SessionIndicatorWindow"
         x:DataType="vm:ISessionIndicatorWindowViewModel"
-        Title="{Binding ProductName}"
+        Title="Acesso remoto"
         Icon="{Binding WindowIcon}"
         WindowStartupLocation="Manual"
         SystemDecorations="None"
@@ -22,44 +22,81 @@
     <fakes:FakeSessionIndicatorWindowViewModel />
   </Design.DataContext>
 
-  <!-- Painel do canto da tela: sempre visível enquanto houver acesso remoto. -->
-  <Border Background="#FFFFFF"
-          BorderBrush="#6366F1"
-          BorderThickness="2"
-          CornerRadius="10"
-          Padding="14,12"
-          Width="300">
-    <StackPanel Spacing="10">
-      <Grid ColumnDefinitions="Auto,10,*">
-        <Border Grid.Column="0" Width="38" Height="38" CornerRadius="19" Background="#E0E7FF" VerticalAlignment="Center">
-          <TextBlock Text="{Binding Initials}" FontWeight="SemiBold" FontSize="14" Foreground="#3730A3"
+  <Panel>
+    <!-- Painel aberto: quem está conectado, há quanto tempo, ocultar e encerrar. -->
+    <Border IsVisible="{Binding IsExpanded}"
+            Background="#FFFFFF"
+            BorderBrush="#C7D2FE"
+            BorderThickness="1"
+            CornerRadius="12"
+            Padding="16,14"
+            Width="320"
+            Margin="8"
+            BoxShadow="0 8 24 0 #33111827">
+      <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="Auto,12,*">
+          <Panel Grid.Column="0" Width="40" Height="40" VerticalAlignment="Center">
+            <Border Width="40" Height="40" CornerRadius="20" Background="#E0E7FF">
+              <TextBlock Text="{Binding Initials}" FontWeight="SemiBold" FontSize="14" Foreground="#3730A3"
+                         HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <Border Width="12" Height="12" CornerRadius="6" Background="#22C55E" BorderBrush="White" BorderThickness="2"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+          </Panel>
+          <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="2">
+            <TextBlock Text="{Binding TechnicianName}" FontWeight="SemiBold" FontSize="14" Foreground="#111827"
+                       TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#4B5563" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding ElapsedText}" FontSize="11.5" Foreground="#6B7280" />
+          </StackPanel>
+        </Grid>
+
+        <!-- Ações normais -->
+        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding !IsConfirming}">
+          <Button Grid.Column="0" Classes="Link" Command="{Binding HideCommand}"
+                  ToolTip.Tip="Recolhe o painel para a lateral da tela. O acesso continua.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Data="M 0,0 L 4,4 L 0,8" Stroke="#6B7280" StrokeThickness="1.6" VerticalAlignment="Center" />
+              <TextBlock Text="Ocultar" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="2" Classes="SoftDanger" Content="Encerrar acesso" Command="{Binding EndSessionCommand}" />
+        </Grid>
+
+        <!-- Confirmação no próprio painel (sem outra janela na frente do usuário). -->
+        <Border IsVisible="{Binding IsConfirming}" Background="#FEF2F2" BorderBrush="#FECACA" BorderThickness="1"
+                CornerRadius="10" Padding="12,10">
+          <StackPanel Spacing="10">
+            <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="#7F1D1D">
+              <Run Text="Encerrar o acesso agora?" FontWeight="SemiBold" />
+              <LineBreak />
+              <Run Text="O técnico será desconectado deste computador." />
+            </TextBlock>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button Classes="Ghost" Content="Continuar" Command="{Binding CancelEndCommand}" />
+              <Button Classes="Danger" Content="Encerrar" Command="{Binding ConfirmEndCommand}" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </Border>
+
+    <!-- Painel oculto: só uma aba na lateral direita para mostrar de novo. -->
+    <Button IsVisible="{Binding IsCollapsed}"
+            Classes="Tab"
+            Command="{Binding ShowCommand}"
+            Margin="0,8,0,8"
+            Width="40"
+            Height="96"
+            ToolTip.Tip="Acesso remoto em andamento. Clique para mostrar o painel.">
+      <StackPanel Spacing="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Path Data="M 4,0 L 0,4 L 4,8" Stroke="White" StrokeThickness="1.8" HorizontalAlignment="Center" />
+        <Border Width="28" Height="28" CornerRadius="14" Background="#E0E7FF">
+          <TextBlock Text="{Binding Initials}" FontWeight="SemiBold" FontSize="11" Foreground="#3730A3"
                      HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>
-        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
-          <TextBlock Text="{Binding TechnicianName}" FontWeight="SemiBold" FontSize="14" Foreground="#111827"
-                     TextTrimming="CharacterEllipsis" />
-          <TextBlock FontSize="12" Foreground="#4B5563" TextTrimming="CharacterEllipsis">
-            <Run Text="{Binding StatusText}" />
-            <Run Text=" · " />
-            <Run Text="{Binding ElapsedText}" />
-          </TextBlock>
-        </StackPanel>
-      </Grid>
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Grid.Column="0" Text="{Binding ProductName}" FontSize="11" Foreground="#6B7280" VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
-        <Button Grid.Column="1"
-                Content="Encerrar acesso"
-                Command="{Binding EndSessionCommand}"
-                Background="#FEE2E2"
-                Foreground="#991B1B"
-                BorderBrush="#DC2626"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="12,5"
-                FontWeight="SemiBold"
-                Cursor="Hand" />
-      </Grid>
-    </StackPanel>
-  </Border>
+        <Border Width="9" Height="9" CornerRadius="5" Background="#22C55E" HorizontalAlignment="Center" />
+      </StackPanel>
+    </Button>
+  </Panel>
 </Window>

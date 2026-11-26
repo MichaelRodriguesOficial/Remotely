@@ -66,6 +66,9 @@ else
             <TabHeader Name="diagnostics" NavigationUri="@($"/device-details/{DeviceId}/diagnostics")">
                 <i class="fa-solid fa-stethoscope me-1"></i> Diagnóstico
             </TabHeader>
+            <TabHeader Name="events" NavigationUri="@($"/device-details/{DeviceId}/events")">
+                <i class="fa-solid fa-list-ul me-1"></i> Eventos
+            </TabHeader>
             <TabHeader Name="remote-logs" OnActivated="GetRemoteLogs" NavigationUri="@($"/device-details/{DeviceId}/remote-logs")">
                 <i class="fa-solid fa-file-lines me-1"></i> Logs do agente
             </TabHeader>
@@ -167,6 +170,10 @@ else
 
             <TabContent Name="diagnostics">
                 <DeviceDiagnosticsView @key="_device.ID" Device="_device" />
+            </TabContent>
+
+            <TabContent Name="events">
+                <DeviceEventsView @key="_device.ID" Device="_device" />
             </TabContent>
 
             <TabContent Name="remote-logs">

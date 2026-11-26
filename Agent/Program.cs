@@ -69,6 +69,7 @@ public class Program
         if (OperatingSystem.IsWindows())
         {
             SetSas(services, logger);
+            PowerActions.ClearPendingSafeBoot(logger);
         }
 
         // TODO: Move this to a BackgroundService.

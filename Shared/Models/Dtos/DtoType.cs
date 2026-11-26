@@ -52,5 +52,13 @@ public enum DtoType
     [EnumMember]
     OpenFileTransferWindow = 27,
     [EnumMember]
-    SessionMetrics = 28
+    SessionMetrics = 28,
+    /// <summary>Visualizador pede as pastas de um caminho do computador (escolher onde salvar).</summary>
+    [EnumMember]
+    FolderListRequest = 29,
+    [EnumMember]
+    FolderList = 30,
+    /// <summary>O computador avisa onde salvou um arquivo enviado pelo visualizador.</summary>
+    [EnumMember]
+    FileSaved = 31
 }

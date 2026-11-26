@@ -11,6 +11,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using Remotely.Shared.Extensions;
 using System.IO;
+using Remotely.Shared.Models.Dtos;
 
 namespace Remotely.Desktop.Win.Services;
 
@@ -19,11 +20,7 @@ public class FileTransferServiceWin : IFileTransferService
     private static readonly ConcurrentDictionary<string, FileTransferWindow> _fileTransferWindows =
         new();
 
-    private static readonly ConcurrentDictionary<string, FileStream> _partialTransfers =
-        new();
-
     private static readonly SemaphoreSlim _writeLock = new(1, 1);
-    private static MessageBoxResult? _result;
     private readonly IUiDispatcher _dispatcher;
     private readonly ILogger<FileTransferServiceWin> _logger;
     private readonly IViewModelFactory _viewModelFactory;
@@ -72,69 +69,144 @@ public class FileTransferServiceWin : IFileTransferService
         });
     }
 
+    private sealed record PartialFile(FileStream Stream, string Path, string FileName);
+    private static readonly ConcurrentDictionary<string, PartialFile> _partialFiles = new();
+
     [SupportedOSPlatform("windows")]
-    public async Task ReceiveFile(byte[] buffer, string fileName, string messageId, bool endOfFile, bool startOfFile)
+    public async Task ReceiveFile(byte[] buffer, string fileName, string messageId, bool endOfFile, bool startOfFile, string? destination, IViewer viewer)
     {
+        PartialFile? finished = null;
+        string? failure = null;
         try
         {
             await _writeLock.WaitAsync();
 
-            var baseDir = GetBaseDirectory();
-
-            SetFileOrFolderPermissions(baseDir);
-
             if (startOfFile)
             {
-                var filePath = Path.Combine(baseDir, fileName);
-
-                if (File.Exists(filePath))
+                var safeName = ReceivedFiles.SafeFileName(fileName);
+                var directory = ResolveDirectory(destination, viewer);
+                string filePath;
+                FileStream stream;
+                try
                 {
-                    var count = 0;
-                    var ext = Path.GetExtension(fileName);
-                    var fileWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-                    while (File.Exists(filePath))
-                    {
-                        filePath = Path.Combine(baseDir, $"{fileWithoutExt}-{count}{ext}");
-                        count++;
-                    }
+                    filePath = ReceivedFiles.GetAvailablePath(directory, safeName);
+                    stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
                 }
-
-                File.Create(filePath).Close();
-                SetFileOrFolderPermissions(filePath);
-                var fs = new FileStream(filePath, FileMode.OpenOrCreate);
-                _partialTransfers.AddOrUpdate(messageId, fs, (k, v) => fs);
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    // Sem permissão na pasta escolhida: salva na pasta compartilhada do app.
+                    _logger.LogWarning(ex, "Could not write to {directory}. Using the shared folder.", directory);
+                    var baseDir = GetBaseDirectory();
+                    SetFileOrFolderPermissions(baseDir);
+                    filePath = ReceivedFiles.GetAvailablePath(baseDir, safeName);
+                    stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write);
+                }
+                _partialFiles[messageId] = new PartialFile(stream, filePath, safeName);
             }
 
-            var fileStream = _partialTransfers[messageId];
+            if (!_partialFiles.TryGetValue(messageId, out var partial))
+            {
+                return;
+            }
 
             if (buffer?.Length > 0)
             {
-                await fileStream.WriteAsync(buffer);
-
+                await partial.Stream.WriteAsync(buffer);
             }
 
             if (endOfFile)
             {
-                fileStream.Close();
-                _partialTransfers.Remove(messageId, out _);
+                await partial.Stream.DisposeAsync();
+                _partialFiles.TryRemove(messageId, out _);
+                finished = partial;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while receiving file.");
+            failure = ex.Message;
+            if (_partialFiles.TryRemove(messageId, out var broken))
+            {
+                await broken.Stream.DisposeAsync();
+            }
         }
         finally
         {
             _writeLock.Release();
         }
 
-        if (endOfFile)
+        // Avisa o técnico onde o arquivo foi parar (sem janela na tela do usuário: o arquivo aparece na pasta).
+        if (finished is not null)
         {
-            // We're currently in the context of an RPC call from the
-            // SignalR hub.  We don't want to block it, which will prevent
-            // subsequent messages from being received.
-            ShowTransferComplete().Forget();
+            await viewer.SendDto(new FileSavedDto
+            {
+                FileName = finished.FileName,
+                FullPath = finished.Path,
+                Success = true
+            }, DtoType.FileSaved);
         }
+        else if (failure is not null && (startOfFile || endOfFile))
+        {
+            await viewer.SendDto(new FileSavedDto
+            {
+                FileName = ReceivedFiles.SafeFileName(fileName),
+                Success = false,
+                Message = "Não foi possível salvar o arquivo no computador."
+            }, DtoType.FileSaved);
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private string ResolveDirectory(string? destination, IViewer viewer)
+    {
+        if (ReceivedFiles.TryParsePath(destination) is { } chosen)
+        {
+            return chosen;
+        }
+
+        if (ReceivedFiles.TryParseDrop(destination, out var percentX, out var percentY))
+        {
+            try
+            {
+                var bounds = viewer.Capturer.CurrentScreenBounds;
+                var x = bounds.Left + (int)Math.Round(bounds.Width * percentX);
+                var y = bounds.Top + (int)Math.Round(bounds.Height * percentY);
+                if (UserShellFolders.GetFolderAtPoint(x, y) is { } dropped)
+                {
+                    return dropped;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve the folder where the file was dropped.");
+            }
+        }
+
+        // Solto fora de uma pasta (ou sem destino): na Área de Trabalho do usuário, onde ele vê.
+        return UserShellFolders.GetKnownFolder(UserShellFolders.Desktop)
+            ?? UserShellFolders.GetKnownFolder(UserShellFolders.Downloads)
+            ?? GetBaseDirectory();
+    }
+
+    [SupportedOSPlatform("windows")]
+    public FolderListDto ListFolders(string? path)
+    {
+        var places = new List<FolderItemDto>();
+        void AddPlace(Guid id, string name, string kind)
+        {
+            if (UserShellFolders.GetKnownFolder(id) is { } folder)
+            {
+                places.Add(new FolderItemDto { Name = name, Path = folder, Kind = kind });
+            }
+        }
+
+        AddPlace(UserShellFolders.Desktop, "Área de Trabalho", "desktop");
+        AddPlace(UserShellFolders.Downloads, "Downloads", "downloads");
+        AddPlace(UserShellFolders.Documents, "Documentos", "documents");
+        AddPlace(UserShellFolders.PublicDesktop, "Área de Trabalho pública", "public");
+        ReceivedFiles.AddDrives(places);
+
+        return ReceivedFiles.BuildListing(path, places);
     }
 
     public async Task UploadFile(
@@ -199,24 +271,6 @@ public class FileTransferServiceWin : IFileTransferService
             {
                 new DirectoryInfo(path).SetAccessControl((DirectorySecurity)ds);
             }
-        }
-    }
-
-    private async Task ShowTransferComplete()
-    {
-        // Prevent multiple dialogs from popping up.
-        if (_result is null)
-        {
-            _result = await _dialogProvider.Show("File transfer complete.  Show folder?",
-                "Transfer Complete",
-                MessageBoxType.YesNo);
-
-            if (_result == MessageBoxResult.Yes)
-            {
-                Process.Start("explorer.exe", GetBaseDirectory());
-            }
-
-            _result = null;
         }
     }
 }

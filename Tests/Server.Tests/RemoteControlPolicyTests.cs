@@ -1,4 +1,4 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Remotely.Server.Hubs;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
@@ -68,6 +68,7 @@ public class RemoteControlPolicyTests
     {
         var noFiles = RemoteControlPermissions.Full with { Files = false };
         Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.File, noFiles, false));
+        Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.FolderListRequest, noFiles, false));
         Assert.IsTrue(ViewerHub.IsDtoAllowed(DtoType.MouseMove, noFiles, false));
 
         var noClipboard = RemoteControlPermissions.Full with { Clipboard = false };

@@ -1,5 +1,29 @@
 # Changelog
 
+## v1.14.0 — 2026-11-26
+
+Correções e pedidos do teste da v1.13.0.
+
+### Visualizador
+- **Tela de sessão "despadronizada"**: o navegador (ou o proxy, que guarda .js por horas) usava o JavaScript antigo com a página nova, e por isso o nome do computador, o tempo e os botões novos não funcionavam. Agora os scripts do visualizador saem de um endereço que muda a cada versão: não tem como misturar versões.
+- **Encerrar fecha a aba.** Quando a sessão termina por outro motivo (recusada, encerrada no computador, sessão parada), aparece um aviso com o motivo e os botões "Ir para o painel" e "Fechar esta aba".
+- **Digitar texto**: virou uma janela onde você escreve ou cola o texto, que é digitado tecla por tecla no computador remoto. Serve onde colar não funciona: login do Windows, UAC, chave do BitLocker, programas que bloqueiam Ctrl+V.
+- **Reiniciar em modo de segurança** (menu Windows): reinicia em modo de segurança com rede só uma vez e a janela reconecta sozinha. O agente liga no modo de segurança e o reinício seguinte já volta ao Windows normal.
+
+### Arquivos
+- **Arrastar para a tela remota salva onde foi solto**: na pasta aberta no Explorador de Arquivos sob o ponto, ou na Área de Trabalho do usuário. Fora de uma pasta, vai para a Área de Trabalho. O técnico recebe o caminho de cada arquivo salvo.
+- **Enviar arquivo** abre as pastas do computador remoto (Área de Trabalho, Downloads, Documentos, Área de Trabalho pública e as unidades) para escolher o destino antes de escolher os arquivos.
+- Arquivos com o mesmo nome viram "nome (2)" e nada é sobrescrito. A janela em inglês "File transfer complete" na tela do usuário foi removida.
+
+### App do usuário (Windows)
+- **Painel do canto**: botão **Ocultar**, que recolhe o painel numa aba na lateral direita (clique nela para mostrar de novo), tempo de conexão numa linha própria e a confirmação de "Encerrar acesso" dentro do próprio painel, sem outra janela.
+- **Avisos no visual novo**: mensagens e o pedido de acesso viraram cartões, com botões no padrão do painel. Textos que ainda estavam em inglês foram traduzidos.
+
+### Inventário e diagnóstico
+- **Aba Eventos** no dispositivo: eventos do Windows (Sistema, Aplicativo, Segurança e Instalação) ou do journal no Linux, lidos na hora, com filtro por nível, período e texto, mensagem completa ao clicar e exportação em CSV.
+- O botão **Ações** do Inventário fica à direita, junto de Exportar, como no Diagnóstico.
+- **Diagnóstico**: "Eventos críticos" deixou de contar de novo o desligamento inesperado (Kernel-Power 41), que já tem linha própria. Um ou dois eventos críticos isolados só informam; a partir de 3 vira atenção. A linha mostra a origem dos eventos. Rode o diagnóstico de novo para atualizar o resultado.
+
 ## v1.13.0 — 2026-11-26
 
 Fase 2 da modernização do controle remoto, parte 2: o visualizador.

@@ -124,14 +124,15 @@
         <strong>@_filtered.Count</strong> de @_all.Count dispositivo(s)
         @if (_selected.Count > 0)
         {
-            <span>· <strong>@_selected.Count</strong> selecionado(s) <button type="button" class="btn btn-link btn-sm p-0 ms-1" @onclick="() => _selected.Clear()">limpar</button></span>
+            <span class="diag-selection">· <strong>@_selected.Count</strong> selecionado(s) <button type="button" class="btn btn-link btn-sm p-0 ms-1" @onclick="() => _selected.Clear()">limpar</button></span>
         }
         else if (_filtered.Count > 0)
         {
             <button type="button" class="btn btn-link btn-sm p-0 ms-2" @onclick="SelectFiltered">selecionar todos da lista</button>
         }
     </span>
-    <div class="dropdown ms-auto">
+    <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+    <div class="dropdown">
         <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false"
                 disabled="@(_selected.Count == 0 || _isActing)"
                 title="@(_selected.Count == 0 ? "Selecione os computadores na lista" : "Ações nos selecionados")">
@@ -175,6 +176,7 @@
                    Html="BuildListHtml"
                    Csv="BuildListCsv"
                    Disabled="@(_isLoading || _filtered.Count == 0)" />
+    </div>
     @if (TotalPages > 1)
     {
         <div class="pager">

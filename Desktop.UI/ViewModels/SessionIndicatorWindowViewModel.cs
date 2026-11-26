@@ -13,7 +13,16 @@ public interface ISessionIndicatorWindowViewModel : IBrandedViewModelBase
     string Initials { get; }
     string StatusText { get; }
     string ElapsedText { get; }
+    bool IsExpanded { get; }
+    bool IsCollapsed { get; }
+    bool IsConfirming { get; }
+    /// <summary>Encerrando de verdade: a janela pode fechar.</summary>
+    bool IsEnding { get; }
     ICommand EndSessionCommand { get; }
+    ICommand ConfirmEndCommand { get; }
+    ICommand CancelEndCommand { get; }
+    ICommand HideCommand { get; }
+    ICommand ShowCommand { get; }
     Task PromptForExit();
 }
 
@@ -27,7 +36,6 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
     private readonly IAppState _appState;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.Now;
     private readonly System.Threading.Timer _timer;
-    private bool _prompting;
 
     public SessionIndicatorWindowViewModel(
         IBrandingProvider brandingProvider,
@@ -42,6 +50,10 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         _dialogProvider = dialogProvider;
         _appState = appState;
         EndSessionCommand = new AsyncRelayCommand(PromptForExit);
+        ConfirmEndCommand = new AsyncRelayCommand(EndSession);
+        CancelEndCommand = new RelayCommand(() => IsConfirming = false);
+        HideCommand = new RelayCommand(() => SetCollapsed(true));
+        ShowCommand = new RelayCommand(() => SetCollapsed(false));
         Refresh();
         _timer = new System.Threading.Timer(_ => _dispatcher.Post(Refresh), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
@@ -70,32 +82,56 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         private set => Set(value);
     }
 
-    public ICommand EndSessionCommand { get; }
-
-    public async Task PromptForExit()
+    public bool IsCollapsed
     {
-        if (_prompting)
-        {
-            return;
-        }
+        get => Get<bool>();
+        private set => Set(value);
+    }
 
-        _prompting = true;
-        try
+    public bool IsExpanded => !IsCollapsed;
+
+    public bool IsConfirming
+    {
+        get => Get<bool>();
+        private set => Set(value);
+    }
+
+    public bool IsEnding
+    {
+        get => Get<bool>();
+        private set => Set(value);
+    }
+
+    public ICommand EndSessionCommand { get; }
+    public ICommand ConfirmEndCommand { get; }
+    public ICommand CancelEndCommand { get; }
+    public ICommand HideCommand { get; }
+    public ICommand ShowCommand { get; }
+
+    /// <summary>"Encerrar acesso" (ou fechar a janela): pede a confirmação no próprio painel.</summary>
+    public Task PromptForExit()
+    {
+        SetCollapsed(false);
+        IsConfirming = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task EndSession()
+    {
+        IsEnding = true;
+        IsConfirming = false;
+        await _timer.DisposeAsync();
+        await _shutdownService.Shutdown();
+    }
+
+    private void SetCollapsed(bool collapsed)
+    {
+        if (collapsed)
         {
-            var result = await _dialogProvider.Show(
-                "Encerrar o acesso remoto agora? O técnico será desconectado.",
-                "Encerrar acesso remoto",
-                MessageBoxType.YesNo);
-            if (result == MessageBoxResult.Yes)
-            {
-                await _timer.DisposeAsync();
-                await _shutdownService.Shutdown();
-            }
+            IsConfirming = false;
         }
-        finally
-        {
-            _prompting = false;
-        }
+        IsCollapsed = collapsed;
+        NotifyPropertyChanged(nameof(IsExpanded));
     }
 
     private void Refresh()
@@ -128,10 +164,10 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
 
         var elapsed = DateTimeOffset.Now - _startedAt;
         ElapsedText = elapsed.TotalHours >= 1
-            ? $"há {(int)elapsed.TotalHours} h {elapsed.Minutes:00} min"
+            ? $"Conectado há {(int)elapsed.TotalHours} h {elapsed.Minutes:00} min"
             : elapsed.TotalMinutes >= 1
-                ? $"há {(int)elapsed.TotalMinutes} min"
-                : "agora";
+                ? $"Conectado há {(int)elapsed.TotalMinutes} min"
+                : "Conectado agora";
     }
 
     internal static string GetInitials(string? name)
