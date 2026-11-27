@@ -1,3 +1,4 @@
+using Remotely.Desktop.Shared.Abstractions;
 using Remotely.Desktop.Shared.Services;
 using Remotely.Shared.Services;
 using Microsoft.AspNetCore.SignalR.Client;
