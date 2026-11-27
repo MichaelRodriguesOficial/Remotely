@@ -8,6 +8,7 @@ import { SessionRecorder } from "./SessionRecorder.js";
 import { ApplyInputHandlers } from "./InputEventHandlers.js";
 import { ViewerHubConnection } from "./ViewerHubConnection.js";
 import { GetSettings, SetSettings } from "./SettingsService.js";
+import { RemoteControlViewerOptions } from "./Interfaces/Dtos.js";
 
 var queryString = Utilities.ParseSearchString();
 
@@ -32,6 +33,14 @@ export const ViewerApp = {
     EndedByTechnician: false,
     /** Pasta escolhida em "Enviar arquivo" para o próximo envio. */
     PendingUploadDestination: null as string | null,
+    /** Opções da sessão vindas do servidor (permissões, tela preta, anotação, GLPI). */
+    Options: null as RemoteControlViewerOptions | null,
+    /** Tela preta ligada no computador (estado confirmado por ele). */
+    PrivacyScreenOn: false,
+    /** "Liga sozinha ao conectar" já pedida nesta conexão com o computador. */
+    PrivacyAutoRequested: false,
+    /** A primeira tela do computador já chegou. */
+    ScreenReady: false,
     Settings: GetSettings(),
 
     Init: () => {

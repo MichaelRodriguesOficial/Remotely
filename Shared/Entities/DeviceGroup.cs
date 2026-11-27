@@ -36,4 +36,14 @@ public class DeviceGroup
 
     /// <summary>Avisa por e-mail/webhook quando alguém abre uma sessão num computador do grupo.</summary>
     public bool NotifyRemoteSessions { get; set; }
+
+    /// <summary>
+    /// Tela preta (a tela do usuário fica escura enquanto o técnico trabalha): null ou "Allow" = o técnico
+    /// pode ligar, "Auto" = liga sozinha ao conectar, "Deny" = não disponível.
+    /// </summary>
+    [StringLength(20)]
+    public string? PrivacyScreen { get; set; }
+
+    /// <summary>Grava as sessões de controle remoto dos computadores do grupo no servidor.</summary>
+    public bool RecordSessions { get; set; }
 }

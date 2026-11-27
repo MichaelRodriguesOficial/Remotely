@@ -27,5 +27,7 @@
     FolderList = 30,
     FileSaved = 31,
     ClipboardFiles = 32,
-    DownloadFilesRequest = 33
+    DownloadFilesRequest = 33,
+    TogglePrivacyScreen = 34,
+    PrivacyScreenState = 35
 }

@@ -52,6 +52,8 @@ import {
     SessionEndedClose,
     ShowWaitOverlay,
     HideWaitOverlay,
+    PrivacyScreenButton,
+    PromptSessionNote,
 } from "./UI.js";
 import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
@@ -197,11 +199,39 @@ export function ApplyInputHandlers() {
         CloseAllPopupMenus(null);
         await ViewerApp.MessageSender.SendCtrlAltDel();
     });
-    DisconnectButton.addEventListener("click", (ev) => {
+    DisconnectButton.addEventListener("click", async (ev) => {
+        // Sessão com registro no histórico: o técnico anota o que fez antes de sair.
+        const options = ViewerApp.Options;
+        const connected = ViewerApp.ViewerHubConnection.Connection?.state == "Connected";
+        if (connected && options?.AllowNote && !ViewerApp.IsWaitingForRestart && !ViewerApp.EndedByTechnician) {
+            const result = await PromptSessionNote(options.GlpiEnabled === true);
+            if (!result) {
+                return;
+            }
+            if (result.note) {
+                const saved = await ViewerApp.ViewerHubConnection.SaveSessionNote(result.note, result.glpiMode, result.ticketId);
+                if (!saved.IsSuccess) {
+                    const keepGoing = await Confirm(
+                        "Não deu para registrar no GLPI",
+                        saved.Reason + " Encerrar mesmo assim?",
+                        "Encerrar");
+                    if (!keepGoing) {
+                        return;
+                    }
+                }
+                else if (saved.Value) {
+                    ShowToast(result.glpiMode == "ticket"
+                        ? `Chamado #${saved.Value} aberto no GLPI.`
+                        : `Acompanhamento adicionado ao chamado #${saved.Value}.`);
+                }
+            }
+        }
+
         ConnectButton.removeAttribute("disabled");
         ConnectButton.innerText = "Conectar";
         SetStatusMessage("Sessão encerrada por você.");
         ViewerApp.EndedByTechnician = true;
+        await ViewerApp.SessionRecorder.StopAndFlush();
         ViewerApp.ViewerHubConnection.Connection.stop();
     });
     document.getElementById("sessionEndedReconnect")?.addEventListener("click", () => Reconnect());
@@ -375,6 +405,17 @@ export function ApplyInputHandlers() {
         } else {
             await ViewerApp.MessageSender.SendToggleBlockInput(false);
         }
+    });
+    PrivacyScreenButton?.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        if (ViewerApp.ViewOnlyMode) {
+            ShowToast("O modo somente visualização está ativado.");
+            return;
+        }
+        const enable = !ViewerApp.PrivacyScreenOn;
+        PrivacyScreenButton.setAttribute("disabled", "disabled");
+        window.setTimeout(() => PrivacyScreenButton.removeAttribute("disabled"), 1500);
+        await ViewerApp.MessageSender.SendTogglePrivacyScreen(enable);
     });
     InviteButton.addEventListener("click", (ev) => {
         var url = "";
@@ -1111,6 +1152,10 @@ async function RestartRemote(mode: "normal" | "safe") {
         return;
     }
     ViewerApp.IsWaitingForRestart = true;
+    // Depois de reiniciar, a tela preta volta a ser pedida se o grupo liga sozinho.
+    ViewerApp.PrivacyAutoRequested = false;
+    ViewerApp.PrivacyScreenOn = false;
+    ViewerApp.ScreenReady = false;
     ShowWaitOverlay(
         mode == "safe" ? "Reiniciando em modo de segurança" : "Reiniciando o computador",
         "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");

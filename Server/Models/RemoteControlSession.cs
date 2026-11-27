@@ -55,6 +55,12 @@ public class RemoteControlSession : IDisposable
     /// <summary>Grupo do computador (para avisos de sessão).</summary>
     public string? DeviceGroupId { get; set; }
 
+    /// <summary>Tela preta pelo grupo: "Allow", "Auto" ou "Deny".</summary>
+    public string PrivacyScreen { get; set; } = "Allow";
+
+    /// <summary>Gravar esta sessão no servidor (configuração geral ou do grupo).</summary>
+    public bool RecordSession { get; set; }
+
     public DateTimeOffset StartTime { get; internal set; }
 
     /// <summary>

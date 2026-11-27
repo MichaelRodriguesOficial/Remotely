@@ -199,6 +199,22 @@ export interface RemoteControlViewerOptions {
     DeviceId?: string;
     DeviceName?: string;
     DevicePlatform?: string;
+    /** "Allow", "Auto" ou "Deny" (grupo do computador). */
+    PrivacyScreen?: string;
+    GlpiEnabled?: boolean;
+    AllowNote?: boolean;
+}
+
+export class PrivacyScreenDto {
+    constructor(enabled: boolean) {
+        this.Enabled = enabled;
+        this.Supported = true;
+        this.Message = null;
+    }
+
+    Enabled: boolean;
+    Supported: boolean;
+    Message: string | null;
 }
 
 export interface ScreenDataDto {

@@ -14,6 +14,7 @@
         <a href="server-config#geral"><i class="fa-solid fa-sliders"></i> Geral</a>
         <a href="server-config#seguranca"><i class="fa-solid fa-shield-halved"></i> Segurança</a>
         <a href="server-config#acesso-remoto"><i class="fa-solid fa-desktop"></i> Acesso remoto</a>
+        <a href="server-config#glpi"><i class="fa-solid fa-ticket"></i> GLPI</a>
         <a href="server-config#diagnostico"><i class="fa-solid fa-stethoscope"></i> Diagnóstico agendado</a>
         <a href="server-config#email"><i class="fa-solid fa-envelope"></i> E-mail (SMTP)</a>
         <a href="server-config#rede"><i class="fa-solid fa-network-wired"></i> Rede e registros</a>
@@ -194,6 +195,28 @@
         </div>
         <div class="setting-row">
             <div>
+                <label class="setting-label" for="cfg-RequireAgentKey">Exigir chave nos agentes</label>
+                <p class="setting-desc">
+                    Cada computador gera uma chave própria e o servidor guarda só o hash: outro computador não
+                    consegue se passar por ele. Ligado, agentes antigos (sem chave) e computadores novos sem chave são recusados.
+                    @if (_devicesWithoutKey > 0)
+                    {
+                        <span class="text-warning">Ainda há @_devicesWithoutKey computador(es) sem chave: ligue depois que eles atualizarem o agente.</span>
+                    }
+                    else
+                    {
+                        <span class="text-success">Todos os computadores já têm chave.</span>
+                    }
+                </p>
+            </div>
+            <div class="setting-control">
+                <div class="form-check form-switch">
+                    <InputCheckbox id="cfg-RequireAgentKey" class="form-check-input" role="switch" @bind-Value="Input.RequireAgentKey" />
+                </div>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
                 <label class="setting-label" for="cfg-ForceClientHttps">Forçar HTTPS nos agentes</label>
                 <p class="setting-desc">Os agentes sempre se conectam ao servidor por HTTPS.</p>
             </div>
@@ -274,13 +297,49 @@
         </div>
         <div class="setting-row">
             <div>
-                <label class="setting-label" for="cfg-EnableRemoteControlRecording">Gravar sessões</label>
-                <p class="setting-desc">Grava as sessões de controle remoto no servidor (ocupa espaço em disco).</p>
+                <label class="setting-label" for="cfg-EnableRemoteControlRecording">Gravar todas as sessões</label>
+                <p class="setting-desc">Grava as sessões de controle remoto no servidor (ocupa espaço em disco). Para gravar só alguns computadores, ligue a gravação no grupo deles (Organização → Grupos).</p>
             </div>
             <div class="setting-control">
                 <div class="form-check form-switch">
                     <InputCheckbox id="cfg-EnableRemoteControlRecording" class="form-check-input" role="switch" @bind-Value="Input.EnableRemoteControlRecording" />
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="glpi" class="panel settings-section">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title"><i class="fa-solid fa-ticket"></i> GLPI</h2>
+                <p class="panel-description">Ao encerrar uma sessão, o técnico pode registrar o que fez como acompanhamento de um chamado existente ou abrir um chamado novo no GLPI, com o computador, o técnico e o horário do acesso.</p>
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-GlpiUrl">Endereço do GLPI</label>
+                <p class="setting-desc">A API REST precisa estar ligada (Configurar → Geral → API).</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-GlpiUrl" class="form-control" @bind-Value="Input.GlpiUrl" placeholder="https://glpi.empresa.com.br" autocomplete="off" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-GlpiAppToken">App-Token</label>
+                <p class="setting-desc">Do cliente de API cadastrado no GLPI (opcional, se o cliente não exigir).</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-GlpiAppToken" type="password" class="form-control" @bind-Value="Input.GlpiAppToken" autocomplete="new-password" />
+            </div>
+        </div>
+        <div class="setting-row">
+            <div>
+                <label class="setting-label" for="cfg-GlpiUserToken">Token do usuário</label>
+                <p class="setting-desc">Token de API do usuário do GLPI que registra os chamados (Preferências → Chaves de acesso remoto).</p>
+            </div>
+            <div class="setting-control flex-column align-items-stretch">
+                <InputText id="cfg-GlpiUserToken" type="password" class="form-control" @bind-Value="Input.GlpiUserToken" autocomplete="new-password" />
             </div>
         </div>
     </section>

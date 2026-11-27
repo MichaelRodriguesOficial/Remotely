@@ -492,6 +492,10 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.Property<string>("InventoryUpdatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AgentKeyHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
                     b.HasIndex("AssetTag");
@@ -617,6 +621,18 @@ namespace Remotely.Server.Migrations.Sqlite
                         .HasMaxLength(64)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecordingFile")
+                        .HasMaxLength(400)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TicketId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("ID");
 
                     b.HasIndex("OrganizationID", "StartedAt");
@@ -645,6 +661,13 @@ namespace Remotely.Server.Migrations.Sqlite
                     b.Property<string>("RemoteControlConsent")
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("PrivacyScreen")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("RecordSessions")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("ID");
 

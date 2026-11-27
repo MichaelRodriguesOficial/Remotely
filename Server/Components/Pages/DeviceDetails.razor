@@ -153,6 +153,29 @@ else
                                 }
                                 </fieldset>
                             </EditForm>
+
+                            @if (User?.IsAdministrator == true)
+                            {
+                                <div class="agent-key-row">
+                                    <div>
+                                        <div class="setting-label"><i class="fa-solid fa-key me-1"></i> Chave do agente</div>
+                                        @if (string.IsNullOrEmpty(_device.AgentKeyHash))
+                                        {
+                                            <p class="setting-desc mb-0">Ainda não registrada: o agente registra no próximo contato (agentes antigos registram depois de atualizar).</p>
+                                        }
+                                        else
+                                        {
+                                            <p class="setting-desc mb-0">Registrada. Só este computador consegue se conectar com este ID.</p>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(_device.AgentKeyHash))
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm text-nowrap" @onclick="ResetAgentKey">
+                                            <i class="fa-solid fa-rotate"></i> Redefinir chave
+                                        </button>
+                                    }
+                                </div>
+                            }
                         </section>
                     </div>
                 </div>

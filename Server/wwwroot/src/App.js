@@ -30,6 +30,14 @@ export const ViewerApp = {
     EndedByTechnician: false,
     /** Pasta escolhida em "Enviar arquivo" para o próximo envio. */
     PendingUploadDestination: null,
+    /** Opções da sessão vindas do servidor (permissões, tela preta, anotação, GLPI). */
+    Options: null,
+    /** Tela preta ligada no computador (estado confirmado por ele). */
+    PrivacyScreenOn: false,
+    /** "Liga sozinha ao conectar" já pedida nesta conexão com o computador. */
+    PrivacyAutoRequested: false,
+    /** A primeira tela do computador já chegou. */
+    ScreenReady: false,
     Settings: GetSettings(),
     Init: () => {
         ViewerApp.Mode = queryString["mode"] ?

@@ -78,6 +78,26 @@ public class RemoteControlPolicyTests
         var noSystem = RemoteControlPermissions.Full with { SystemActions = false };
         Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.ToggleBlockInput, noSystem, false));
         Assert.IsTrue(ViewerHub.IsDtoAllowed(DtoType.KeyDown, noSystem, false));
+        Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.TogglePrivacyScreen, noSystem, false));
+    }
+
+    [TestMethod]
+    public void PrivacyScreen_NeedsControl()
+    {
+        Assert.IsTrue(ViewerHub.IsDtoAllowed(DtoType.TogglePrivacyScreen, RemoteControlPermissions.Full, false));
+        Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.TogglePrivacyScreen, RemoteControlPermissions.Full, viewOnly: true));
+        Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.TogglePrivacyScreen, RemoteControlPermissions.Full with { Input = false }, false));
+    }
+
+    [TestMethod]
+    [DataRow(null, "Allow")]
+    [DataRow("", "Allow")]
+    [DataRow("auto", "Auto")]
+    [DataRow("Deny", "Deny")]
+    [DataRow("qualquer", "Allow")]
+    public void NormalizePrivacy_FallsBackToAllow(string? value, string expected)
+    {
+        Assert.AreEqual(expected, RemoteControlPolicy.NormalizePrivacy(value));
     }
 
     [TestMethod]

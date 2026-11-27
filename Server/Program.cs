@@ -343,6 +343,7 @@ services.AddSingleton<IRemoteControlSessionCache, RemoteControlSessionCache>();
 services.AddSingleton<IRemoteControlAuditService, RemoteControlAuditService>();
 services.AddSingleton<IRemoteSessionNotifier, RemoteSessionNotifier>();
 services.AddSingleton<IRemoteControlLauncher, RemoteControlLauncher>();
+services.AddSingleton<IGlpiClient, GlpiClient>();
 services.AddHostedService<RemoteControlIdleMonitor>();
 services.AddSingleton<ISystemTime, SystemTime>();
 services.AddSingleton<IAgentHubSessionCache, AgentHubSessionCache>();
@@ -567,6 +568,36 @@ app.MapPost("/api/viewer/reconnect", async (HttpContext http, ViewerReconnectReq
         url = $"/Viewer?mode=Unattended&sessionId={session.UnattendedSessionId}&accessKey={Uri.EscapeDataString(session.AccessKey)}&viewonly={request.ViewOnly}"
     });
 }).RequireAuthorization(PolicyNames.TwoFactorRequired).DisableAntiforgery();
+
+// Gravação de uma sessão remota (histórico de sessões). Só administradores da organização da sessão.
+app.MapGet("/api/recordings/{logId}", async (HttpContext http, string logId, IDataService dataService, IRemoteControlAuditService audit) =>
+{
+    if (http.User.Identity?.Name is not { } userName)
+    {
+        return Results.Unauthorized();
+    }
+
+    var userResult = await dataService.GetUserByName(userName);
+    if (!userResult.IsSuccess || !userResult.Value.IsAdministrator)
+    {
+        return Results.Forbid();
+    }
+
+    var log = await audit.GetSession(logId);
+    if (log is null || log.OrganizationID != userResult.Value.OrganizationID)
+    {
+        return Results.NotFound();
+    }
+
+    var path = SessionRecordingSink.ResolveRecordingPath(log.RecordingFile);
+    if (path is null || !File.Exists(path))
+    {
+        return Results.NotFound();
+    }
+
+    var download = http.Request.Query.ContainsKey("download");
+    return Results.File(path, "video/webm", download ? Path.GetFileName(path) : null, enableRangeProcessing: true);
+}).RequireAuthorization(PolicyNames.TwoFactorRequired);
 
 app.MapHub<AgentHub>("/hubs/service");
 app.MapControllers();

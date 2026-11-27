@@ -98,7 +98,23 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
     <td colspan="2"><img src=".github/media/sessoes-remotas.png" alt="Histórico de sessões remotas com técnico, computador, duração e como terminou" /></td>
   </tr>
   <tr>
-    <td colspan="2" align="center">Sessões remotas: quem acessou cada computador, quando, por quanto tempo e como terminou</td>
+    <td colspan="2" align="center">Sessões remotas: quem acessou, quando, por quanto tempo, como terminou, a anotação, o chamado do GLPI e a gravação</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/visualizador-tela-preta.png" alt="Tela preta ligada no visualizador: o usuário não vê a tela e fica com teclado e mouse bloqueados" /></td>
+    <td><img src=".github/media/visualizador-anotacao.png" alt="Encerrar o acesso com anotação e acompanhamento no chamado do GLPI" /></td>
+  </tr>
+  <tr>
+    <td align="center">Tela preta: o usuário vê um aviso de manutenção e você continua vendo a área de trabalho</td>
+    <td align="center">Ao encerrar: anote o que fez e registre como acompanhamento ou chamado novo no GLPI</td>
+  </tr>
+  <tr>
+    <td><img src=".github/media/config-glpi.png" alt="Configuração do GLPI com endereço, App-Token e token do usuário" /></td>
+    <td><img src=".github/media/config-chave-agente.png" alt="Segurança com a opção Exigir chave nos agentes" /></td>
+  </tr>
+  <tr>
+    <td align="center">GLPI: endereço e tokens da API</td>
+    <td align="center">Chave por computador: outro computador não se passa por ele</td>
   </tr>
   <tr>
     <td><img src=".github/media/config-acesso-remoto.png" alt="Configuração do acesso remoto com aceite do usuário, sessão parada e avisos" /></td>
@@ -106,7 +122,7 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
   </tr>
   <tr>
     <td align="center">Aceite do usuário, sessão parada e avisos de início</td>
-    <td align="center">Regra de aceite e aviso por grupo</td>
+    <td align="center">Por grupo: aceite, tela preta, gravação e aviso de sessões</td>
   </tr>
   <tr>
     <td colspan="2"><img src=".github/media/perfil-acesso-remoto.png" alt="Perfil de acesso com permissões da sessão de controle remoto" /></td>
@@ -198,6 +214,10 @@ Este repositório é um fork do [immense/Remotely](https://github.com/immense/Re
 - **Copiar e colar entre os dois computadores**: Ctrl+C aqui e Ctrl+V na tela remota cola o texto ou os arquivos lá (na pasta aberta ou na Área de Trabalho); texto copiado lá chega aqui, e arquivos copiados lá podem ser baixados com um clique. O usuário vê uma janela com o progresso, o tempo estimado e o botão Cancelar.
 - **Arquivos no lugar certo**: arrastar para a tela remota salva na pasta (ou Área de Trabalho) onde o arquivo foi solto; o botão Enviar mostra as pastas do computador para escolher o destino.
 - **Reiniciar em modo de segurança com rede** pelo visualizador, com reconexão automática e volta ao modo normal no reinício seguinte.
+- **Tela preta** (Windows): o usuário vê só "Manutenção em andamento" e fica com teclado e mouse bloqueados, enquanto o técnico continua vendo e usando a área de trabalho. Por grupo: o técnico liga, liga sozinha ao conectar ou desativada.
+- **Gravação por grupo** das sessões remotas, com o vídeo no histórico (assistir ou baixar, só administradores).
+- **Anotação ao encerrar e GLPI**: o técnico anota o que fez; a anotação fica no histórico e pode virar acompanhamento de um chamado ou um chamado novo no GLPI, ligado ao computador.
+- **Chave por computador**: cada agente gera uma chave própria e o servidor guarda só o hash. Um computador infectado não consegue se passar por outro, e o painel avisa quando alguém tenta.
 - **Permissões da sessão por perfil**: controlar ou só ver, arquivos, área de transferência e Ctrl+Alt+Del/bloqueio de entrada, conferidos no servidor.
 - **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
 - **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").

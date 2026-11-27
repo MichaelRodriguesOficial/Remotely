@@ -10,6 +10,10 @@ public class DeviceClientDto
     [DataMember]
     public string AgentVersion { get; set; } = string.Empty;
 
+    /// <summary>Chave secreta deste agente (o servidor guarda só o hash). Vazia em agentes antigos.</summary>
+    [DataMember]
+    public string? AgentKey { get; set; }
+
     [DataMember]
     public double CpuUtilization { get; set; }
 

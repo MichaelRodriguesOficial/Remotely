@@ -20,6 +20,7 @@ export var ScreenSelectMenu = document.getElementById("screenSelectMenu");
 export var ChangeScreenButton = document.getElementById("changeScreenButton");
 export var FitToScreenButton = document.getElementById("fitToScreenButton");
 export var BlockInputButton = document.getElementById("blockInputButton");
+export var PrivacyScreenButton = document.getElementById("privacyScreenButton");
 export var DisconnectButton = document.getElementById("disconnectButton");
 export var FileTransferInput = document.getElementById("fileTransferInput");
 export var FileTransferProgress = document.getElementById("fileTransferProgress");
@@ -241,7 +242,136 @@ export function HideWaitOverlay() {
 export function IsWaitOverlayShown() {
     return !!WaitOverlay && !WaitOverlay.classList.contains("d-none");
 }
-/** Confirmação na própria página (sem o confirm() do navegador, que trava o visualizador). */
+/**
+ * Ao encerrar: o que foi feito na sessão (fica no histórico) e, com o GLPI configurado,
+ * acompanhamento num chamado ou chamado novo. Nulo = continuar na sessão.
+ */
+export function PromptSessionNote(glpiEnabled) {
+    return new Promise(resolve => {
+        const backdrop = document.createElement("div");
+        backdrop.className = "modal-confirm";
+        const card = document.createElement("div");
+        card.className = "confirm-card note-card";
+        card.setAttribute("role", "dialog");
+        card.setAttribute("aria-modal", "true");
+        card.setAttribute("aria-labelledby", "noteTitle");
+        const heading = document.createElement("h3");
+        heading.id = "noteTitle";
+        heading.textContent = "Encerrar o acesso";
+        const body = document.createElement("p");
+        body.textContent = "Anote o que foi feito. Fica no histórico de sessões remotas.";
+        const text = document.createElement("textarea");
+        text.className = "note-text";
+        text.maxLength = 4000;
+        text.rows = 5;
+        text.placeholder = "Ex.: Instalei a impressora da recepção e atualizei o driver.";
+        text.setAttribute("aria-label", "O que foi feito na sessão");
+        card.append(heading, body, text);
+        let mode = "none";
+        const ticket = document.createElement("input");
+        if (glpiEnabled) {
+            const group = document.createElement("div");
+            group.className = "note-glpi";
+            group.setAttribute("role", "radiogroup");
+            group.setAttribute("aria-label", "Registrar no GLPI");
+            const title = document.createElement("div");
+            title.className = "note-glpi-title";
+            title.textContent = "GLPI";
+            group.appendChild(title);
+            const options = [
+                ["none", "Não registrar"],
+                ["followup", "Acompanhamento no chamado nº"],
+                ["ticket", "Abrir chamado novo"]
+            ];
+            ticket.type = "text";
+            ticket.inputMode = "numeric";
+            ticket.className = "note-ticket";
+            ticket.placeholder = "1234";
+            ticket.setAttribute("aria-label", "Número do chamado");
+            ticket.disabled = true;
+            for (const [value, label] of options) {
+                const row = document.createElement("label");
+                row.className = "note-glpi-option";
+                const radio = document.createElement("input");
+                radio.type = "radio";
+                radio.name = "noteGlpi";
+                radio.value = value;
+                radio.checked = value == "none";
+                radio.onchange = () => {
+                    mode = value;
+                    ticket.disabled = value != "followup";
+                    if (value == "followup") {
+                        ticket.focus();
+                    }
+                };
+                row.append(radio, document.createTextNode(" " + label));
+                if (value == "followup") {
+                    row.appendChild(ticket);
+                }
+                group.appendChild(row);
+            }
+            card.appendChild(group);
+        }
+        const error = document.createElement("div");
+        error.className = "note-error";
+        error.setAttribute("role", "alert");
+        const actions = document.createElement("div");
+        actions.className = "confirm-actions";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Continuar na sessão";
+        const skip = document.createElement("button");
+        skip.textContent = "Encerrar sem anotar";
+        const ok = document.createElement("button");
+        ok.className = "confirm-ok";
+        ok.textContent = "Salvar e encerrar";
+        actions.append(cancel, skip, ok);
+        card.append(error, actions);
+        backdrop.appendChild(card);
+        document.body.appendChild(backdrop);
+        text.focus();
+        const finish = (value) => {
+            backdrop.remove();
+            resolve(value);
+        };
+        ok.onclick = () => {
+            const note = text.value.trim();
+            if (mode != "none" && !note) {
+                error.textContent = "Escreva o que foi feito para registrar no GLPI.";
+                text.focus();
+                return;
+            }
+            if (mode == "followup" && !/^\s*#?\d+\s*$/.test(ticket.value)) {
+                error.textContent = "Informe o número do chamado.";
+                ticket.focus();
+                return;
+            }
+            finish({ note, glpiMode: mode, ticketId: ticket.value.trim().replace("#", "") });
+        };
+        skip.onclick = () => finish({ note: "", glpiMode: "none", ticketId: "" });
+        cancel.onclick = () => finish(null);
+        // Nada do que é digitado aqui vai para o computador remoto.
+        const stop = (ev) => {
+            ev.stopPropagation();
+            if (ev.type == "keydown" && ev.key == "Escape") {
+                finish(null);
+            }
+        };
+        card.addEventListener("keydown", stop);
+        card.addEventListener("keyup", ev => ev.stopPropagation());
+        card.addEventListener("keypress", ev => ev.stopPropagation());
+        card.addEventListener("paste", ev => ev.stopPropagation());
+    });
+}
+/** Botão "Tela preta" conforme o estado confirmado pelo computador. */
+export function SetPrivacyScreenState(enabled) {
+    if (!PrivacyScreenButton) {
+        return;
+    }
+    PrivacyScreenButton.classList.toggle("toggled", enabled);
+    PrivacyScreenButton.setAttribute("aria-pressed", String(enabled));
+    // O computador bloqueia o teclado e o mouse do usuário junto com a tela preta.
+    BlockInputButton.classList.toggle("toggled", enabled);
+}
 export function Confirm(title, message, okText) {
     return new Promise(resolve => {
         const backdrop = document.createElement("div");
@@ -357,6 +487,7 @@ export function ToggleConnectUI(shown) {
             ConnectHeader.style.removeProperty("display");
         }
         BlockInputButton.classList.remove("toggled");
+        PrivacyScreenButton === null || PrivacyScreenButton === void 0 ? void 0 : PrivacyScreenButton.classList.remove("toggled");
         AudioButton.classList.remove("toggled");
         WorkAreaGrid.style.display = "none";
         BackgroundLayers.classList.remove("d-none");

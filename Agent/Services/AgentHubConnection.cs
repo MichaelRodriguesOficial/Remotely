@@ -9,6 +9,7 @@ using Remotely.Shared.Enums;
 using Remotely.Shared.Models.Inventory;
 using Remotely.Shared.Models.Diagnostics;
 using Remotely.Shared.Interfaces;
+using Remotely.Shared.Helpers;
 using Remotely.Shared.Models;
 using System;
 using System.Collections.Generic;
@@ -164,6 +165,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
                 _logger.LogInformation("Connected to server.");
 
                 var device = await _deviceInfoService.CreateDevice(_connectionInfo.DeviceID, _connectionInfo.OrganizationID);
+                device.AgentKey = GetAgentKey();
 
                 var result = await _hubConnection.InvokeAsync<bool>("DeviceCameOnline", device);
 
@@ -710,6 +712,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             }
 
             var currentInfo = await _deviceInfoService.CreateDevice(_connectionInfo.DeviceID, _connectionInfo.OrganizationID);
+            currentInfo.AgentKey = GetAgentKey();
             await _hubConnection
                 .SendAsync("DeviceHeartbeat", currentInfo)
                 .ConfigureAwait(false);
@@ -898,6 +901,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         await _updater.CheckForUpdates();
 
         var device = await _deviceInfoService.CreateDevice(_connectionInfo.DeviceID, $"{_connectionInfo.OrganizationID}");
+        device.AgentKey = GetAgentKey();
 
         if (!await _hubConnection.InvokeAsync<bool>("DeviceCameOnline", device))
         {
@@ -971,6 +975,35 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         _hubConnection.On<DeviceEventQuery, DeviceEventResult>(nameof(GetEventLog), query => GetEventLog(query, CancellationToken.None));
 
         _hubConnection.On<string>(nameof(WakeDevice), WakeDevice);
+    }
+
+    /// <summary>
+    /// Chave deste computador. Gerada uma vez e salva antes de ir ao servidor, para o computador
+    /// nunca ficar com uma chave que o servidor conhece e ele não.
+    /// </summary>
+    private string? GetAgentKey()
+    {
+        if (_connectionInfo is null)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(_connectionInfo.AgentKey))
+        {
+            _connectionInfo.AgentKey = AgentKeys.Generate();
+            try
+            {
+                _configService.SaveConnectionInfo(_connectionInfo);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Could not save the agent key. It will not be sent.");
+                _connectionInfo.AgentKey = null;
+                return null;
+            }
+        }
+
+        return _connectionInfo.AgentKey;
     }
 
     private async Task<bool> VerifyServer()

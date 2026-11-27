@@ -97,7 +97,9 @@ public class RemoteControlLauncher : IRemoteControlLauncher
             OrganizationId = user.OrganizationID,
             RequireConsent = consent.RequireConsent,
             ConsentAutoAcceptSeconds = consent.AutoAcceptSeconds,
-            NotifyUserOnStart = settings.RemoteControlNotifyUser
+            NotifyUserOnStart = settings.RemoteControlNotifyUser,
+            PrivacyScreen = RemoteControlPolicy.NormalizePrivacy(deviceGroup?.PrivacyScreen),
+            RecordSession = settings.EnableRemoteControlRecording || deviceGroup?.RecordSessions == true
         };
 
         _sessionCache.AddOrUpdate($"{sessionId}", session);

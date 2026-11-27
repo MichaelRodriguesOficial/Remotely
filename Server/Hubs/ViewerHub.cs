@@ -27,6 +27,7 @@ public class ViewerHub : Hub<IViewerHubClient>
     private readonly IAccessProfileService _accessProfiles;
     private readonly IRemoteSessionNotifier _notifier;
     private readonly IAgentHubSessionCache _agentCache;
+    private readonly IGlpiClient _glpi;
 
     public ViewerHub(
         IRemoteControlSessionCache desktopSessionCache,
@@ -39,8 +40,10 @@ public class ViewerHub : Hub<IViewerHubClient>
         IAccessProfileService accessProfiles,
         IRemoteSessionNotifier notifier,
         IAgentHubSessionCache agentCache,
+        IGlpiClient glpi,
         ILogger<ViewerHub> logger)
     {
+        _glpi = glpi;
         _agentCache = agentCache;
         _notifier = notifier;
         _audit = audit;
@@ -203,13 +206,83 @@ public class ViewerHub : Hub<IViewerHubClient>
             ? permissions
             : RemoteControlPermissions.Full;
 
+    /// <summary>
+    /// Anotação do que foi feito na sessão (fica no histórico) e, se pedido, acompanhamento num chamado
+    /// do GLPI ou um chamado novo. glpiMode: "none", "followup" ou "ticket".
+    /// </summary>
+    public async Task<Result<string>> SaveSessionNote(string? note, string? glpiMode, string? ticketId)
+    {
+        var logId = _audit.GetOpenLogId(Context.ConnectionId);
+        if (logId is null || Context.User?.Identity?.IsAuthenticated != true)
+        {
+            return Result.Fail<string>("Esta sessão não tem registro no histórico.");
+        }
+
+        note = note?.Trim() ?? string.Empty;
+        if (note.Length > 4000)
+        {
+            note = note[..4000];
+        }
+
+        var mode = (glpiMode ?? "none").Trim().ToLowerInvariant();
+        if (mode == "none" || string.IsNullOrWhiteSpace(note))
+        {
+            if (!string.IsNullOrWhiteSpace(note))
+            {
+                await _audit.Update(logId, note: note);
+            }
+            return Result.Ok(string.Empty);
+        }
+
+        var settings = await _dataService.GetSettings();
+        if (!_glpi.IsConfigured(settings))
+        {
+            await _audit.Update(logId, note: note);
+            return Result.Fail<string>("Anotação salva, mas o GLPI não está configurado.");
+        }
+
+        var session = await _audit.GetSession(logId);
+        var machine = session?.DeviceName ?? SessionInfo.MachineName;
+        var content =
+            $"Acesso remoto pelo Remotely\n" +
+            $"Computador: {machine}\n" +
+            $"Técnico: {RequesterDisplayName}\n" +
+            $"Início: {session?.StartedAt.ToLocalTime():dd/MM/yyyy HH:mm}\n\n" +
+            note;
+
+        Result<string> result = mode switch
+        {
+            "followup" => await _glpi.AddFollowup(settings, ticketId ?? string.Empty, content),
+            "ticket" => await _glpi.CreateTicket(settings, $"Acesso remoto - {machine}", content, machine),
+            _ => Result.Fail<string>("Opção do GLPI inválida.")
+        };
+
+        if (!result.IsSuccess)
+        {
+            await _audit.Update(logId, note: note);
+            return Result.Fail<string>($"Anotação salva no histórico. {result.Reason}");
+        }
+
+        await _audit.Update(logId, note: note, ticketId: result.Value);
+        _logger.LogInformation(
+            "Session note sent to GLPI ({mode}) ticket {ticket}. User: {user}.",
+            mode, result.Value, Context.User?.Identity?.Name);
+        return Result.Ok(result.Value);
+    }
+
     public async Task<RemoteControlViewerOptions> GetViewerOptions()
     {
         var settings = await _dataService.GetSettings();
         var permissions = Permissions;
         return new RemoteControlViewerOptions()
         {
-            ShouldRecordSession = settings.EnableRemoteControlRecording,
+            ShouldRecordSession = settings.EnableRemoteControlRecording || SessionInfo.RecordSession,
+            PrivacyScreen = RemoteControlPolicy.NormalizePrivacy(SessionInfo.PrivacyScreen),
+            AllowNote = Context.User?.Identity?.IsAuthenticated == true &&
+                _audit.GetOpenLogId(Context.ConnectionId) is not null,
+            GlpiEnabled = Context.User?.Identity?.IsAuthenticated == true &&
+                _audit.GetOpenLogId(Context.ConnectionId) is not null &&
+                _glpi.IsConfigured(settings),
             AllowInput = permissions.Input && !SessionInfo.ViewOnly,
             AllowFiles = permissions.Files,
             AllowClipboard = permissions.Clipboard,
@@ -310,7 +383,8 @@ public class ViewerHub : Hub<IViewerHubClient>
             DtoType.ClipboardText or DtoType.TextTransfer => permissions.Clipboard && permissions.Input && !viewOnly,
             DtoType.File or DtoType.OpenFileTransferWindow or DtoType.FolderListRequest or
             DtoType.DownloadFilesRequest => permissions.Files,
-            DtoType.CtrlAltDel or DtoType.ToggleBlockInput => permissions.SystemActions && permissions.Input && !viewOnly,
+            DtoType.CtrlAltDel or DtoType.ToggleBlockInput or
+            DtoType.TogglePrivacyScreen => permissions.SystemActions && permissions.Input && !viewOnly,
             _ => true
         };
     }
@@ -465,6 +539,13 @@ public class ViewerHub : Hub<IViewerHubClient>
         }
 
         if (!IsDtoAllowed(dtoType, Permissions, SessionInfo.ViewOnly))
+        {
+            return Task.CompletedTask;
+        }
+
+        // Tela preta proibida pelo grupo do computador.
+        if (dtoType == DtoType.TogglePrivacyScreen &&
+            RemoteControlPolicy.NormalizePrivacy(SessionInfo.PrivacyScreen) == RemoteControlPolicy.PrivacyDeny)
         {
             return Task.CompletedTask;
         }
@@ -630,9 +711,20 @@ public class ViewerHub : Hub<IViewerHubClient>
 
     public async Task StoreSessionRecording(IAsyncEnumerable<byte[]> webmStream)
     {
+        var settings = await _dataService.GetSettings();
+        if (!settings.EnableRemoteControlRecording && !SessionInfo.RecordSession)
+        {
+            _logger.LogWarning("Recording rejected: not enabled for this session. Viewer: {connectionId}.", Context.ConnectionId);
+            return;
+        }
+
+        var logId = _audit.GetOpenLogId(Context.ConnectionId);
         try
         {
-            await _sessionRecordingSink.SinkWebmStream(webmStream, SessionInfo);
+            await _sessionRecordingSink.SinkWebmStream(
+                webmStream,
+                SessionInfo,
+                logId is null ? null : file => _audit.Update(logId, recordingFile: file));
         }
         catch (OperationCanceledException)
         {

@@ -22,6 +22,8 @@ public class DtoMessageHandler : IDtoMessageHandler
 
     private readonly IKeyboardMouseInput _keyboardMouseInput;
 
+    private readonly IPrivacyScreen _privacyScreen;
+
     private readonly ILogger<DtoMessageHandler> _logger;
 
 
@@ -30,8 +32,10 @@ public class DtoMessageHandler : IDtoMessageHandler
         IAudioCapturer audioCapturer,
         IClipboardService clipboardService,
         IFileTransferService fileTransferService,
+        IPrivacyScreen privacyScreen,
         ILogger<DtoMessageHandler> logger)
     {
+        _privacyScreen = privacyScreen;
         _keyboardMouseInput = keyboardMouseInput;
         _audioCapturer = audioCapturer;
         _clipboardService = clipboardService;
@@ -119,6 +123,9 @@ public class DtoMessageHandler : IDtoMessageHandler
                     break;
                 case DtoType.DownloadFilesRequest:
                     await DownloadFilesRequest(wrapper, viewer);
+                    break;
+                case DtoType.TogglePrivacyScreen:
+                    await TogglePrivacyScreen(wrapper, viewer);
                     break;
                 case DtoType.WindowsSessions:
                     await GetWindowsSessions(viewer);
@@ -358,6 +365,29 @@ public class DtoMessageHandler : IDtoMessageHandler
         }
 
         _audioCapturer.ToggleAudio(dto!.ToggleOn);
+    }
+
+    private async Task TogglePrivacyScreen(DtoWrapper wrapper, IViewer viewer)
+    {
+        if (!DtoChunker.TryComplete<PrivacyScreenDto>(wrapper, out var dto) || !viewer.HasControl)
+        {
+            return;
+        }
+
+        var (enabled, error) = await _privacyScreen.SetEnabled(dto.Enabled);
+
+        // Com a tela preta o usuário não vê o que acontece: o teclado e o mouse dele ficam bloqueados junto.
+        if (error is null)
+        {
+            _keyboardMouseInput.ToggleBlockInput(enabled);
+        }
+
+        await viewer.SendDto(new PrivacyScreenDto
+        {
+            Enabled = enabled,
+            Supported = error is null || enabled,
+            Message = error
+        }, DtoType.PrivacyScreenState);
     }
 
     private void ToggleBlockInput(DtoWrapper wrapper)

@@ -97,7 +97,10 @@ public partial class ServerConfig : AuthComponentBase
         }
 
         _userList.AddRange(DataService.GetAllUsersForServer().OrderBy(x => x.UserName));
+        _devicesWithoutKey = await DataService.CountDevicesWithoutAgentKey();
     }
+
+    private int _devicesWithoutKey;
 
     private void AddBannedDevice()
     {
@@ -239,6 +242,9 @@ public partial class ServerConfig : AuthComponentBase
         Input.RemoteControlIdleMinutes = Math.Clamp(Input.RemoteControlIdleMinutes, 0, 480);
         Input.RemoteControlNotifyWebhook = Input.RemoteControlNotifyWebhook?.Trim() ?? string.Empty;
         Input.RemoteControlNotifyEmails = Input.RemoteControlNotifyEmails?.Trim() ?? string.Empty;
+        Input.GlpiUrl = Input.GlpiUrl?.Trim().TrimEnd('/') ?? string.Empty;
+        Input.GlpiAppToken = Input.GlpiAppToken?.Trim() ?? string.Empty;
+        Input.GlpiUserToken = Input.GlpiUserToken?.Trim() ?? string.Empty;
         await DataService.SaveSettings(Input);
 
         ToastService.ShowToast("Configuração salva.");

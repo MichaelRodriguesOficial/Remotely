@@ -28,6 +28,14 @@ public interface IRemoteControlAuditService
 
     Task<List<RemoteControlSessionLog>> GetSessions(RemoteSessionQuery query);
 
+    /// <summary>ID do registro aberto desta conexão (null se não houver).</summary>
+    string? GetOpenLogId(string viewerConnectionId);
+
+    /// <summary>Guarda a anotação, o chamado do GLPI e/ou o arquivo da gravação no registro.</summary>
+    Task Update(string logId, string? note = null, string? ticketId = null, string? recordingFile = null);
+
+    Task<RemoteControlSessionLog?> GetSession(string logId);
+
     /// <summary>Remove registros mais antigos que o limite (padrão: 1 ano).</summary>
     Task<int> Prune(TimeSpan keep);
 
@@ -100,6 +108,45 @@ public class RemoteControlAuditService : IRemoteControlAuditService
             _logger.LogError(ex, "Error while recording the start of a remote control session.");
             return true;
         }
+    }
+
+    public string? GetOpenLogId(string viewerConnectionId) =>
+        _openLogs.TryGetValue(viewerConnectionId, out var logId) ? logId : null;
+
+    public async Task Update(string logId, string? note = null, string? ticketId = null, string? recordingFile = null)
+    {
+        try
+        {
+            using var db = _dbFactory.GetContext();
+            var log = await db.RemoteControlSessionLogs.FirstOrDefaultAsync(x => x.ID == logId);
+            if (log is null)
+            {
+                return;
+            }
+            if (note is not null)
+            {
+                log.Note = Truncate(note.Trim(), 4000);
+            }
+            if (ticketId is not null)
+            {
+                log.TicketId = Truncate(ticketId, 50);
+            }
+            if (recordingFile is not null)
+            {
+                log.RecordingFile = Truncate(recordingFile, 400);
+            }
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while updating remote control session {logId}.", logId);
+        }
+    }
+
+    public async Task<RemoteControlSessionLog?> GetSession(string logId)
+    {
+        using var db = _dbFactory.GetContext();
+        return await db.RemoteControlSessionLogs.AsNoTracking().FirstOrDefaultAsync(x => x.ID == logId);
     }
 
     public async Task SessionEnded(string viewerConnectionId, string reason)

@@ -10,6 +10,7 @@ using Remotely.Server.Models;
 using Remotely.Shared;
 using Remotely.Shared.Dtos;
 using Remotely.Shared.Entities;
+using Remotely.Shared.Helpers;
 using Remotely.Shared.Utilities;
 using Remotely.Shared.ViewModels;
 using System.Text.Json;
@@ -27,6 +28,12 @@ public interface IDataService
     Task<Result<InviteLink>> AddInvite(string orgId, InviteViewModel invite);
 
     Task<Result<Device>> AddOrUpdateDevice(DeviceClientDto device);
+
+    /// <summary>Esquece a chave do agente: o próximo agente que conectar com este ID registra a dele.</summary>
+    Task<Result> ResetAgentKey(string orgId, string deviceId);
+
+    /// <summary>Computadores da organização que ainda não registraram chave (agente antigo).</summary>
+    Task<int> CountDevicesWithoutAgentKey(string? orgId = null);
 
     Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId);
 
@@ -97,6 +104,8 @@ public interface IDataService
 
     /// <summary>Aceite do usuário (null = padrão do servidor) e aviso de sessões do grupo.</summary>
     Task<Result> UpdateDeviceGroupRemoteSettings(string orgId, string deviceGroupId, string? consent, bool notifyRemoteSessions);
+
+    Task<Result> UpdateDeviceGroupSessionSettings(string orgId, string deviceGroupId, string? privacyScreen, bool recordSessions);
 
     Task<Result> DeleteInvite(string orgId, string inviteId);
 
@@ -398,15 +407,59 @@ public class DataService : IDataService
         using var dbContext = _appDbFactory.GetContext();
 
         var device = await dbContext.Devices.FindAsync(deviceDto.ID);
+        var requireKey = (await dbContext.GetAppSettings()).RequireAgentKey;
+        var keyHash = AgentKeys.Hash(deviceDto.AgentKey);
 
         if (device is null)
         {
+            if (keyHash is null && requireKey)
+            {
+                _logger.LogWarning("Device {deviceId} ({deviceName}) refused: agent without key.", deviceDto.ID, deviceDto.DeviceName);
+                return Result.Fail<Device>(AgentKeyRejected);
+            }
+
             device = new Device
             {
                 OrganizationID = deviceDto.OrganizationID,
                 ID = deviceDto.ID,
+                AgentKeyHash = keyHash
             };
             await dbContext.Devices.AddAsync(device);
+        }
+        else if (!string.IsNullOrEmpty(device.AgentKeyHash))
+        {
+            // Computador já registrado: só conecta quem tem a chave dele.
+            if (!AgentKeys.Matches(device.AgentKeyHash, deviceDto.AgentKey))
+            {
+                _logger.LogWarning(
+                    "Device {deviceId} ({deviceName}) refused: wrong or missing agent key. IP: {ip}.",
+                    deviceDto.ID, device.DeviceName, deviceDto.PublicIP);
+
+                // Um alerta por hora por computador (o agente tenta de novo a cada poucos segundos).
+                var now = DateTimeOffset.Now;
+                if (!_agentKeyAlerts.TryGetValue(device.ID, out var last) || now - last > TimeSpan.FromHours(1))
+                {
+                    _agentKeyAlerts[device.ID] = now;
+                    await AddAlert(
+                        device.ID,
+                        device.OrganizationID,
+                        $"Conexão recusada: um agente tentou entrar como {device.DeviceName} sem a chave deste computador.",
+                        $"IP de origem: {deviceDto.PublicIP}. Se o computador foi reinstalado ou restaurado, use " +
+                        "\"Redefinir chave do agente\" nos detalhes dele. Se não, pode ser outra máquina se passando por ele.");
+                }
+                return Result.Fail<Device>(AgentKeyRejected);
+            }
+        }
+        else if (keyHash is not null)
+        {
+            // Primeiro contato com chave (agente atualizado ou chave redefinida): registra.
+            device.AgentKeyHash = keyHash;
+            _logger.LogInformation("Agent key registered for device {deviceId} ({deviceName}).", device.ID, device.DeviceName);
+        }
+        else if (requireKey)
+        {
+            _logger.LogWarning("Device {deviceId} ({deviceName}) refused: agent without key.", deviceDto.ID, device.DeviceName);
+            return Result.Fail<Device>(AgentKeyRejected);
         }
 
         device.CurrentUser = deviceDto.CurrentUser;
@@ -451,6 +504,31 @@ public class DataService : IDataService
 
         await dbContext.SaveChangesAsync();
         return Result.Ok(device);
+    }
+
+    public const string AgentKeyRejected = "AgentKeyRejected";
+    private static readonly ConcurrentDictionary<string, DateTimeOffset> _agentKeyAlerts = new();
+
+    public async Task<Result> ResetAgentKey(string orgId, string deviceId)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        var device = await dbContext.Devices.FirstOrDefaultAsync(x => x.ID == deviceId && x.OrganizationID == orgId);
+        if (device is null)
+        {
+            return Result.Fail("Computador não encontrado.");
+        }
+
+        device.AgentKeyHash = null;
+        await dbContext.SaveChangesAsync();
+        return Result.Ok();
+    }
+
+    public async Task<int> CountDevicesWithoutAgentKey(string? orgId = null)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        return await dbContext.Devices
+            .Where(x => orgId == null || x.OrganizationID == orgId)
+            .CountAsync(x => x.AgentKeyHash == null || x.AgentKeyHash == "");
     }
 
     public async Task<DeviceInventoryRecord?> GetDeviceInventory(string deviceId)
@@ -1296,6 +1374,25 @@ public class DataService : IDataService
 
         group.RemoteControlConsent = string.IsNullOrWhiteSpace(consent) ? null : RemoteControlPolicy.Normalize(consent);
         group.NotifyRemoteSessions = notifyRemoteSessions;
+        await dbContext.SaveChangesAsync();
+        return Result.Ok();
+    }
+
+    public async Task<Result> UpdateDeviceGroupSessionSettings(string orgId, string deviceGroupId, string? privacyScreen, bool recordSessions)
+    {
+        using var dbContext = _appDbFactory.GetContext();
+        var group = await dbContext.DeviceGroups.FirstOrDefaultAsync(x =>
+            x.ID == deviceGroupId &&
+            x.OrganizationID == orgId);
+
+        if (group is null)
+        {
+            return Result.Fail("Grupo não encontrado.");
+        }
+
+        var privacy = RemoteControlPolicy.NormalizePrivacy(privacyScreen);
+        group.PrivacyScreen = privacy == RemoteControlPolicy.PrivacyAllow ? null : privacy;
+        group.RecordSessions = recordSessions;
         await dbContext.SaveChangesAsync();
         return Result.Ok();
     }

@@ -1,4 +1,4 @@
-using Remotely.Server.Models;
+﻿using Remotely.Server.Models;
 using Remotely.Shared.Entities;
 
 namespace Remotely.Server.Services;
@@ -47,4 +47,21 @@ public static class RemoteControlPolicy
 
     public static string Describe(string? mode) =>
         ConsentOptions.FirstOrDefault(x => x.Value == mode).Label ?? "Padrão do servidor";
+
+    public const string PrivacyAllow = "Allow";
+    public const string PrivacyAuto = "Auto";
+    public const string PrivacyDeny = "Deny";
+
+    /// <summary>Opções da tela preta para o grupo.</summary>
+    public static readonly (string Value, string Label)[] PrivacyOptions =
+    [
+        (PrivacyAllow, "O técnico pode ligar"),
+        (PrivacyAuto, "Liga ao conectar"),
+        (PrivacyDeny, "Desativada")
+    ];
+
+    public static string NormalizePrivacy(string? value) =>
+        string.Equals(value, PrivacyAuto, StringComparison.OrdinalIgnoreCase) ? PrivacyAuto :
+        string.Equals(value, PrivacyDeny, StringComparison.OrdinalIgnoreCase) ? PrivacyDeny :
+        PrivacyAllow;
 }

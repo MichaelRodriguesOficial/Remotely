@@ -23,6 +23,7 @@ internal class ScreenCaster : IScreenCaster
     private readonly ICursorIconWatcher _cursorIconWatcher;
     private readonly IImageHelper _imageHelper;
     private readonly IKeyboardMouseInput _keyboardMouseInput;
+    private readonly IPrivacyScreen _privacyScreen;
     private readonly ILogger<ScreenCaster> _logger;
     private readonly CancellationTokenSource _metricsCts = new();
     private readonly RecyclableMemoryStreamManager _recycleStreams = new();
@@ -43,9 +44,11 @@ internal class ScreenCaster : IScreenCaster
         ISystemTime systemTime,
         IMessenger messenger,
         IKeyboardMouseInput keyboardMouseInput,
+        IPrivacyScreen privacyScreen,
         ILogger<ScreenCaster> logger)
     {
         _keyboardMouseInput = keyboardMouseInput;
+        _privacyScreen = privacyScreen;
         _appState = appState;
         _cursorIconWatcher = cursorIconWatcher;
         _sessionIndicator = sessionIndicator;
@@ -165,6 +168,8 @@ internal class ScreenCaster : IScreenCaster
                 try
                 {
                     _keyboardMouseInput.ToggleBlockInput(false);
+                    // Nem a tela preta: o usuário volta a ver a própria tela.
+                    _ = _privacyScreen.SetEnabled(false);
                 }
                 catch (Exception ex)
                 {

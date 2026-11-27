@@ -1,11 +1,27 @@
 import * as UI from "./UI.js";
 import { DtoType } from "./Enums/DtoType.js";
 import { ViewerApp } from "./App.js";
+import { ShowToast } from "./UI.js";
 import { Sound } from "./Sound.js";
 import { ReceiveFile, HandleFileSaved, HandleClipboardFiles } from "./FileTransferService.js";
 import { HandleFolderList } from "./FolderPicker.js";
 import { TryComplete } from "./DtoChunker.js";
 const MsgPack = window["MessagePack"];
+/**
+ * Grupo com "tela preta liga sozinha ao conectar": pede assim que a tela chega e as opções da
+ * sessão são conhecidas (podem chegar em qualquer ordem).
+ */
+export function RequestAutoPrivacy() {
+    const options = ViewerApp.Options;
+    if ((options === null || options === void 0 ? void 0 : options.PrivacyScreen) == "Auto" &&
+        ViewerApp.ScreenReady &&
+        !ViewerApp.PrivacyAutoRequested &&
+        !ViewerApp.PrivacyScreenOn &&
+        !ViewerApp.ViewOnlyMode &&
+        UI.PrivacyScreenButton && !UI.PrivacyScreenButton.classList.contains("d-none")) {
+        ViewerApp.MessageSender.SendTogglePrivacyScreen(true);
+    }
+}
 export class DtoMessageHandler {
     async ParseBinaryMessage(data) {
         var wrapper = MsgPack.decode(data);
@@ -55,6 +71,9 @@ export class DtoMessageHandler {
             case DtoType.SessionMetrics:
                 await this.HandleSessionMetrics(wrapper);
                 break;
+            case DtoType.PrivacyScreenState:
+                this.HandlePrivacyScreenState(wrapper);
+                break;
             default:
                 break;
         }
@@ -98,6 +117,31 @@ export class DtoMessageHandler {
         UI.SetSessionIdentity(screenDataDto.MachineName);
         UI.SetScreenSize(screenDataDto.ScreenWidth, screenDataDto.ScreenHeight);
         UI.UpdateDisplays(screenDataDto.SelectedDisplay, screenDataDto.DisplayNames);
+        ViewerApp.ScreenReady = true;
+        RequestAutoPrivacy();
+    }
+    HandlePrivacyScreenState(wrapper) {
+        var _a, _b;
+        const state = TryComplete(wrapper);
+        if (!state) {
+            return;
+        }
+        ViewerApp.PrivacyScreenOn = state.Enabled === true;
+        // Resposta do computador: o pedido automático foi atendido (ou recusado), não pede de novo.
+        ViewerApp.PrivacyAutoRequested = true;
+        UI.SetPrivacyScreenState(ViewerApp.PrivacyScreenOn);
+        (_a = UI.PrivacyScreenButton) === null || _a === void 0 ? void 0 : _a.removeAttribute("disabled");
+        if (state.Supported === false) {
+            (_b = UI.PrivacyScreenButton) === null || _b === void 0 ? void 0 : _b.classList.add("d-none");
+        }
+        if (state.Message) {
+            ShowToast(state.Message, 7000);
+        }
+        else {
+            ShowToast(state.Enabled
+                ? "Tela preta ligada: o usuário não vê a tela e o teclado e o mouse dele estão bloqueados."
+                : "Tela preta desligada.");
+        }
     }
     HandleScreenSize(wrapper) {
         let screenSizeDto = TryComplete(wrapper);

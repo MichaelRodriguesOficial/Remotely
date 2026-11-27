@@ -1,4 +1,4 @@
-import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, PromptText, ShortcutsButton, ShortcutsMenu, RestartSafeButton, SessionEndedClose, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
+import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, PromptText, ShortcutsButton, ShortcutsMenu, RestartSafeButton, SessionEndedClose, ShowWaitOverlay, HideWaitOverlay, PrivacyScreenButton, PromptSessionNote, } from "./UI.js";
 import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
 import { ViewerApp } from "./App.js";
@@ -120,11 +120,36 @@ export function ApplyInputHandlers() {
         CloseAllPopupMenus(null);
         await ViewerApp.MessageSender.SendCtrlAltDel();
     });
-    DisconnectButton.addEventListener("click", (ev) => {
+    DisconnectButton.addEventListener("click", async (ev) => {
+        var _a;
+        // Sessão com registro no histórico: o técnico anota o que fez antes de sair.
+        const options = ViewerApp.Options;
+        const connected = ((_a = ViewerApp.ViewerHubConnection.Connection) === null || _a === void 0 ? void 0 : _a.state) == "Connected";
+        if (connected && (options === null || options === void 0 ? void 0 : options.AllowNote) && !ViewerApp.IsWaitingForRestart && !ViewerApp.EndedByTechnician) {
+            const result = await PromptSessionNote(options.GlpiEnabled === true);
+            if (!result) {
+                return;
+            }
+            if (result.note) {
+                const saved = await ViewerApp.ViewerHubConnection.SaveSessionNote(result.note, result.glpiMode, result.ticketId);
+                if (!saved.IsSuccess) {
+                    const keepGoing = await Confirm("Não deu para registrar no GLPI", saved.Reason + " Encerrar mesmo assim?", "Encerrar");
+                    if (!keepGoing) {
+                        return;
+                    }
+                }
+                else if (saved.Value) {
+                    ShowToast(result.glpiMode == "ticket"
+                        ? `Chamado #${saved.Value} aberto no GLPI.`
+                        : `Acompanhamento adicionado ao chamado #${saved.Value}.`);
+                }
+            }
+        }
         ConnectButton.removeAttribute("disabled");
         ConnectButton.innerText = "Conectar";
         SetStatusMessage("Sessão encerrada por você.");
         ViewerApp.EndedByTechnician = true;
+        await ViewerApp.SessionRecorder.StopAndFlush();
         ViewerApp.ViewerHubConnection.Connection.stop();
     });
     (_a = document.getElementById("sessionEndedReconnect")) === null || _a === void 0 ? void 0 : _a.addEventListener("click", () => Reconnect());
@@ -279,6 +304,17 @@ export function ApplyInputHandlers() {
         else {
             await ViewerApp.MessageSender.SendToggleBlockInput(false);
         }
+    });
+    PrivacyScreenButton === null || PrivacyScreenButton === void 0 ? void 0 : PrivacyScreenButton.addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        if (ViewerApp.ViewOnlyMode) {
+            ShowToast("O modo somente visualização está ativado.");
+            return;
+        }
+        const enable = !ViewerApp.PrivacyScreenOn;
+        PrivacyScreenButton.setAttribute("disabled", "disabled");
+        window.setTimeout(() => PrivacyScreenButton.removeAttribute("disabled"), 1500);
+        await ViewerApp.MessageSender.SendTogglePrivacyScreen(enable);
     });
     InviteButton.addEventListener("click", (ev) => {
         var url = "";
@@ -871,6 +907,10 @@ async function RestartRemote(mode) {
         return;
     }
     ViewerApp.IsWaitingForRestart = true;
+    // Depois de reiniciar, a tela preta volta a ser pedida se o grupo liga sozinho.
+    ViewerApp.PrivacyAutoRequested = false;
+    ViewerApp.PrivacyScreenOn = false;
+    ViewerApp.ScreenReady = false;
     ShowWaitOverlay(mode == "safe" ? "Reiniciando em modo de segurança" : "Reiniciando o computador", "O acesso volta sozinho quando o computador ligar de novo. Pode levar alguns minutos.");
 }
 /** "Reconectar": abre uma sessão nova no mesmo computador e troca esta página por ela. */

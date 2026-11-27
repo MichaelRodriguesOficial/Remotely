@@ -87,6 +87,21 @@ else if (User is not null)
                                     <option value="@option.Value">Aceite: @option.Label.ToLowerInvariant()</option>
                                 }
                             </select>
+                            <select class="form-select form-select-sm group-item-privacy" title="Tela preta no computador durante o acesso"
+                                    aria-label="Tela preta em @deviceGroup.Name"
+                                    value="@RemoteControlPolicy.NormalizePrivacy(deviceGroup.PrivacyScreen)"
+                                    @onchange="e => UpdateGroupSession(deviceGroup, e.Value?.ToString(), deviceGroup.RecordSessions)">
+                                @foreach (var option in RemoteControlPolicy.PrivacyOptions)
+                                {
+                                    <option value="@option.Value">Tela preta: @option.Label.ToLowerInvariant()</option>
+                                }
+                            </select>
+                            <button type="button" class="btn btn-ghost btn-icon btn-sm @(deviceGroup.RecordSessions ? "text-danger" : "")"
+                                    title="@(deviceGroup.RecordSessions ? "Grava as sessões deste grupo (clique para desligar)" : "Gravar as sessões deste grupo")"
+                                    aria-pressed="@deviceGroup.RecordSessions"
+                                    @onclick="() => UpdateGroupSession(deviceGroup, deviceGroup.PrivacyScreen, !deviceGroup.RecordSessions)">
+                                <i class="fa-solid fa-@(deviceGroup.RecordSessions ? "circle-dot" : "video")"></i>
+                            </button>
                             <button type="button" class="btn btn-ghost btn-icon btn-sm @(deviceGroup.NotifyRemoteSessions ? "text-warning" : "")"
                                     title="@(deviceGroup.NotifyRemoteSessions ? "Avisa quando alguém abre uma sessão (clique para desligar)" : "Avisar quando alguém abrir uma sessão")"
                                     aria-pressed="@deviceGroup.NotifyRemoteSessions"

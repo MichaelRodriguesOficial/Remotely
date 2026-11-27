@@ -225,6 +225,37 @@ public partial class DeviceDetails : AuthComponentBase
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task ResetAgentKey()
+    {
+        EnsureUserSet();
+        if (_device is null || !User.IsAdministrator)
+        {
+            return;
+        }
+
+        var confirmed = await JsInterop.Confirm(new ConfirmOptions(
+            "Redefinir chave do agente",
+            "Use quando o computador foi reinstalado, restaurado de backup ou clonado e não conecta mais. " +
+            "O próximo agente que conectar com este ID registra a chave dele.",
+            "Redefinir",
+            Danger: true,
+            Icon: "fa-solid fa-key"));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        var result = await DataService.ResetAgentKey(User.OrganizationID, _device.ID);
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, Enums.ToastType.Warning);
+            return;
+        }
+
+        _device.AgentKeyHash = null;
+        ToastService.ShowToast2("Chave redefinida. O agente registra uma nova ao conectar.", Enums.ToastType.Success);
+    }
+
     private async Task DeleteLogs()
     {
         if (_device is null)

@@ -148,6 +148,23 @@ public partial class ManageOrganization : AuthComponentBase
         ToastService.ShowToast2($"Grupo {group.Name}: aceite \"{RemoteControlPolicy.Describe(group.RemoteControlConsent).ToLowerInvariant()}\"{(notify ? ", com aviso de sessões" : "")}.", ToastType.Success);
     }
 
+    private async Task UpdateGroupSession(DeviceGroup group, string? privacy, bool record)
+    {
+        EnsureUserSet();
+        var result = await DataService.UpdateDeviceGroupSessionSettings(User.OrganizationID, group.ID, privacy, record);
+        if (!result.IsSuccess)
+        {
+            ToastService.ShowToast2(result.Reason, ToastType.Warning);
+            return;
+        }
+
+        var normalized = RemoteControlPolicy.NormalizePrivacy(privacy);
+        group.PrivacyScreen = normalized == RemoteControlPolicy.PrivacyAllow ? null : normalized;
+        group.RecordSessions = record;
+        var label = RemoteControlPolicy.PrivacyOptions.First(x => x.Value == normalized).Label.ToLowerInvariant();
+        ToastService.ShowToast2($"Grupo {group.Name}: tela preta \"{label}\"{(record ? ", sessões gravadas" : "")}.", ToastType.Success);
+    }
+
     private async Task DeleteDeviceGroup(string deviceGroupId)
     {
         _selectedDeviceGroupId = deviceGroupId;

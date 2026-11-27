@@ -499,6 +499,10 @@ namespace Remotely.Server.Migrations.PostgreSql
                     b.Property<DateTimeOffset?>("InventoryUpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("AgentKeyHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.HasKey("ID");
 
                     b.HasIndex("AssetTag");
@@ -621,6 +625,18 @@ namespace Remotely.Server.Migrations.PostgreSql
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("RecordingFile")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)");
+
+                    b.Property<string>("TicketId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.HasKey("ID");
 
                     b.HasIndex("OrganizationID", "StartedAt");
@@ -649,6 +665,13 @@ namespace Remotely.Server.Migrations.PostgreSql
                     b.Property<string>("RemoteControlConsent")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<string>("PrivacyScreen")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("RecordSessions")
+                        .HasColumnType("boolean");
 
                     b.HasKey("ID");
 

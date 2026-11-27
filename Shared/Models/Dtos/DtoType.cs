@@ -66,5 +66,11 @@ public enum DtoType
     ClipboardFiles = 32,
     /// <summary>Visualizador pede arquivos do computador remoto.</summary>
     [EnumMember]
-    DownloadFilesRequest = 33
+    DownloadFilesRequest = 33,
+    /// <summary>Liga/desliga a tela preta no computador remoto.</summary>
+    [EnumMember]
+    TogglePrivacyScreen = 34,
+    /// <summary>Estado da tela preta (ligada, sem suporte...), do computador para o visualizador.</summary>
+    [EnumMember]
+    PrivacyScreenState = 35
 }

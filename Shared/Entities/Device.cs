@@ -133,6 +133,14 @@ public class Device
 
     public string? ServerVerificationToken { get; set; }
 
+    /// <summary>
+    /// Hash (SHA-256) da chave que o agente deste computador gerou. Só quem tem a chave
+    /// conecta com este ID; vazio = ainda não registrada (registra no próximo contato).
+    /// </summary>
+    [StringLength(100)]
+    [JsonIgnore]
+    public string? AgentKeyHash { get; set; }
+
     [StringLength(200)]
     [Sortable]
     [Display(Name = "Tags")]

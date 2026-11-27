@@ -3,6 +3,7 @@
 @inherits AuthComponentBase
 @inject IRemoteControlAuditService Audit
 @inject IJsInterop JsInterop
+@inject IDataService DataService
 
 <PageHeader Title="Sessões remotas"
             Subtitle="Quem acessou cada computador, quando, por quanto tempo e como a sessão terminou."
@@ -37,7 +38,7 @@ else
         <div class="input-icon inv-list-search">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input class="form-control"
-                   placeholder="Buscar por computador, técnico ou IP"
+                   placeholder="Buscar por computador, técnico, IP, anotação ou chamado"
                    value="@_query"
                    @oninput="OnQueryInput"
                    aria-label="Buscar" />
@@ -92,6 +93,7 @@ else
                         <th>Duração</th>
                         <th>Término</th>
                         <th>IP do técnico</th>
+                        <th>Registro</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -145,6 +147,44 @@ else
                                 }
                             </td>
                             <td class="text-nowrap"><code>@(log.ViewerIp ?? "—")</code></td>
+                            <td class="session-record">
+                                @if (!string.IsNullOrWhiteSpace(log.Note))
+                                {
+                                    <button type="button" class="session-note @(_expanded.Contains(log.ID) ? "open" : "")"
+                                            title="@(_expanded.Contains(log.ID) ? "Recolher" : log.Note)"
+                                            @onclick="() => ToggleNote(log.ID)">
+                                        <i class="fa-regular fa-note-sticky"></i> @log.Note
+                                    </button>
+                                }
+                                <div class="session-record-links">
+                                    @if (!string.IsNullOrWhiteSpace(log.TicketId))
+                                    {
+                                        @if (TicketUrl(log.TicketId) is { } ticketUrl)
+                                        {
+                                            <a href="@ticketUrl" target="_blank" rel="noopener" title="Abrir o chamado no GLPI">
+                                                <i class="fa-solid fa-ticket"></i> Chamado #@log.TicketId
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span><i class="fa-solid fa-ticket"></i> Chamado #@log.TicketId</span>
+                                        }
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(log.RecordingFile) && User?.IsAdministrator == true)
+                                    {
+                                        <a href="@($"/api/recordings/{log.ID}")" target="_blank" rel="noopener" title="Assistir à gravação">
+                                            <i class="fa-solid fa-circle-play"></i> Gravação
+                                        </a>
+                                        <a href="@($"/api/recordings/{log.ID}?download=1")" title="Baixar a gravação (.webm)">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                    }
+                                </div>
+                                @if (string.IsNullOrWhiteSpace(log.Note) && string.IsNullOrWhiteSpace(log.TicketId) && string.IsNullOrWhiteSpace(log.RecordingFile))
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -172,6 +212,22 @@ else
     private string _query = string.Empty;
     private string _technician = string.Empty;
 
+    private readonly HashSet<string> _expanded = new();
+    private string? _glpiUrl;
+
+    private void ToggleNote(string id)
+    {
+        if (!_expanded.Remove(id))
+        {
+            _expanded.Add(id);
+        }
+    }
+
+    private string? TicketUrl(string ticketId) =>
+        string.IsNullOrWhiteSpace(_glpiUrl) || !int.TryParse(ticketId, out var id)
+            ? null
+            : $"{_glpiUrl.TrimEnd('/')}/front/ticket.form.php?id={id}";
+
     private TimeSpan TotalTime => _filtered.Aggregate(TimeSpan.Zero, (sum, x) => sum + Duration(x));
 
     protected override async Task OnInitializedAsync()
@@ -184,6 +240,10 @@ else
     {
         EnsureUserSet();
         _isLoading = _all.Count == 0;
+        var settings = await DataService.GetSettings();
+        _glpiUrl = Uri.TryCreate(settings.GlpiUrl, UriKind.Absolute, out var glpi) && glpi.Scheme is "https" or "http"
+            ? settings.GlpiUrl
+            : null;
 
         _all = await Audit.GetSessions(new RemoteSessionQuery(
             User.OrganizationID,
@@ -223,7 +283,8 @@ else
             .Where(x => string.IsNullOrWhiteSpace(_technician) || x.RequesterUserName == _technician)
             .Where(x => query.Length == 0 ||
                 Has(x.DeviceName, query) || Has(x.RequesterName, query) ||
-                Has(x.RequesterUserName, query) || Has(x.ViewerIp, query))
+                Has(x.RequesterUserName, query) || Has(x.ViewerIp, query) ||
+                Has(x.Note, query) || Has(x.TicketId, query))
             .ToList();
     }
 
@@ -259,11 +320,13 @@ else
             x.Mode == "Attended" ? "Assistido" : "Autônomo",
             x.ViewOnly ? "Sim" : "Não",
             x.EndReason ?? (IsActive(x) ? "Em andamento" : ""),
-            x.ViewerIp
+            x.ViewerIp,
+            x.Note,
+            x.TicketId
         });
 
         var csv = ReportBuilder.Csv(
-            ["Início", "Término", "Duração", "Computador", "Técnico", "Login", "Modo", "Só ver", "Como terminou", "IP do técnico"],
+            ["Início", "Término", "Duração", "Computador", "Técnico", "Login", "Modo", "Só ver", "Como terminou", "IP do técnico", "Anotação", "Chamado GLPI"],
             rows);
         await JsInterop.DownloadFile($"sessoes-remotas-{DateTime.Now:yyyy-MM-dd}.csv", "text/csv", csv);
     }

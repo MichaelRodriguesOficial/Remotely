@@ -53,6 +53,7 @@ apt-get -y install jq
 
 if [ -f "$InstallDir/ConnectionInfo.json" ]; then
     SavedGUID=`cat "$InstallDir/ConnectionInfo.json" | jq -r '.DeviceID'`
+    SavedAgentKey=`cat "$InstallDir/ConnectionInfo.json" | jq -r '.AgentKey // ""'`
      if [[ "$SavedGUID" != "null" && -n "$SavedGUID" ]]; then
         GUID="$SavedGUID"
     fi
@@ -82,7 +83,8 @@ connectionInfo="{
     \"DeviceID\":\"$GUID\", 
     \"Host\":\"$HostName\",
     \"OrganizationID\": \"$Organization\",
-    \"ServerVerificationToken\":\"\"
+    \"ServerVerificationToken\":\"\",
+    \"AgentKey\":\"$SavedAgentKey\"
 }"
 
 echo "$connectionInfo" > $InstallDir/ConnectionInfo.json

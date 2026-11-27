@@ -72,6 +72,13 @@ export class MouseWheelDto {
         this.DeltaY = deltaY;
     }
 }
+export class PrivacyScreenDto {
+    constructor(enabled) {
+        this.Enabled = enabled;
+        this.Supported = true;
+        this.Message = null;
+    }
+}
 export class SelectScreenDto {
     constructor(displayName) {
         this.DisplayName = displayName;

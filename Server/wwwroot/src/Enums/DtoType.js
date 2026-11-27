@@ -29,5 +29,7 @@ export var DtoType;
     DtoType[DtoType["FileSaved"] = 31] = "FileSaved";
     DtoType[DtoType["ClipboardFiles"] = 32] = "ClipboardFiles";
     DtoType[DtoType["DownloadFilesRequest"] = 33] = "DownloadFilesRequest";
+    DtoType[DtoType["TogglePrivacyScreen"] = 34] = "TogglePrivacyScreen";
+    DtoType[DtoType["PrivacyScreenState"] = 35] = "PrivacyScreenState";
 })(DtoType || (DtoType = {}));
 //# sourceMappingURL=DtoType.js.map

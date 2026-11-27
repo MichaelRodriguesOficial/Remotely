@@ -35,4 +35,16 @@ public class RemoteControlViewerOptions
     /// <summary>Windows, Linux... (o modo de segurança só aparece no Windows).</summary>
     [DataMember]
     public string? DevicePlatform { get; init; }
+
+    /// <summary>Tela preta: "Allow" (o técnico liga), "Auto" (liga ao conectar) ou "Deny".</summary>
+    [DataMember]
+    public string PrivacyScreen { get; init; } = "Allow";
+
+    /// <summary>GLPI configurado: ao encerrar, a anotação pode virar chamado ou acompanhamento.</summary>
+    [DataMember]
+    public bool GlpiEnabled { get; init; }
+
+    /// <summary>Sessão registrada no histórico: ao encerrar, o técnico pode anotar o que fez.</summary>
+    [DataMember]
+    public bool AllowNote { get; init; }
 }

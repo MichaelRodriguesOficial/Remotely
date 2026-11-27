@@ -20,4 +20,7 @@ public class ConnectionInfo
     public string? OrganizationID { get; set; }
     public string? ServerVerificationToken { get; set; }
 
+    /// <summary>Chave secreta deste computador, gerada pelo agente. Prova ao servidor que é ele mesmo.</summary>
+    public string? AgentKey { get; set; }
+
 }

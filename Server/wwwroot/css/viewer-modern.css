@@ -962,3 +962,84 @@ body {
         white-space: normal;
         max-width: 280px;
     }
+
+/* Encerrar: anotação da sessão e GLPI */
+.modal-confirm .confirm-card.note-card {
+    width: min(520px, 94vw);
+}
+
+.modal-confirm textarea.note-text {
+    font-family: inherit;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+.note-text {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 96px;
+    color: #e2e8f0;
+    background: #0b1220;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 13.5px;
+}
+
+    .note-text:focus, .note-ticket:focus {
+        outline: 2px solid #6366f1;
+        outline-offset: 1px;
+    }
+
+.note-glpi {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+    font-size: 13.5px;
+}
+
+.note-glpi-title {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.note-glpi-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    cursor: pointer;
+}
+
+.note-ticket {
+    width: 90px;
+    height: 28px;
+    margin-left: 6px;
+    padding: 0 8px;
+    color: #e2e8f0;
+    background: #0b1220;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 8px;
+    font: inherit;
+}
+
+    .note-ticket:disabled {
+        opacity: 0.5;
+    }
+
+.note-error {
+    min-height: 18px;
+    margin-top: 8px;
+    color: #fca5a5;
+    font-size: 12.5px;
+}
+
+.modal-confirm .note-card .confirm-actions {
+    flex-wrap: wrap;
+    margin-top: 6px;
+}

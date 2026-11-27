@@ -44,4 +44,16 @@ public class RemoteControlSessionLog
     /// <summary>Como a sessão terminou (ex.: "Encerrada pelo técnico", "Navegador fechado").</summary>
     [StringLength(100)]
     public string? EndReason { get; set; }
+
+    /// <summary>O que o técnico fez na sessão (anotado ao encerrar).</summary>
+    [StringLength(4000)]
+    public string? Note { get; set; }
+
+    /// <summary>Gravação da sessão (caminho relativo à pasta de gravações), quando gravada.</summary>
+    [StringLength(400)]
+    public string? RecordingFile { get; set; }
+
+    /// <summary>Chamado do GLPI criado ou atualizado com a anotação.</summary>
+    [StringLength(50)]
+    public string? TicketId { get; set; }
 }

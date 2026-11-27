@@ -12,6 +12,7 @@ import {
     TapDto,
     ToggleAudioDto,
     ToggleBlockInputDto,
+    PrivacyScreenDto,
     TextTransferDto,
     FileDto,
     WindowsSessionsDto,
@@ -146,6 +147,10 @@ export class MessageSender {
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.ToggleAudio);
 
     };
+    async SendTogglePrivacyScreen(enabled: boolean) {
+        await ViewerApp.ViewerHubConnection.SendDtoToClient(new PrivacyScreenDto(enabled), DtoType.TogglePrivacyScreen);
+    }
+
     async SendToggleBlockInput(toggleOn: boolean) {
         var dto = new ToggleBlockInputDto(toggleOn);
         await ViewerApp.ViewerHubConnection.SendDtoToClient(dto, DtoType.ToggleBlockInput);

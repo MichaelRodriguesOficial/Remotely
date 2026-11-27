@@ -7,6 +7,7 @@ import { ProcessStream } from "./CaptureProcessor.js";
 import { HubConnectionState } from "./Enums/HubConnectionState.js";
 import { StreamingState } from "./Models/StreamingState.js";
 import { GetSettings, SetSettings } from "./SettingsService.js";
+import { RequestAutoPrivacy } from "./DtoMessageHandler.js";
 const MsgPack = window["MessagePack"];
 var signalR = window["signalR"];
 export class ViewerHubConnection {
@@ -90,6 +91,7 @@ export class ViewerHubConnection {
         };
         const noInput = options.AllowInput === false;
         const noSystem = options.AllowSystemActions === false || noInput;
+        ViewerApp.Options = options;
         ViewerApp.DeviceId = options.DeviceId || "";
         if (UI.PanelButton) {
             UI.PanelButton.classList.toggle("d-none", !ViewerApp.DeviceId);
@@ -116,6 +118,10 @@ export class ViewerHubConnection {
         hide(UI.FileTransferButton, options.AllowFiles === false);
         hide(UI.ClipboardTransferButton, options.AllowClipboard === false || noInput);
         hide(UI.BlockInputButton, noSystem);
+        const platform = (options.DevicePlatform || "").toLowerCase();
+        hide(UI.PrivacyScreenButton, noSystem || options.PrivacyScreen == "Deny" ||
+            (platform.length > 0 && !platform.includes("windows")));
+        RequestAutoPrivacy();
         hide(UI.CtrlAltDelButton, noSystem);
         hide(UI.WindowsSessionMenuButton, noSystem);
         if (noInput) {
@@ -123,6 +129,20 @@ export class ViewerHubConnection {
         }
         else if (options.AllowFiles === false || options.AllowClipboard === false || options.AllowSystemActions === false) {
             ShowToast("Seu perfil de acesso limita algumas ações nesta sessão.");
+        }
+    }
+    /** Anotação da sessão no histórico (e no GLPI, se pedido). */
+    async SaveSessionNote(note, glpiMode, ticketId) {
+        var _a;
+        if (((_a = this.Connection) === null || _a === void 0 ? void 0 : _a.state) != HubConnectionState.Connected) {
+            return { IsSuccess: false, Reason: "Sem conexão com o servidor." };
+        }
+        try {
+            return await this.Connection.invoke("SaveSessionNote", note, glpiMode, ticketId);
+        }
+        catch (e) {
+            console.error(e);
+            return { IsSuccess: false, Reason: "Não foi possível salvar a anotação." };
         }
     }
     /** Reinicia o computador; a sessão continua e reconecta quando ele voltar. */
@@ -198,10 +218,12 @@ export class ViewerHubConnection {
             return;
         }
         // As permissões do perfil só valem depois que a sessão é aceita.
-        this.ApplyPermissions(await this.GetRemoteControlViewerOptions());
+        // Gravação também: o grupo do computador só é conhecido depois que a sessão é ligada a ele.
+        const sessionOptions = await this.GetRemoteControlViewerOptions();
+        this.ApplyPermissions(sessionOptions);
         const streamingState = new StreamingState();
         ProcessStream(streamingState);
-        if (viewerOptions.ShouldRecordSession) {
+        if ((sessionOptions === null || sessionOptions === void 0 ? void 0 : sessionOptions.ShouldRecordSession) || (viewerOptions === null || viewerOptions === void 0 ? void 0 : viewerOptions.ShouldRecordSession)) {
             ViewerApp.SessionRecorder.Start();
         }
         this.Connection.stream("GetDesktopStream")

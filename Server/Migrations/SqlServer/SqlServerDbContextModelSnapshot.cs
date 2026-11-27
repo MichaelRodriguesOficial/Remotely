@@ -502,6 +502,10 @@ namespace Remotely.Server.Migrations.SqlServer
                     b.Property<DateTimeOffset?>("InventoryUpdatedAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("AgentKeyHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("ID");
 
                     b.HasIndex("AssetTag");
@@ -624,6 +628,18 @@ namespace Remotely.Server.Migrations.SqlServer
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<string>("Note")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("RecordingFile")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("TicketId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("ID");
 
                     b.HasIndex("OrganizationID", "StartedAt");
@@ -652,6 +668,13 @@ namespace Remotely.Server.Migrations.SqlServer
                     b.Property<string>("RemoteControlConsent")
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("PrivacyScreen")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("RecordSessions")
+                        .HasColumnType("bit");
 
                     b.HasKey("ID");
 

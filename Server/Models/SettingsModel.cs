@@ -13,6 +13,12 @@ public class SettingsModel
     public bool EnableRemoteControlRecording { get; set; }
     public bool EnableWindowsEventLog { get; set; }
     public bool EnforceAttendedAccess { get; set; }
+
+    /// <summary>
+    /// Recusa agentes sem chave (versões antigas). Ligue depois que todos os computadores atualizarem:
+    /// computadores já registrados sempre precisam da chave certa.
+    /// </summary>
+    public bool RequireAgentKey { get; set; }
     public bool ForceClientHttps { get; set; }
     public List<string> KnownProxies { get; set; } = [];
     public int MaxConcurrentUpdates { get; set; } = 10;
@@ -35,6 +41,15 @@ public class SettingsModel
 
     /// <summary>E-mails (separados por vírgula ou ;) avisados quando uma sessão começa em grupo com aviso ligado.</summary>
     public string RemoteControlNotifyEmails { get; set; } = string.Empty;
+
+    /// <summary>GLPI para registrar a anotação da sessão como chamado ou acompanhamento (ex.: https://glpi.empresa.com.br).</summary>
+    public string GlpiUrl { get; set; } = string.Empty;
+
+    /// <summary>App-Token do cliente de API do GLPI (Configurar → Geral → API).</summary>
+    public string GlpiAppToken { get; set; } = string.Empty;
+
+    /// <summary>Token de API do usuário do GLPI que abre os chamados.</summary>
+    public string GlpiUserToken { get; set; } = string.Empty;
     public bool RemoteControlRequiresAuthentication { get; set; } = true;
     public bool Require2FA { get; set; }
     public string ServerUrl { get; set; } = string.Empty;

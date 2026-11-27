@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.17.0 — 2026-11-27
+
+### Segurança: chave por computador
+- Cada agente gera uma **chave secreta própria** e a guarda junto da configuração dele; o servidor guarda só o hash (SHA-256). Depois do primeiro contato, só quem tem a chave conecta com o ID daquele computador: uma máquina infectada que descubra o ID de outra não consegue se passar por ela (receber scripts, sessões e arquivos daquele computador).
+- Tentativa com a chave errada é recusada e gera um **alerta** no painel (no máximo um por hora por computador), com o IP de origem.
+- Agentes antigos registram a chave sozinhos depois de atualizar. Em **Configuração → Segurança → Exigir chave nos agentes** você passa a recusar agentes sem chave; a tela mostra quantos computadores ainda faltam.
+- **Redefinir chave do agente** nos detalhes do computador (administradores), para quando ele for reinstalado, restaurado ou clonado.
+- Uma conexão de agente não troca mais de computador no meio, e o "batimento" só vale depois do registro.
+- Os instaladores de Linux e macOS passaram a manter a chave ao atualizar (o do Windows já mantinha).
+
+### Controle remoto
+- **Tela preta** (Windows): botão na barra. O usuário vê "Manutenção em andamento" em todos os monitores e fica com teclado e mouse bloqueados; o técnico continua vendo e usando a área de trabalho (a cobertura não entra na captura). Desliga sozinha quando a sessão termina.
+- **Por grupo de dispositivos**: tela preta (o técnico liga, liga ao conectar ou desativada) e **gravar as sessões**. O servidor confere as duas regras.
+- **Anotação ao encerrar**: "Encerrar" pergunta o que foi feito. A anotação fica no histórico de Sessões remotas.
+- **GLPI**: com o GLPI configurado (Configuração → GLPI), a anotação pode virar **acompanhamento no chamado nº** ou **chamado novo**, já ligado ao computador quando ele existe no GLPI com o mesmo nome. Se o GLPI recusar (chamado inexistente, token errado), a anotação fica salva e o técnico decide se encerra.
+- **Sessões remotas** mostram a anotação, o link do chamado e a **gravação** (assistir ou baixar; só administradores da organização).
+- Gravação: os pedaços do vídeo chegam ao servidor em ordem e o último é enviado antes de a aba fechar; o nome do arquivo não aceita mais caracteres de caminho vindos do nome do técnico.
+
 ## v1.16.0 — 2026-11-27
 
 ### Copiar e colar
