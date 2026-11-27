@@ -203,6 +203,7 @@ export interface RemoteControlViewerOptions {
     PrivacyScreen?: string;
     GlpiEnabled?: boolean;
     AllowNote?: boolean;
+    DeviceOnWifi?: boolean;
 }
 
 export class PrivacyScreenDto {

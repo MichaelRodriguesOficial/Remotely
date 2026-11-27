@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.17.1 — 2026-11-27
+
+### Modo de segurança com rede no Wi-Fi
+- O Windows só liga a **rede cabeada** no modo de segurança com rede: notebooks no Wi-Fi reiniciavam no modo de segurança, mas sem rede, e o acesso não voltava. Agora, quando o computador está no Wi-Fi (sem cabo ligado), o agente também libera para esse modo o serviço de Wi-Fi (WLAN AutoConfig), as dependências dele, o EapHost (Wi-Fi corporativo com 802.1X) e o driver da placa Wi-Fi daquele computador.
+- Essas entradas são retiradas sozinhas quando o computador volta ao Windows normal; as que já existiam não são tocadas.
+- A confirmação de "Reiniciar em modo de segurança" avisa quando o computador está no Wi-Fi: algumas placas não funcionam nesse modo mesmo assim, e com cabo é garantido. Se ele não voltar, basta reiniciar: o reinício seguinte já volta ao normal.
+
 ## v1.17.0 — 2026-11-27
 
 ### Segurança: chave por computador

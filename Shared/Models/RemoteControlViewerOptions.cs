@@ -47,4 +47,8 @@ public class RemoteControlViewerOptions
     /// <summary>Sessão registrada no histórico: ao encerrar, o técnico pode anotar o que fez.</summary>
     [DataMember]
     public bool AllowNote { get; init; }
+
+    /// <summary>Pelo inventário, o computador está só no Wi-Fi (sem cabo): o modo de segurança pode ficar sem rede.</summary>
+    [DataMember]
+    public bool DeviceOnWifi { get; init; }
 }

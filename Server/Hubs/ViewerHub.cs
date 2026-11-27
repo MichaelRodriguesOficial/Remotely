@@ -270,14 +270,30 @@ public class ViewerHub : Hub<IViewerHubClient>
         return Result.Ok(result.Value);
     }
 
+    /// <summary>Pelo último inventário: rede só por Wi-Fi, sem cabo ligado.</summary>
+    internal static bool IsOnlyOnWifi(Remotely.Shared.Models.Inventory.DeviceInventory? inventory)
+    {
+        var ports = inventory?.NetworkPorts?
+            .Where(x => x.Connected == true && x.Virtual != true)
+            .ToList() ?? [];
+        return ports.Any(x => x.Type == "Wi-Fi") && !ports.Any(x => x.Type == "Ethernet");
+    }
+
     public async Task<RemoteControlViewerOptions> GetViewerOptions()
     {
         var settings = await _dataService.GetSettings();
+        var onWifi = false;
+        if (!string.IsNullOrWhiteSpace(SessionInfo.DeviceId))
+        {
+            var record = await _dataService.GetDeviceInventory(SessionInfo.DeviceId);
+            onWifi = IsOnlyOnWifi(Remotely.Shared.Models.Inventory.InventorySerializer.FromJson(record?.Data));
+        }
         var permissions = Permissions;
         return new RemoteControlViewerOptions()
         {
             ShouldRecordSession = settings.EnableRemoteControlRecording || SessionInfo.RecordSession,
             PrivacyScreen = RemoteControlPolicy.NormalizePrivacy(SessionInfo.PrivacyScreen),
+            DeviceOnWifi = onWifi,
             AllowNote = Context.User?.Identity?.IsAuthenticated == true &&
                 _audit.GetOpenLogId(Context.ConnectionId) is not null,
             GlpiEnabled = Context.User?.Identity?.IsAuthenticated == true &&

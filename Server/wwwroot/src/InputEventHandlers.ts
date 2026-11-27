@@ -479,10 +479,15 @@ export function ApplyInputHandlers() {
             ShowToast("O modo somente visualização está ativado.");
             return;
         }
+        const wifiNote = ViewerApp.Options?.DeviceOnWifi
+            ? " Atenção: este computador está no Wi-Fi. O Windows só liga a rede cabeada nesse modo; o Remotely prepara o Wi-Fi, " +
+              "mas algumas placas não funcionam assim. Com cabo de rede é garantido. Se ele não voltar em alguns minutos, " +
+              "peça para alguém reiniciar o computador: o reinício seguinte já volta ao Windows normal."
+            : "";
         const confirmed = await Confirm(
-            "Reiniciar em modo de segurança?",
+            "Reiniciar em modo de segurança com rede?",
             "O computador reinicia em modo de segurança com rede, só desta vez, e esta janela reconecta sozinha. " +
-            "Para voltar ao Windows normal, use \"Reiniciar e voltar\" quando terminar a manutenção.",
+            "Para voltar ao Windows normal, use \"Reiniciar e voltar\" quando terminar a manutenção." + wifiNote,
             "Reiniciar em modo de segurança");
         if (!confirmed) {
             return;

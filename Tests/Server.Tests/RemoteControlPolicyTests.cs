@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Linq;
 using Remotely.Server.Hubs;
 using Remotely.Server.Models;
 using Remotely.Server.Services;
@@ -79,6 +80,21 @@ public class RemoteControlPolicyTests
         Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.ToggleBlockInput, noSystem, false));
         Assert.IsTrue(ViewerHub.IsDtoAllowed(DtoType.KeyDown, noSystem, false));
         Assert.IsFalse(ViewerHub.IsDtoAllowed(DtoType.TogglePrivacyScreen, noSystem, false));
+    }
+
+    [TestMethod]
+    public void OnlyOnWifi_WhenNoCableIsConnected()
+    {
+        static Remotely.Shared.Models.Inventory.DeviceInventory Inv(params (string Type, bool Connected)[] ports) => new()
+        {
+            NetworkPorts = ports.Select(p => new Remotely.Shared.Models.Inventory.InventoryNetworkPort { Type = p.Type, Connected = p.Connected }).ToList()
+        };
+
+        Assert.IsTrue(ViewerHub.IsOnlyOnWifi(Inv(("Wi-Fi", true), ("Ethernet", false))));
+        Assert.IsFalse(ViewerHub.IsOnlyOnWifi(Inv(("Wi-Fi", true), ("Ethernet", true))));
+        Assert.IsFalse(ViewerHub.IsOnlyOnWifi(Inv(("Ethernet", true))));
+        Assert.IsFalse(ViewerHub.IsOnlyOnWifi(Inv(("Wi-Fi", false))));
+        Assert.IsFalse(ViewerHub.IsOnlyOnWifi(null));
     }
 
     [TestMethod]
