@@ -20,6 +20,10 @@ public class ChatUiService : IChatUiService
     private ChatWindow? _sessionWindow;
     private ChatWindowViewModel? _sessionViewModel;
     private int _unread;
+    private string? _preview;
+    private string? _typingPreview;
+    private System.Threading.Timer? _typingTimer;
+    private SessionChatState? _lastState;
 
     public ChatUiService(
         IUiDispatcher dispatcher,
@@ -36,7 +40,7 @@ public class ChatUiService : IChatUiService
 
     public event EventHandler? ChatWindowClosed;
 
-    public event EventHandler<int>? UnreadChanged;
+    public event EventHandler<SessionChatState>? SessionChatChanged;
 
     // ---------- Chat avulso ----------
 
@@ -51,6 +55,7 @@ public class ChatUiService : IChatUiService
                 ExitOnClose = true
             };
             chatWindow.Closing += ChatWindow_Closing;
+            WindowPlacement.KeepBottomRight(chatWindow);
             _dispatcher.ShowMainWindow(chatWindow);
         });
     }
@@ -104,31 +109,46 @@ public class ChatUiService : IChatUiService
         await _dispatcher.InvokeAsync(() =>
         {
             var window = EnsureSessionWindow(viewerName);
-            _sessionViewModel!.AddIncoming(message, string.IsNullOrWhiteSpace(message.SenderName) ? viewerName : message.SenderName);
+            var sender = string.IsNullOrWhiteSpace(message.SenderName) ? viewerName : message.SenderName;
+            _sessionViewModel!.AddIncoming(message, sender);
 
             if (!window.IsVisible)
             {
                 // Aparece na frente, sem tirar o foco do que o usuário está digitando.
-                window.ShowActivated = false;
-                window.Show();
+                ShowSessionWindow(window, activate: false);
             }
 
             if (window.IsActive)
             {
                 _sessionViewModel.MarkRead();
+                return;
             }
-            else
-            {
-                window.Topmost = true;
-                window.Topmost = false;
-                SetUnread(_unread + 1);
-            }
+
+            window.Topmost = true;
+            window.Topmost = false;
+            _unread++;
+            _preview = $"{sender}: {Preview(message)}";
+            PublishState();
         });
     }
 
     public void ReceiveSessionTyping(string senderName)
     {
-        _dispatcher.Post(() => _sessionViewModel?.ShowTyping(senderName));
+        _dispatcher.Post(() =>
+        {
+            _sessionViewModel?.ShowTyping(senderName);
+            if (_sessionWindow?.IsVisible != true && _unread == 0)
+            {
+                _typingPreview = $"{(string.IsNullOrWhiteSpace(senderName) ? _sessionChat.TechnicianName : senderName)} está digitando...";
+                PublishState();
+                _typingTimer?.Dispose();
+                _typingTimer = new System.Threading.Timer(_ => _dispatcher.Post(() =>
+                {
+                    _typingPreview = null;
+                    PublishState();
+                }), null, TimeSpan.FromSeconds(4.5), System.Threading.Timeout.InfiniteTimeSpan);
+            }
+        });
     }
 
     public void ReceiveSessionRead(string messageId)
@@ -138,15 +158,77 @@ public class ChatUiService : IChatUiService
 
     public void OpenSessionChat()
     {
+        _dispatcher.Post(() => ShowSessionWindow(EnsureSessionWindow(_sessionChat.TechnicianName), activate: true));
+    }
+
+    public void ToggleSessionChat()
+    {
         _dispatcher.Post(() =>
         {
-            var window = EnsureSessionWindow(_sessionChat.TechnicianName);
-            window.ShowActivated = true;
-            window.Show();
-            window.Activate();
-            SetUnread(0);
-            _sessionViewModel?.MarkRead();
+            if (_sessionWindow?.IsVisible == true && _unread == 0)
+            {
+                _sessionWindow.Hide();
+                PublishState();
+                return;
+            }
+            ShowSessionWindow(EnsureSessionWindow(_sessionChat.TechnicianName), activate: true);
         });
+    }
+
+    private void ShowSessionWindow(ChatWindow window, bool activate)
+    {
+        if (!window.IsVisible)
+        {
+            PlaceAbovePanel(window);
+        }
+        window.ShowActivated = activate;
+        window.Show();
+        if (activate)
+        {
+            window.Activate();
+            _unread = 0;
+            _preview = null;
+            _sessionViewModel?.MarkRead();
+        }
+        _typingPreview = null;
+        PublishState();
+    }
+
+    /// <summary>Logo acima do painel da sessão (ou ao lado da aba, se ele estiver recolhido).</summary>
+    private void PlaceAbovePanel(ChatWindow window)
+    {
+        var panel = _dispatcher.MainWindow;
+        var screen = panel?.Screens.ScreenFromPoint(panel.Position) ?? window.Screens.Primary ?? window.Screens.All.FirstOrDefault();
+        if (screen is null)
+        {
+            return;
+        }
+
+        var scaling = screen.Scaling > 0 ? screen.Scaling : 1;
+        var width = (int)Math.Ceiling(window.Width * scaling);
+        var height = (int)Math.Ceiling(window.Height * scaling);
+        var gap = (int)Math.Round(12 * scaling);
+        var area = screen.WorkingArea;
+
+        int right;
+        int bottom;
+        if (panel is { IsVisible: true } && panel.FrameSize is { } panelSize)
+        {
+            var panelWidth = (int)Math.Ceiling(panelSize.Width * scaling);
+            var panelHeight = (int)Math.Ceiling(panelSize.Height * scaling);
+            var collapsed = panelWidth < 120 * scaling;
+            right = collapsed ? panel.Position.X - gap / 2 : panel.Position.X + panelWidth - (int)Math.Round(8 * scaling);
+            bottom = collapsed ? panel.Position.Y + panelHeight : panel.Position.Y;
+        }
+        else
+        {
+            right = area.Right - gap;
+            bottom = area.Bottom - gap;
+        }
+
+        var x = Math.Clamp(right - width, area.X, Math.Max(area.X, area.Right - width));
+        var y = Math.Clamp(bottom - height, area.Y, Math.Max(area.Y, area.Bottom - height));
+        window.Position = new Avalonia.PixelPoint(x, y);
     }
 
     private ChatWindow EnsureSessionWindow(string technicianName)
@@ -165,8 +247,13 @@ public class ChatUiService : IChatUiService
         };
         _sessionWindow.Activated += (_, _) =>
         {
-            SetUnread(0);
             _sessionViewModel?.MarkRead();
+            if (_unread > 0 || _preview is not null)
+            {
+                _unread = 0;
+                _preview = null;
+                PublishState();
+            }
         };
         // Fechar só esconde: a conversa continua enquanto a sessão durar.
         _sessionWindow.Closing += (_, e) =>
@@ -175,19 +262,38 @@ public class ChatUiService : IChatUiService
             {
                 e.Cancel = true;
                 _sessionWindow.Hide();
+                PublishState();
             }
         };
         return _sessionWindow;
     }
 
-    private void SetUnread(int count)
+    private void PublishState()
     {
-        if (_unread == count)
+        var state = new SessionChatState(_sessionWindow?.IsVisible == true, _unread, _preview ?? _typingPreview);
+        if (state == _lastState)
         {
             return;
         }
-        _unread = count;
-        UnreadChanged?.Invoke(this, count);
+        _lastState = state;
+        SessionChatChanged?.Invoke(this, state);
+    }
+
+    private static string Preview(ChatMessageDto message)
+    {
+        var text = (message.Text ?? string.Empty).ReplaceLineEndings(" ").Trim();
+        if (text.Length > 0)
+        {
+            return text.Length > 80 ? $"{text[..80]}…" : text;
+        }
+        var count = message.Attachments?.Count ?? 0;
+        if (count == 0)
+        {
+            return "mensagem";
+        }
+        return count == 1
+            ? $"📎 {message.Attachments![0].FileName}"
+            : $"📎 {count} anexos";
     }
 
     private void ChatWindow_Closing(object? sender, CancelEventArgs e)

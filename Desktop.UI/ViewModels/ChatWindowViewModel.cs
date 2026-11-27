@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Remotely.Desktop.Shared.Abstractions;
 using Remotely.Desktop.Shared.Reactive;
 using Remotely.Desktop.Shared.Services;
+using Remotely.Desktop.UI.Views;
 using Remotely.Shared.Models.Dtos;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
@@ -31,17 +32,20 @@ public interface IChatChannel
 public interface IChatWindowViewModel : IBrandedViewModelBase
 {
     string PeerName { get; }
-    string PeerInitials { get; }
     string StatusText { get; }
     string WindowTitle { get; }
+    string EmptyText { get; }
     ObservableCollection<ChatItemViewModel> Messages { get; }
     ObservableCollection<PendingAttachmentViewModel> Pending { get; }
     bool HasPending { get; }
     bool HasNoMessages { get; }
+    bool CanHide { get; }
     string InputText { get; set; }
-    IReadOnlyList<string> Emojis { get; }
+    IReadOnlyList<EmojiGroupViewModel> EmojiGroups { get; }
+    EmojiGroupViewModel SelectedEmojiGroup { get; }
     ICommand SendCommand { get; }
     ICommand AttachCommand { get; }
+    ICommand HideCommand { get; }
 
     Task SendChatMessage();
     void InsertEmoji(string emoji, int caretIndex);
@@ -52,15 +56,17 @@ public interface IChatWindowViewModel : IBrandedViewModelBase
 
 public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
 {
-    public static readonly IReadOnlyList<string> EmojiList =
+    /// <summary>Os mesmos grupos e emojis do visualizador (ChatPanel.ts, EmojiGroups).</summary>
+    public static readonly IReadOnlyList<(string Name, string Icon, string[] Emojis)> EmojiCatalog =
     [
-        "😀", "😃", "😄", "😁", "😅", "😂", "🙂", "😉", "😊", "😍", "😘", "😎",
-        "🤔", "😐", "🙄", "😬", "😴", "😢", "😭", "😡", "😱", "🥳", "🤗", "😇",
-        "👍", "👎", "👌", "✌️", "🙏", "👏", "🙌", "👋", "💪", "🤝", "❤️", "🔥",
-        "✨", "⭐", "💯", "✅", "❌", "⚠️", "❓", "❗", "💡", "🎉", "☕", "🍕",
-        "💻", "🖥️", "⌨️", "🖱️", "🖨️", "📱", "📞", "🔌", "🔒", "🔑", "📶", "🛠️",
-        "📄", "📊", "📎", "📁", "📅", "⏰", "📧", "📝", "🔍", "💬", "⏳", "🚀"
+        ("Rostos", "😀", ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "🙂", "😉", "😍", "😘", "😎", "🤓", "🤔", "🤨", "😐", "😑", "🙄", "😏", "😬", "😴", "😌", "😕", "🙁", "😟", "😢", "😭", "😤", "😡", "🤯", "😳", "😱", "🥲", "🥳", "🤗", "🤝", "🫡", "😇"]),
+        ("Gestos", "👍", ["👍", "👎", "👌", "✌️", "🤞", "🙏", "👏", "🙌", "👋", "✋", "👉", "👈", "👆", "👇", "💪", "🫶", "❤️", "💙", "💚", "💜", "🔥", "✨", "⭐", "💯", "✅", "❌", "⚠️", "❓", "❗", "💡"]),
+        ("TI", "💻", ["💻", "🖥️", "⌨️", "🖱️", "🖨️", "📱", "📞", "☎️", "🔌", "🔋", "💾", "📀", "🧰", "🛠️", "🔧", "🔨", "⚙️", "🔒", "🔓", "🔑", "🛡️", "🌐", "📶", "📡", "🐛", "🚀", "📦", "🗑️", "♻️", "⏳"]),
+        ("Trabalho", "📄", ["📄", "📃", "📑", "📊", "📈", "📉", "📋", "📌", "📎", "🖇️", "📁", "📂", "🗂️", "📅", "🗓️", "⏰", "⏱️", "✉️", "📧", "📨", "📝", "✏️", "🖊️", "🔍", "💬", "🗨️", "☕", "🍕", "🎉", "🏁"])
     ];
+
+    private static readonly IBrush TypingBrush = new SolidColorBrush(Color.Parse("#A5B4FC"));
+    private static readonly IBrush IdleBrush = new SolidColorBrush(Color.Parse("#64748B"));
 
     private readonly IChatChannel _channel;
     private readonly IUserFiles _userFiles;
@@ -85,6 +91,10 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
         PeerName = string.IsNullOrWhiteSpace(peerName) ? "Suporte de TI" : peerName;
         SendCommand = new AsyncRelayCommand(SendChatMessage);
         AttachCommand = new AsyncRelayCommand(PickAndAttach);
+        HideCommand = new RelayCommand(() => HideRequested?.Invoke(this, EventArgs.Empty));
+        OpenLinkCommand = new RelayCommand<string>(OpenLink);
+        EmojiGroups = EmojiCatalog.Select(x => new EmojiGroupViewModel(x.Name, x.Icon, x.Emojis, SelectEmojiGroup)).ToList();
+        SelectEmojiGroup(EmojiGroups[0]);
         Pending.CollectionChanged += (_, _) => NotifyPropertyChanged(nameof(HasPending));
         Messages.CollectionChanged += (_, _) => NotifyPropertyChanged(nameof(HasNoMessages));
     }
@@ -95,26 +105,39 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
         private set
         {
             Set(value);
-            NotifyPropertyChanged(nameof(PeerInitials));
             NotifyPropertyChanged(nameof(WindowTitle));
         }
     }
 
-    public string PeerInitials
+    /// <summary>"Fulano está digitando..." ou o estado da conversa.</summary>
+    public string StatusText
     {
-        get
+        get => Get<string>() ?? IdleStatus;
+        private set
         {
-            var parts = PeerName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var initials = string.Concat(parts.Take(2).Select(x => char.ToUpperInvariant(x[0])));
-            return string.IsNullOrWhiteSpace(initials) ? "TI" : initials;
+            Set(value);
+            NotifyPropertyChanged(nameof(IsPeerTyping));
+            NotifyPropertyChanged(nameof(StatusBrush));
+            NotifyPropertyChanged(nameof(StatusFontStyle));
         }
     }
 
-    public string StatusText
-    {
-        get => Get<string>() ?? (_channel.IsSession ? "Conectado a este computador" : "Suporte de TI");
-        private set => Set(value);
-    }
+    public bool IsPeerTyping => StatusText != IdleStatus;
+
+    public IBrush StatusBrush => IsPeerTyping ? TypingBrush : IdleBrush;
+
+    public FontStyle StatusFontStyle => IsPeerTyping ? FontStyle.Italic : FontStyle.Normal;
+
+    public string EmptyText => _channel.IsSession
+        ? "Converse com o técnico sem parar o que está fazendo. Arraste ou cole imagens e documentos aqui."
+        : "Escreva para o suporte de TI. Arraste ou cole imagens e documentos aqui.";
+
+    /// <summary>Chat da sessão: dá para ocultar e voltar pelo painel. O avulso fecha pela janela.</summary>
+    public bool CanHide => _channel.IsSession;
+
+    public event EventHandler? HideRequested;
+
+    private string IdleStatus => _channel.IsSession ? "Conectado a este computador" : "Suporte de TI";
 
     public string WindowTitle => $"Chat com {PeerName}";
 
@@ -132,11 +155,21 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
         set => Set(value);
     }
 
-    public IReadOnlyList<string> Emojis => EmojiList;
+    public IReadOnlyList<EmojiGroupViewModel> EmojiGroups { get; }
+
+    public EmojiGroupViewModel SelectedEmojiGroup
+    {
+        get => Get<EmojiGroupViewModel>()!;
+        private set => Set(value);
+    }
 
     public ICommand SendCommand { get; }
 
     public ICommand AttachCommand { get; }
+
+    public ICommand HideCommand { get; }
+
+    public ICommand OpenLinkCommand { get; }
 
     public void SetPeer(string name)
     {
@@ -150,7 +183,7 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
     {
         SetPeer(senderName);
         _typingTimer?.Dispose();
-        StatusText = _channel.IsSession ? "Conectado a este computador" : "Suporte de TI";
+        StatusText = IdleStatus;
         _lastIncomingId = message.Id;
         Messages.Add(ChatItemViewModel.Create(message, false, PeerName, this));
     }
@@ -164,8 +197,7 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
     {
         StatusText = $"{(string.IsNullOrWhiteSpace(senderName) ? PeerName : senderName)} está digitando...";
         _typingTimer?.Dispose();
-        _typingTimer = new System.Threading.Timer(_ => _dispatcher.Post(() =>
-            StatusText = _channel.IsSession ? "Conectado a este computador" : "Suporte de TI"),
+        _typingTimer = new System.Threading.Timer(_ => _dispatcher.Post(() => StatusText = IdleStatus),
             null, TimeSpan.FromSeconds(4.5), Timeout.InfiniteTimeSpan);
     }
 
@@ -308,6 +340,23 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
 
     internal void Log(Exception ex, string message) => _logger.LogWarning(ex, "{message}", message);
 
+    private void SelectEmojiGroup(EmojiGroupViewModel group)
+    {
+        foreach (var item in EmojiGroups)
+        {
+            item.IsSelected = item == group;
+        }
+        SelectedEmojiGroup = group;
+    }
+
+    private void OpenLink(string? url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        {
+            _userFiles.Open(uri.AbsoluteUri);
+        }
+    }
+
     private async Task PickAndAttach()
     {
         var paths = await _userFiles.PickFiles();
@@ -318,10 +367,13 @@ public class ChatWindowViewModel : BrandedViewModelBase, IChatWindowViewModel
 public class ChatItemViewModel : ObservableObject
 {
     private static readonly IBrush MineBrush = new SolidColorBrush(Color.Parse("#4F46E5"));
-    private static readonly IBrush TheirsBrush = new SolidColorBrush(Color.Parse("#FFFFFF"));
-    private static readonly IBrush SystemBrush = new SolidColorBrush(Color.Parse("#FEF3C7"));
-    private static readonly IBrush LightText = Brushes.White;
-    private static readonly IBrush DarkText = new SolidColorBrush(Color.Parse("#111827"));
+    private static readonly IBrush TheirsBrush = new SolidColorBrush(Color.Parse("#1E293B"));
+    private static readonly IBrush SystemBrush = new SolidColorBrush(Color.Parse("#1F94A3B8"));
+    private static readonly IBrush MineText = Brushes.White;
+    private static readonly IBrush TheirsText = new SolidColorBrush(Color.Parse("#E2E8F0"));
+    private static readonly IBrush SystemText = new SolidColorBrush(Color.Parse("#94A3B8"));
+    private static readonly IBrush ReadBrush = new SolidColorBrush(Color.Parse("#67E8F9"));
+    private static readonly IBrush FailedBrush = new SolidColorBrush(Color.Parse("#FCA5A5"));
 
     public string Id { get; private init; } = string.Empty;
     public bool IsMine { get; private init; }
@@ -329,17 +381,18 @@ public class ChatItemViewModel : ObservableObject
     public string Sender { get; private init; } = string.Empty;
     public string Text { get; private init; } = string.Empty;
     public string TimeText { get; private init; } = string.Empty;
+    public ICommand? OpenLinkCommand { get; private init; }
     public ObservableCollection<ChatAttachmentViewModel> Attachments { get; } = [];
 
     public bool HasText => !string.IsNullOrWhiteSpace(Text);
     public bool ShowSender => !IsMine && !IsSystem;
     public bool ShowStatus => IsMine;
-    public double TextSize => IsOnlyEmoji(Text) ? 28 : 14;
+    public double TextSize => IsSystem ? 12 : IsOnlyEmoji(Text) ? 30 : 13.5;
+    public TextAlignment TextAlignment => IsSystem ? TextAlignment.Center : TextAlignment.Left;
 
     public HorizontalAlignment Alignment => IsSystem ? HorizontalAlignment.Center : IsMine ? HorizontalAlignment.Right : HorizontalAlignment.Left;
     public IBrush BubbleBrush => IsSystem ? SystemBrush : IsMine ? MineBrush : TheirsBrush;
-    public IBrush TextBrush => IsMine ? LightText : DarkText;
-    public IBrush MetaBrush => IsMine ? new SolidColorBrush(Color.Parse("#C7D2FE")) : new SolidColorBrush(Color.Parse("#64748B"));
+    public IBrush TextBrush => IsSystem ? SystemText : IsMine ? MineText : TheirsText;
     public Avalonia.CornerRadius BubbleCorners => IsSystem ? new(10) : IsMine ? new(14, 14, 4, 14) : new(14, 14, 14, 4);
 
     public bool IsSending
@@ -348,7 +401,7 @@ public class ChatItemViewModel : ObservableObject
         set
         {
             Set(value);
-            NotifyPropertyChanged(nameof(StatusGlyph));
+            NotifyStatus();
         }
     }
 
@@ -358,8 +411,7 @@ public class ChatItemViewModel : ObservableObject
         set
         {
             Set(value);
-            NotifyPropertyChanged(nameof(StatusGlyph));
-            NotifyPropertyChanged(nameof(StatusBrush));
+            NotifyStatus();
         }
     }
 
@@ -369,14 +421,17 @@ public class ChatItemViewModel : ObservableObject
         set
         {
             Set(value);
-            NotifyPropertyChanged(nameof(StatusGlyph));
-            NotifyPropertyChanged(nameof(StatusBrush));
+            NotifyStatus();
         }
     }
 
-    public string StatusGlyph => Failed ? "⚠" : IsSending ? "🕓" : "✓✓";
+    public Geometry StatusIcon => Failed ? ChatIcons.Warning : ChatIcons.CheckDouble;
 
-    public IBrush StatusBrush => Failed ? Brushes.Orange : IsRead ? new SolidColorBrush(Color.Parse("#67E8F9")) : new SolidColorBrush(Color.Parse("#C7D2FE"));
+    public IBrush StatusBrush => Failed ? FailedBrush : IsRead ? ReadBrush : MineText;
+
+    public double StatusOpacity => Failed || IsRead ? 1 : IsSending ? 0.35 : 0.75;
+
+    public string StatusTip => Failed ? "Não enviada" : IsSending ? "Enviando..." : IsRead ? "Lida" : "Enviada";
 
     public static ChatItemViewModel Create(ChatMessageDto message, bool mine, string sender, ChatWindowViewModel owner)
     {
@@ -387,7 +442,8 @@ public class ChatItemViewModel : ObservableObject
             IsMine = mine,
             Sender = string.IsNullOrWhiteSpace(message.SenderName) ? sender : message.SenderName,
             Text = message.Text ?? string.Empty,
-            TimeText = time.ToString("HH:mm")
+            TimeText = time.ToString("HH:mm"),
+            OpenLinkCommand = owner.OpenLinkCommand
         };
         foreach (var attachment in message.Attachments ?? [])
         {
@@ -404,12 +460,21 @@ public class ChatItemViewModel : ObservableObject
         TimeText = DateTimeOffset.Now.ToString("HH:mm")
     };
 
-    private static bool IsOnlyEmoji(string text)
+    /// <summary>Só emojis (sem letras nem números): aparecem maiores, como nos apps de mensagem.</summary>
+    internal static bool IsOnlyEmoji(string text)
     {
         var trimmed = string.Concat((text ?? string.Empty).Where(c => !char.IsWhiteSpace(c)));
         return trimmed.Length is > 0 and <= 16 &&
             !trimmed.Any(c => char.IsLetterOrDigit(c) || char.IsPunctuation(c)) &&
             trimmed.Any(char.IsSurrogate);
+    }
+
+    private void NotifyStatus()
+    {
+        NotifyPropertyChanged(nameof(StatusIcon));
+        NotifyPropertyChanged(nameof(StatusBrush));
+        NotifyPropertyChanged(nameof(StatusOpacity));
+        NotifyPropertyChanged(nameof(StatusTip));
     }
 }
 
@@ -435,12 +500,10 @@ public class ChatAttachmentViewModel : ObservableObject
     }
 
     public bool IsMine { get; }
-    public IBrush CardBrush => new SolidColorBrush(Color.Parse(IsMine ? "#4338CA" : "#F1F5F9"));
-    public IBrush TextBrush => IsMine ? Brushes.White : new SolidColorBrush(Color.Parse("#111827"));
-    public IBrush SubtleBrush => new SolidColorBrush(Color.Parse(IsMine ? "#C7D2FE" : "#64748B"));
+    public IBrush TextBrush => IsMine ? Brushes.White : new SolidColorBrush(Color.Parse("#E2E8F0"));
     public string FileName => string.IsNullOrWhiteSpace(_attachment.FileName) ? "arquivo" : _attachment.FileName;
     public string SizeText => ChatLimits.FormatSize(_attachment.Size > 0 ? _attachment.Size : _data?.LongLength ?? 0);
-    public string Icon => FileIcon(FileName);
+    public Geometry Icon => FileIcon(FileName);
     public bool IsImage => _attachment.IsImage;
 
     public Bitmap? Image
@@ -457,11 +520,18 @@ public class ChatAttachmentViewModel : ObservableObject
     public bool HasImage => Image is not null;
     public bool ShowFileCard => !HasImage;
 
-    public string StatusText
+    /// <summary>Baixando, salvo ou erro. Vazio enquanto nada aconteceu.</summary>
+    public string? StatusText
     {
-        get => Get<string>() ?? (IsMine ? "Enviado" : "Salvar ou abrir");
-        private set => Set(value);
+        get => Get<string?>();
+        private set
+        {
+            Set(value);
+            NotifyPropertyChanged(nameof(HasStatus));
+        }
     }
+
+    public bool HasStatus => !string.IsNullOrWhiteSpace(StatusText);
 
     public ICommand SaveCommand { get; }
     public ICommand OpenCommand { get; }
@@ -530,7 +600,7 @@ public class ChatAttachmentViewModel : ObservableObject
                 return null;
             }
             _savedPath = _owner.UserFiles.SaveToDownloads(FileName, data);
-            StatusText = _savedPath is null ? "Não foi possível salvar." : $"Salvo em Downloads";
+            StatusText = _savedPath is null ? "Não foi possível salvar." : "Salvo em Downloads";
             return _savedPath;
         }
         catch (Exception ex)
@@ -541,16 +611,17 @@ public class ChatAttachmentViewModel : ObservableObject
         }
     }
 
-    internal static string FileIcon(string name) => Path.GetExtension(name).ToLowerInvariant() switch
+    /// <summary>O mesmo ícone por tipo de arquivo do visualizador (ChatPanel.ts, FileIcon).</summary>
+    internal static Geometry FileIcon(string name) => Path.GetExtension(name).ToLowerInvariant() switch
     {
-        ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".bmp" => "🖼️",
-        ".pdf" => "📕",
-        ".doc" or ".docx" or ".odt" or ".rtf" => "📘",
-        ".xls" or ".xlsx" or ".csv" or ".ods" => "📗",
-        ".ppt" or ".pptx" => "📙",
-        ".zip" or ".rar" or ".7z" => "🗜️",
-        ".txt" or ".log" or ".md" => "📝",
-        _ => "📄"
+        ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".bmp" => ChatIcons.FileImage,
+        ".pdf" => ChatIcons.FilePdf,
+        ".doc" or ".docx" or ".odt" or ".rtf" => ChatIcons.FileWord,
+        ".xls" or ".xlsx" or ".csv" or ".ods" => ChatIcons.FileExcel,
+        ".ppt" or ".pptx" => ChatIcons.FilePowerpoint,
+        ".zip" or ".rar" or ".7z" => ChatIcons.FileZipper,
+        ".txt" or ".log" or ".md" => ChatIcons.FileLines,
+        _ => ChatIcons.File
     };
 }
 
@@ -564,10 +635,48 @@ public class PendingAttachmentViewModel
         Data = data;
         _owner = owner;
         RemoveCommand = new RelayCommand(() => _owner.RemovePending(this));
+        if (ChatLimits.IsImage(null, fileName))
+        {
+            try
+            {
+                using var stream = new MemoryStream(data);
+                Thumbnail = Bitmap.DecodeToWidth(stream, 68);
+            }
+            catch
+            {
+                // Imagem que não abre: fica com o ícone do tipo de arquivo.
+            }
+        }
     }
 
     public string FileName { get; }
     public byte[] Data { get; }
-    public string Label => $"{ChatAttachmentViewModel.FileIcon(FileName)} {FileName} · {ChatLimits.FormatSize(Data.LongLength)}";
+    public Bitmap? Thumbnail { get; }
+    public bool HasThumbnail => Thumbnail is not null;
+    public Geometry Icon => ChatAttachmentViewModel.FileIcon(FileName);
+    public string Label => $"{FileName} · {ChatLimits.FormatSize(Data.LongLength)}";
     public ICommand RemoveCommand { get; }
+}
+
+/// <summary>Uma aba do seletor de emojis.</summary>
+public class EmojiGroupViewModel : ObservableObject
+{
+    public EmojiGroupViewModel(string name, string icon, IReadOnlyList<string> emojis, Action<EmojiGroupViewModel> select)
+    {
+        Name = name;
+        Icon = icon;
+        Emojis = emojis;
+        SelectCommand = new RelayCommand(() => select(this));
+    }
+
+    public string Name { get; }
+    public string Icon { get; }
+    public IReadOnlyList<string> Emojis { get; }
+    public ICommand SelectCommand { get; }
+
+    public bool IsSelected
+    {
+        get => Get<bool>();
+        set => Set(value);
+    }
 }

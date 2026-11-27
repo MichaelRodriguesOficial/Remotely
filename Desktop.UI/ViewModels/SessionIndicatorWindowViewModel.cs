@@ -23,10 +23,17 @@ public interface ISessionIndicatorWindowViewModel : IBrandedViewModelBase
     ICommand CancelEndCommand { get; }
     ICommand HideCommand { get; }
     ICommand ShowCommand { get; }
+    /// <summary>Abre o chat (pela prévia da mensagem nova).</summary>
     ICommand OpenChatCommand { get; }
+    /// <summary>Botão Chat: abre ou oculta a janela do chat.</summary>
+    ICommand ToggleChatCommand { get; }
+    bool IsChatOpen { get; }
     int UnreadChats { get; }
     bool HasUnreadChats { get; }
     string UnreadText { get; }
+    /// <summary>"Fulano: texto" da mensagem não vista, ou "Fulano está digitando...".</summary>
+    string? ChatPreview { get; }
+    bool HasChatPreview { get; }
     Task PromptForExit();
 }
 
@@ -40,6 +47,7 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
     private readonly IAppState _appState;
     private readonly DateTimeOffset _startedAt = DateTimeOffset.Now;
     private readonly System.Threading.Timer _timer;
+    private readonly IChatUiService _chatUi;
 
     public SessionIndicatorWindowViewModel(
         IBrandingProvider brandingProvider,
@@ -52,7 +60,9 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         : base(brandingProvider, dispatcher, logger)
     {
         OpenChatCommand = new RelayCommand(chatUi.OpenSessionChat);
-        chatUi.UnreadChanged += (_, count) => _dispatcher.Post(() => UnreadChats = count);
+        ToggleChatCommand = new RelayCommand(chatUi.ToggleSessionChat);
+        chatUi.SessionChatChanged += (_, state) => _dispatcher.Post(() => ApplyChatState(state));
+        _chatUi = chatUi;
         _shutdownService = shutdownService;
         _dialogProvider = dialogProvider;
         _appState = appState;
@@ -60,7 +70,15 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         ConfirmEndCommand = new AsyncRelayCommand(EndSession);
         CancelEndCommand = new RelayCommand(() => IsConfirming = false);
         HideCommand = new RelayCommand(() => SetCollapsed(true));
-        ShowCommand = new RelayCommand(() => SetCollapsed(false));
+        ShowCommand = new RelayCommand(() =>
+        {
+            SetCollapsed(false);
+            // Aba com mensagem nova: mostrar o painel já abre a conversa.
+            if (HasUnreadChats)
+            {
+                _chatUi.OpenSessionChat();
+            }
+        });
         Refresh();
         _timer = new System.Threading.Timer(_ => _dispatcher.Post(Refresh), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
@@ -115,6 +133,13 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
     public ICommand HideCommand { get; }
     public ICommand ShowCommand { get; }
     public ICommand OpenChatCommand { get; }
+    public ICommand ToggleChatCommand { get; }
+
+    public bool IsChatOpen
+    {
+        get => Get<bool>();
+        private set => Set(value);
+    }
 
     public int UnreadChats
     {
@@ -131,6 +156,18 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
 
     public string UnreadText => UnreadChats > 9 ? "9+" : UnreadChats.ToString();
 
+    public string? ChatPreview
+    {
+        get => Get<string?>();
+        private set
+        {
+            Set(value);
+            NotifyPropertyChanged(nameof(HasChatPreview));
+        }
+    }
+
+    public bool HasChatPreview => !string.IsNullOrWhiteSpace(ChatPreview);
+
     /// <summary>"Encerrar acesso" (ou fechar a janela): pede a confirmação no próprio painel.</summary>
     public Task PromptForExit()
     {
@@ -145,6 +182,13 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         IsConfirming = false;
         await _timer.DisposeAsync();
         await _shutdownService.Shutdown();
+    }
+
+    private void ApplyChatState(SessionChatState state)
+    {
+        IsChatOpen = state.IsOpen;
+        UnreadChats = state.Unread;
+        ChatPreview = state.Preview;
     }
 
     private void SetCollapsed(bool collapsed)

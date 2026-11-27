@@ -15,6 +15,10 @@ internal class FakeSessionIndicatorWindowViewModel : FakeBrandedViewModelBase, I
     public System.Windows.Input.ICommand HideCommand { get; } = new Remotely.Desktop.Shared.Reactive.RelayCommand(() => { });
     public System.Windows.Input.ICommand ShowCommand { get; } = new Remotely.Desktop.Shared.Reactive.RelayCommand(() => { });
     public System.Windows.Input.ICommand OpenChatCommand { get; } = new Remotely.Desktop.Shared.Reactive.RelayCommand(() => { });
+    public System.Windows.Input.ICommand ToggleChatCommand { get; } = new Remotely.Desktop.Shared.Reactive.RelayCommand(() => { });
+    public bool IsChatOpen => false;
+    public string? ChatPreview => "Michael Rodrigues: Pode me mandar um print do erro?";
+    public bool HasChatPreview => true;
     public int UnreadChats => 2;
     public bool HasUnreadChats => true;
     public string UnreadText => "2";

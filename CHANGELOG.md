@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.18.1 — 2026-11-27
+
+### Chat igual nos dois lados
+- A janela do chat no computador do usuário ficou **igual à do visualizador**: mesmo tema escuro, mesmas cores e os mesmos ícones (emoji, clipe, enviar, tipos de arquivo, baixar, ✓✓ de leitura), emojis em abas (Rostos, Gestos, TI, Trabalho), links clicáveis, miniatura das imagens antes de enviar, aviso "Solte para anexar" ao arrastar e **Ctrl+V** para colar arquivos copiados no Explorador.
+- Links da conversa abrem no navegador **como o usuário logado**, nunca como SYSTEM.
+
+### Chat ligado ao painel da sessão
+- O botão **Chat** do painel abre e oculta a conversa e fica destacado enquanto ela está aberta.
+- A janela do chat abre **logo acima do painel** (ou ao lado da aba, se o painel estiver recolhido).
+- Mensagem nova com o chat fechado aparece no painel ("Fulano: texto" + Responder); "digitando..." também.
+- Clicar na aba recolhida com mensagem nova mostra o painel e já abre a conversa.
+- O chat avulso (fora da sessão) abre no canto inferior direito, no mesmo lugar do painel.
+
 ## v1.18.0 — 2026-11-27
 
 ### Chat novo

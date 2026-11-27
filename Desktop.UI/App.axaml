@@ -64,6 +64,31 @@
 			<Setter Property="Foreground" Value="#111827" />
 			<Setter Property="BorderBrush" Value="#9CA3AF" />
 		</Style>
+		<!-- Botão Chat com a janela do chat aberta. -->
+		<Style Selector="Button.Ghost.Active">
+			<Setter Property="Background" Value="#EEF2FF" />
+			<Setter Property="Foreground" Value="#4338CA" />
+			<Setter Property="BorderBrush" Value="#A5B4FC" />
+		</Style>
+		<Style Selector="Button.Ghost.Active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#E0E7FF" />
+			<Setter Property="Foreground" Value="#3730A3" />
+			<Setter Property="BorderBrush" Value="#818CF8" />
+		</Style>
+		<Style Selector="Button.ChatPreview">
+			<Setter Property="Background" Value="#EEF2FF" />
+			<Setter Property="BorderBrush" Value="#C7D2FE" />
+			<Setter Property="BorderThickness" Value="1" />
+			<Setter Property="CornerRadius" Value="10" />
+			<Setter Property="Padding" Value="10,8" />
+			<Setter Property="HorizontalAlignment" Value="Stretch" />
+			<Setter Property="HorizontalContentAlignment" Value="Stretch" />
+			<Setter Property="Cursor" Value="Hand" />
+		</Style>
+		<Style Selector="Button.ChatPreview:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+			<Setter Property="Background" Value="#E0E7FF" />
+			<Setter Property="BorderBrush" Value="#A5B4FC" />
+		</Style>
 		<Style Selector="Button.SoftDanger">
 			<Setter Property="Background" Value="#FEE2E2" />
 			<Setter Property="Foreground" Value="#991B1B" />
