@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.IO;
 using Remotely.Server.Services;
 
 namespace Remotely.Server.Tests;
