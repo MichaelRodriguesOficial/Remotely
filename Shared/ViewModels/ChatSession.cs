@@ -11,5 +11,11 @@ public class ChatSession
     public bool IsExpanded { get; set; }
 
     public int MissedChats { get; set; }
+
+    /// <summary>O usuário está digitando (até este momento).</summary>
+    public DateTimeOffset? TypingUntil { get; set; }
+
+    /// <summary>Última mensagem do usuário ainda sem confirmação de leitura.</summary>
+    public string? UnreadIncomingId { get; set; }
     public string SessionId { get; } = Guid.NewGuid().ToString();
 }

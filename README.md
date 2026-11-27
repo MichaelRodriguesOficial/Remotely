@@ -47,7 +47,7 @@ tudo em **.NET 10** (servidor, agentes e app do usuário).
 <td width="50%" valign="top">
 
 ### 🖥️ Controle remoto de verdade
-Copiar e colar texto e arquivos entre os dois computadores, menu de **atalhos** (Win+R, Ctrl+Alt+Del, Alt+Tab…),
+**Chat** com emojis, imagens e documentos durante o acesso, copiar e colar texto e arquivos entre os dois computadores, menu de **atalhos** (Win+R, Ctrl+Alt+Del, Alt+Tab…),
 enviar e baixar arquivos escolhendo a pasta, **tela preta** para o usuário, **reiniciar e voltar** (também em modo de
 segurança) e painel lateral com os dados e o terminal do computador.
 
@@ -121,6 +121,7 @@ que preservam o banco e as chaves.
 | Inventário de hardware e software com busca | — | ✅ |
 | Diagnóstico com reparo em um clique | — | ✅ |
 | Histórico de sessões, anotação e chamado no GLPI | — | ✅ |
+| Chat com emojis, imagens e documentos, também durante o acesso | só texto, fora do acesso | ✅ |
 | Aceite do usuário e regras por grupo | só "pedir permissão" | ✅ aceita sozinho em X s, exige ou não pergunta |
 | Perfis de acesso por técnico | — | ✅ |
 | Um computador não consegue se passar por outro | — | ✅ chave por computador |
@@ -174,6 +175,7 @@ sozinho em 30 segundos.
   vê o progresso e pode cancelar.
 - **Tela preta** (Windows): o usuário vê "Manutenção em andamento" e fica com teclado e mouse bloqueados; você continua
   vendo a tela normalmente.
+- **Chat** sem sair da sessão: emojis, imagens e documentos nos dois sentidos, "digitando..." e confirmação de leitura.
 - **Painel** lateral com os dados do computador, terminal, scripts e envio de arquivos.
 - **Reiniciar e voltar**, inclusive em **modo de segurança com rede**: a página espera o computador ligar e reconecta.
 - **Encerrar** pede a anotação do que foi feito e, com o GLPI configurado, registra como acompanhamento ou chamado novo.

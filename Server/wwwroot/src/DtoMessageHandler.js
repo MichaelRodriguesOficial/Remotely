@@ -6,6 +6,7 @@ import { Sound } from "./Sound.js";
 import { ReceiveFile, HandleFileSaved, HandleClipboardFiles } from "./FileTransferService.js";
 import { HandleFolderList } from "./FolderPicker.js";
 import { TryComplete } from "./DtoChunker.js";
+import { ReceiveChatMessage, ReceiveChatTyping, ReceiveChatRead } from "./ChatPanel.js";
 const MsgPack = window["MessagePack"];
 /**
  * Grupo com "tela preta liga sozinha ao conectar": pede assim que a tela chega e as opções da
@@ -74,6 +75,27 @@ export class DtoMessageHandler {
             case DtoType.PrivacyScreenState:
                 this.HandlePrivacyScreenState(wrapper);
                 break;
+            case DtoType.ChatMessage: {
+                const chat = TryComplete(wrapper);
+                if (chat) {
+                    ReceiveChatMessage(chat);
+                }
+                break;
+            }
+            case DtoType.ChatTyping: {
+                const typing = TryComplete(wrapper);
+                if (typing) {
+                    ReceiveChatTyping(typing);
+                }
+                break;
+            }
+            case DtoType.ChatRead: {
+                const read = TryComplete(wrapper);
+                if (read) {
+                    ReceiveChatRead(read);
+                }
+                break;
+            }
             default:
                 break;
         }

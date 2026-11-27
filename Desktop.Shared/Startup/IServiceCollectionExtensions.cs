@@ -31,6 +31,8 @@ public static class IServiceCollectionExtensions
         services.AddSingleton<IViewerFactory, ViewerFactory>();
         services.AddTransient<IScreenCaster, ScreenCaster>();
         services.AddSingleton<IPrivacyScreen, UnsupportedPrivacyScreen>();
+        services.AddSingleton<ISessionChat, SessionChat>();
+        services.AddSingleton<IUserFiles, DefaultUserFiles>();
         services.AddTransient<IHubConnectionBuilder>(s => new HubConnectionBuilder());
     }
 }

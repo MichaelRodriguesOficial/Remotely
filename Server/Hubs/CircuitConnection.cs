@@ -7,6 +7,7 @@ using Remotely.Server.Models;
 using Remotely.Server.Enums;
 using Remotely.Server.Models.Messages;
 using Remotely.Shared.Models;
+using Remotely.Shared.Models.Dtos;
 using Remotely.Server.Services.Stores;
 using Remotely.Shared;
 using Remotely.Shared.Entities;
@@ -40,6 +41,9 @@ public interface ICircuitConnection
     Task RunScript(IEnumerable<string> deviceIds, Guid savedScriptId, int scriptRunId, ScriptInputType scriptInputType, bool runAsHostedService);
 
     Task SendChat(string message, string deviceId, bool isDisconnecting = false);
+
+    /// <summary>Chat avulso completo: anexos já guardados no servidor (FileId), "typing" e "read".</summary>
+    Task<bool> SendChat(string deviceId, string message, IReadOnlyList<ChatAttachmentDto> attachments, string kind = "message", string? messageId = null);
     Task<bool> TransferFileFromBrowserToAgent(string deviceId, string transferId, string[] fileIds);
 
     /// <summary>
@@ -365,6 +369,57 @@ public class CircuitConnection : CircuitHandler, ICircuitConnection
                 authToken);
         }
 
+    }
+
+    public async Task<bool> SendChat(string deviceId, string message, IReadOnlyList<ChatAttachmentDto> attachments, string kind = "message", string? messageId = null)
+    {
+        if (!HasPermission(AccessPermission.RemoteControl) ||
+            !_dataService.DoesUserHaveAccessToDevice(deviceId, User) ||
+            !_agentSessionCache.TryGetByDeviceId(deviceId, out var device) ||
+            !_agentSessionCache.TryGetConnectionId(deviceId, out var connectionId) ||
+            device.OrganizationID != User.OrganizationID)
+        {
+            return false;
+        }
+
+        if (!AgentFeatures.Has(deviceId, AgentFeatures.Chat2))
+        {
+            // Agente antigo: só texto (os anexos viram uma linha com o nome).
+            if (kind != "message")
+            {
+                return true;
+            }
+            var names = attachments.Count > 0 ? $"\n[anexos: {string.Join(", ", attachments.Select(x => x.FileName))} - atualize o agente para receber]" : string.Empty;
+            await SendChat($"{message}{names}".Trim(), deviceId);
+            return true;
+        }
+
+        var orgResult = await _dataService.GetOrganizationNameByUserName($"{User.UserName}");
+        var chat = new ChatMessage(User.UserOptions?.DisplayName ?? $"{User.UserName}", message)
+        {
+            Kind = kind,
+            Attachments = attachments.ToList(),
+            // Para o app do usuário baixar os anexos e enviar os dele pelo servidor.
+            FileToken = _expiringTokenService.GetToken(Time.Now.AddHours(12))
+        };
+        if (messageId is not null)
+        {
+            if (kind == "read")
+            {
+                chat.Message = messageId;
+            }
+            else
+            {
+                chat.Id = messageId;
+            }
+        }
+
+        await _agentHubContext.Clients.Client(connectionId).SendChatMessageV2(
+            chat,
+            orgResult.IsSuccess ? orgResult.Value : string.Empty,
+            User.OrganizationID,
+            ConnectionId);
+        return true;
     }
 
     public async Task SendChat(string message, string deviceId, bool isDisconnecting = false)

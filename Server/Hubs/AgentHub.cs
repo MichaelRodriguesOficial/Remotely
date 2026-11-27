@@ -11,6 +11,7 @@ using Remotely.Shared.Entities;
 using Remotely.Shared.Enums;
 using Remotely.Shared.Interfaces;
 using Remotely.Shared.Models;
+using Remotely.Shared.Models.Dtos;
 using Remotely.Shared.Utilities;
 
 namespace Remotely.Server.Hubs;
@@ -92,6 +93,58 @@ public class AgentHub : Hub<IAgentHubClient>
                 disconnected: true,
                 senderConnectionId: browserConnectionId);
         }
+    }
+
+    /// <summary>Chat avulso do app do usuário: mensagem com anexos, "digitando" ou "lida".</summary>
+    public async Task ChatV2(ChatMessage message, string browserConnectionId)
+    {
+        if (Device is null || message is null)
+        {
+            return;
+        }
+
+        if (!_circuitManager.TryGetConnection(browserConnectionId, out _))
+        {
+            await Clients.Caller.SendChatMessage(string.Empty, string.Empty, string.Empty, string.Empty, true, browserConnectionId);
+            return;
+        }
+
+        var kind = message.Kind is "typing" or "read" ? message.Kind : "message";
+        var attachments = (message.Attachments ?? [])
+            .Where(x => !string.IsNullOrWhiteSpace(x.FileId))
+            .Take(ChatLimits.MaxAttachmentsPerMessage)
+            .Select(x => new ChatAttachmentDto
+            {
+                Id = x.Id,
+                FileId = x.FileId,
+                FileName = Path.GetFileName(x.FileName ?? "arquivo"),
+                ContentType = ChatLimits.ContentTypeFor(x.FileName ?? string.Empty),
+                Size = x.Size
+            })
+            .ToList();
+
+        // Os arquivos enviados pelo app do usuário passam a ser da organização do computador.
+        if (attachments.Count > 0)
+        {
+            await _dataService.ClaimSharedFiles(attachments.Select(x => x.FileId!), Device.OrganizationID);
+        }
+
+        var text = message.Message ?? string.Empty;
+        if (text.Length > ChatLimits.MaxTextLength)
+        {
+            text = text[..ChatLimits.MaxTextLength];
+        }
+
+        var received = new ChatReceivedMessage(
+            Device.ID,
+            $"{Device.DeviceName}",
+            text,
+            message.Disconnected,
+            kind,
+            message.Id,
+            attachments,
+            message.SenderName);
+        await _messenger.Send(received, browserConnectionId);
     }
 
     public async Task CheckForPendingRemoteControlSessions()
@@ -196,6 +249,7 @@ public class AgentHub : Hub<IAgentHubClient>
             }
 
             Device = result.Value;
+            AgentFeatures.Set(Device.ID, device.Features);
 
             _serviceSessionCache.AddOrUpdateByConnectionId(Context.ConnectionId, Device);
 

@@ -22,6 +22,8 @@ import { ReceiveFile, HandleFileSaved, HandleClipboardFiles } from "./FileTransf
 import { HandleFolderList } from "./FolderPicker.js";
 import { TryComplete } from "./DtoChunker.js";
 import { MessagePack } from "./Interfaces/MessagePack.js";
+import { ReceiveChatMessage, ReceiveChatTyping, ReceiveChatRead } from "./ChatPanel.js";
+import { ChatMessageDto, ChatSignalDto } from "./Interfaces/Dtos.js";
 
 const MsgPack: MessagePack = window["MessagePack"];
 
@@ -94,6 +96,27 @@ export class DtoMessageHandler {
             case DtoType.PrivacyScreenState:
                 this.HandlePrivacyScreenState(wrapper);
                 break;
+            case DtoType.ChatMessage: {
+                const chat = TryComplete<ChatMessageDto>(wrapper);
+                if (chat) {
+                    ReceiveChatMessage(chat);
+                }
+                break;
+            }
+            case DtoType.ChatTyping: {
+                const typing = TryComplete<ChatSignalDto>(wrapper);
+                if (typing) {
+                    ReceiveChatTyping(typing);
+                }
+                break;
+            }
+            case DtoType.ChatRead: {
+                const read = TryComplete<ChatSignalDto>(wrapper);
+                if (read) {
+                    ReceiveChatRead(read);
+                }
+                break;
+            }
             default:
                 break;
         }

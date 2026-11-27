@@ -1,4 +1,5 @@
 ﻿using Remotely.Shared.Enums;
+using Remotely.Shared.Models;
 
 namespace Remotely.Shared.Interfaces;
 public interface IAgentHubClient
@@ -19,6 +20,13 @@ public interface IAgentHubClient
         string orgName, 
         string orgId, 
         bool disconnected, 
+        string senderConnectionId);
+
+    /// <summary>Chat avulso completo (anexos, "digitando", "lida"). Só para agentes com o recurso "chat2".</summary>
+    Task SendChatMessageV2(
+        ChatMessage message,
+        string orgName,
+        string orgId,
         string senderConnectionId);
 
     Task InvokeCtrlAltDel();

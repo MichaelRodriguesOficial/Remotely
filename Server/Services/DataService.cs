@@ -213,6 +213,9 @@ public interface IDataService
 
     Task<Result<SharedFile>> GetSharedFiled(string fileId);
 
+    /// <summary>Arquivos enviados sem organização (pelo app do usuário) passam a ser da organização informada.</summary>
+    Task ClaimSharedFiles(IEnumerable<string> fileIds, string organizationId);
+
     int GetTotalDevices();
 
     Task<Result<RemotelyUser>> GetUserById(string userId);
@@ -1047,6 +1050,25 @@ public class DataService : IDataService
 
         dbContext.Attach(scriptRun);
         dbContext.ScriptRuns.Add(scriptRun);
+        await dbContext.SaveChangesAsync();
+    }
+
+    public async Task ClaimSharedFiles(IEnumerable<string> fileIds, string organizationId)
+    {
+        var ids = fileIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        using var dbContext = _appDbFactory.GetContext();
+        var files = await dbContext.SharedFiles
+            .Where(x => ids.Contains(x.ID) && (x.OrganizationID == null || x.OrganizationID == ""))
+            .ToListAsync();
+        foreach (var file in files)
+        {
+            file.OrganizationID = organizationId;
+        }
         await dbContext.SaveChangesAsync();
     }
 
@@ -2837,7 +2859,8 @@ public class DataService : IDataService
             FileContents = fileContents,
             FileName = fileName,
             ContentType = contentType,
-            OrganizationID = organizationId
+            // Sem organização (enviado pelo agente ou pelo app do usuário): nulo, não vazio.
+            OrganizationID = string.IsNullOrWhiteSpace(organizationId) ? null : organizationId
         };
 
         dbContext.SharedFiles.Add(sharedFile);

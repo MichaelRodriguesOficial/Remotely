@@ -27,6 +27,7 @@ public static class IServiceCollectionExtensions
         // Substitui a área de transferência do Avalonia (nula no acesso pelo painel, que roda sem janela).
         services.AddSingleton<IClipboardService, ClipboardServiceWin>();
         services.AddSingleton<IPrivacyScreen, PrivacyScreenWin>();
+        services.AddSingleton<IUserFiles, UserFilesWin>();
         services.AddSingleton<IAudioCapturer, AudioCapturerWin>();
         services.AddSingleton<IShutdownService, ShutdownServiceWin>();
         services.AddSingleton<IMessageLoop, MessageLoop>();

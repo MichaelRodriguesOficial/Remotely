@@ -1,45 +1,114 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using Avalonia.Threading;
+using System.Collections.Specialized;
 
 namespace Remotely.Desktop.UI.Views;
 
 public partial class ChatWindow : Window
 {
+    private ChatWindowViewModel? _subscribed;
+
     public ChatWindow()
     {
         InitializeComponent();
 
-        Closed += ChatWindow_Closed;
-        Opened += ChatWindow_Opened;
-
-        InputTextBox.KeyUp += ChatWindow_KeyUp;
-        MessagesListBox.Loaded += MessageListBox_Loaded;
-    }
-
-    private void ChatWindow_Closed(object? sender, EventArgs e)
-    {
-        Environment.Exit(0);
-    }
-
-    private async void ChatWindow_KeyUp(object? sender, Avalonia.Input.KeyEventArgs e)
-    {
-        if (e.Key == Avalonia.Input.Key.Enter &&
-            DataContext is ChatWindowViewModel viewModel)
+        InputBox.AddHandler(KeyDownEvent, InputBox_KeyDown, RoutingStrategies.Tunnel);
+        InputBox.TextChanged += (_, _) => ViewModel?.NotifyTyping();
+        AddHandler(DragDrop.DragOverEvent, OnDragOver);
+        AddHandler(DragDrop.DropEvent, OnDrop);
+        DataContextChanged += (_, _) => Subscribe();
+        Opened += (_, _) =>
         {
-            await viewModel.SendChatMessage();
+            ScrollToEnd();
+            InputBox.Focus();
+        };
+        Closed += (_, _) =>
+        {
+            if (ExitOnClose)
+            {
+                Environment.Exit(0);
+            }
+        };
+    }
+
+    /// <summary>Chat avulso: fechar a janela encerra o app (e avisa o técnico).</summary>
+    public bool ExitOnClose { get; set; }
+
+    /// <summary>Chat da sessão: normalmente fechar só esconde.</summary>
+    public bool ForceClose { get; set; }
+
+    private ChatWindowViewModel? ViewModel => DataContext as ChatWindowViewModel;
+
+    private void Subscribe()
+    {
+        if (_subscribed is not null)
+        {
+            _subscribed.Messages.CollectionChanged -= Messages_CollectionChanged;
+        }
+        _subscribed = ViewModel;
+        if (_subscribed is not null)
+        {
+            _subscribed.Messages.CollectionChanged += Messages_CollectionChanged;
         }
     }
 
+    private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => ScrollToEnd();
 
-    private void ChatWindow_Opened(object? sender, EventArgs e)
+    private void ScrollToEnd()
     {
-        Topmost = false;
+        // Depois do layout (imagens mudam a altura).
+        Dispatcher.UIThread.Post(() => MessagesScroll.ScrollToEnd(), DispatcherPriority.Background);
+        DispatcherTimer.RunOnce(() => MessagesScroll.ScrollToEnd(), TimeSpan.FromMilliseconds(300));
     }
 
-    private async void MessageListBox_Loaded(object? sender, RoutedEventArgs e)
+    private void InputBox_KeyDown(object? sender, KeyEventArgs e)
     {
-        // Allows listbox height to adjust to content before scrolling the scrollviewer.
-        await Task.Delay(1);
-        MessagesScrollViewer.ScrollToEnd();
+        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            e.Handled = true;
+            if (ViewModel is { } vm)
+            {
+                _ = vm.SendChatMessage();
+            }
+        }
+    }
+
+    private void Emoji_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Content: string emoji } || ViewModel is not { } vm)
+        {
+            return;
+        }
+
+        var caret = InputBox.CaretIndex;
+        vm.InsertEmoji(emoji, caret);
+        EmojiButton.Flyout?.Hide();
+        InputBox.Focus();
+        InputBox.CaretIndex = Math.Min(caret + emoji.Length, vm.InputText.Length);
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.Data.Contains(DataFormats.Files) ? DragDropEffects.Copy : DragDropEffects.None;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (ViewModel is not { } vm)
+        {
+            return;
+        }
+        var paths = e.Data.GetFiles()?
+            .Select(x => x.TryGetLocalPath())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToList() ?? [];
+        if (paths.Count > 0)
+        {
+            await vm.AddFiles(paths);
+        }
     }
 }

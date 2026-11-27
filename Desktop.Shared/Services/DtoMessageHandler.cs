@@ -24,6 +24,8 @@ public class DtoMessageHandler : IDtoMessageHandler
 
     private readonly IPrivacyScreen _privacyScreen;
 
+    private readonly IChatUiService _chatUi;
+
     private readonly ILogger<DtoMessageHandler> _logger;
 
 
@@ -33,8 +35,10 @@ public class DtoMessageHandler : IDtoMessageHandler
         IClipboardService clipboardService,
         IFileTransferService fileTransferService,
         IPrivacyScreen privacyScreen,
+        IChatUiService chatUi,
         ILogger<DtoMessageHandler> logger)
     {
+        _chatUi = chatUi;
         _privacyScreen = privacyScreen;
         _keyboardMouseInput = keyboardMouseInput;
         _audioCapturer = audioCapturer;
@@ -126,6 +130,24 @@ public class DtoMessageHandler : IDtoMessageHandler
                     break;
                 case DtoType.TogglePrivacyScreen:
                     await TogglePrivacyScreen(wrapper, viewer);
+                    break;
+                case DtoType.ChatMessage:
+                    if (DtoChunker.TryComplete<ChatMessageDto>(wrapper, out var chat) && chat is not null)
+                    {
+                        await _chatUi.ReceiveSessionMessage(chat, viewer.Name);
+                    }
+                    break;
+                case DtoType.ChatTyping:
+                    if (DtoChunker.TryComplete<ChatSignalDto>(wrapper, out var typing))
+                    {
+                        _chatUi.ReceiveSessionTyping(string.IsNullOrWhiteSpace(typing.SenderName) ? viewer.Name : typing.SenderName);
+                    }
+                    break;
+                case DtoType.ChatRead:
+                    if (DtoChunker.TryComplete<ChatSignalDto>(wrapper, out var read) && !string.IsNullOrWhiteSpace(read.MessageId))
+                    {
+                        _chatUi.ReceiveSessionRead(read.MessageId);
+                    }
                     break;
                 case DtoType.WindowsSessions:
                     await GetWindowsSessions(viewer);

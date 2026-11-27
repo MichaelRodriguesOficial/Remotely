@@ -63,6 +63,7 @@ import { UploadFiles, CancelCurrentUpload } from "./FileTransferService.js";
 import { PickFolderAndUpload, PickFilesAndDownload } from "./FolderPicker.js";
 import { RemoteControlMode } from "./Enums/RemoteControlMode.js";
 import { GetDistanceBetween } from "./Utilities.js";
+import { InitChatPanel } from "./ChatPanel.js";
 import { ShowToast } from "./UI.js";
 
 var isDragging: boolean;
@@ -99,6 +100,7 @@ var suppressVKeyUp = false;
 var pointerMoveTimeout = -1;
 
 export function ApplyInputHandlers() {
+    InitChatPanel();
     AudioButton.addEventListener("click", async (ev) => {
         AudioButton.classList.toggle("toggled");
         var toggleOn = AudioButton.classList.contains("toggled");
@@ -1136,6 +1138,10 @@ function SetToolbarOpen(open: boolean) {
 
 /** Painel lateral com dados, terminal, scripts e envio de arquivo do computador (página do servidor). */
 export function ToggleSidePanel(show: boolean) {
+    if (show) {
+        document.getElementById("chatPanel")?.classList.add("d-none");
+        document.getElementById("chatButton")?.classList.remove("toggled");
+    }
     const frame = document.getElementById("sidePanelFrame") as HTMLIFrameElement;
     if (show && !ViewerApp.DeviceId) {
         return;

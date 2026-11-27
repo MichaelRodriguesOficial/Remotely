@@ -9,7 +9,8 @@ namespace Remotely.Desktop.UI.Services;
 // that I thought it more consistent to put them all here.
 public interface IViewModelFactory
 {
-    IChatWindowViewModel CreateChatWindowViewModel(string organizationName, StreamWriter streamWriter);
+    (ChatWindowViewModel ViewModel, PipeChatChannel Channel) CreatePipeChatViewModel(string organizationName, StreamWriter streamWriter);
+    ChatWindowViewModel CreateSessionChatViewModel(string technicianName);
     IFileTransferWindowViewModel CreateFileTransferWindowViewModel(IViewer viewer);
     IHostNamePromptViewModel CreateHostNamePromptViewModel();
     IPromptForAccessWindowViewModel CreatePromptForAccessViewModel(string requesterName, string organizationName, int autoAcceptSeconds = 0);
@@ -24,12 +25,31 @@ internal class ViewModelFactory : IViewModelFactory
         _serviceProvider = serviceProvider;
     }
 
-    public IChatWindowViewModel CreateChatWindowViewModel(string organizationName, StreamWriter streamWriter)
+    public (ChatWindowViewModel ViewModel, PipeChatChannel Channel) CreatePipeChatViewModel(string organizationName, StreamWriter streamWriter)
     {
-        var branding = _serviceProvider.GetRequiredService<IBrandingProvider>();
-        var dispatcher = _serviceProvider.GetRequiredService<IUiDispatcher>();
+        var appState = _serviceProvider.GetRequiredService<IAppState>();
         var logger = _serviceProvider.GetRequiredService<ILogger<ChatWindowViewModel>>();
-        return new ChatWindowViewModel(streamWriter, organizationName, branding, dispatcher, logger);
+        var channel = new PipeChatChannel(streamWriter, appState.Host, logger);
+        var peer = string.IsNullOrWhiteSpace(organizationName) ? "Suporte de TI" : organizationName;
+        return (CreateChat(channel, peer), channel);
+    }
+
+    public ChatWindowViewModel CreateSessionChatViewModel(string technicianName)
+    {
+        var sessionChat = _serviceProvider.GetRequiredService<ISessionChat>();
+        return CreateChat(new SessionChatChannel(sessionChat, string.Empty), technicianName);
+    }
+
+    private ChatWindowViewModel CreateChat(IChatChannel channel, string peerName)
+    {
+        return new ChatWindowViewModel(
+            channel,
+            peerName,
+            string.Empty,
+            _serviceProvider.GetRequiredService<IUserFiles>(),
+            _serviceProvider.GetRequiredService<IBrandingProvider>(),
+            _serviceProvider.GetRequiredService<IUiDispatcher>(),
+            _serviceProvider.GetRequiredService<ILogger<ChatWindowViewModel>>());
     }
 
     public IFileTransferWindowViewModel CreateFileTransferWindowViewModel(IViewer viewer)

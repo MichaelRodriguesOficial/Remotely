@@ -30,7 +30,7 @@
             BorderThickness="1"
             CornerRadius="12"
             Padding="16,14"
-            Width="320"
+            Width="360"
             Margin="8"
             BoxShadow="0 8 24 0 #33111827">
       <StackPanel Spacing="12">
@@ -52,7 +52,7 @@
         </Grid>
 
         <!-- Ações normais -->
-        <Grid ColumnDefinitions="Auto,*,Auto" IsVisible="{Binding !IsConfirming}">
+        <Grid ColumnDefinitions="Auto,*,Auto,8,Auto" IsVisible="{Binding !IsConfirming}">
           <Button Grid.Column="0" Classes="Link" Command="{Binding HideCommand}"
                   ToolTip.Tip="Recolhe o painel para a lateral da tela. O acesso continua.">
             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -60,7 +60,18 @@
               <TextBlock Text="Ocultar" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
-          <Button Grid.Column="2" Classes="SoftDanger" Content="Encerrar acesso" Command="{Binding EndSessionCommand}" />
+          <Button Grid.Column="2" Classes="Ghost" Command="{Binding OpenChatCommand}"
+                  ToolTip.Tip="Conversar com o técnico: mensagens, imagens e documentos.">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="💬" VerticalAlignment="Center" />
+              <TextBlock Text="Chat" VerticalAlignment="Center" />
+              <Border IsVisible="{Binding HasUnreadChats}" Background="#EF4444" CornerRadius="8" MinWidth="16" Height="16" Padding="4,0">
+                <TextBlock Text="{Binding UnreadText}" Foreground="White" FontSize="10" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </StackPanel>
+          </Button>
+          <Button Grid.Column="4" Classes="SoftDanger" Content="Encerrar acesso" Command="{Binding EndSessionCommand}" />
         </Grid>
 
         <!-- Confirmação no próprio painel (sem outra janela na frente do usuário). -->
@@ -96,6 +107,11 @@
                      HorizontalAlignment="Center" VerticalAlignment="Center" />
         </Border>
         <Border Width="9" Height="9" CornerRadius="5" Background="#22C55E" HorizontalAlignment="Center" />
+        <Border IsVisible="{Binding HasUnreadChats}" Background="#EF4444" CornerRadius="8" MinWidth="16" Height="16"
+                Padding="3,0" HorizontalAlignment="Center" ToolTip.Tip="Mensagens novas no chat">
+          <TextBlock Text="{Binding UnreadText}" Foreground="White" FontSize="10" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
       </StackPanel>
     </Button>
   </Panel>

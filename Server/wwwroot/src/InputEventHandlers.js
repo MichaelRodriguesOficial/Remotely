@@ -6,6 +6,7 @@ import { UploadFiles, CancelCurrentUpload } from "./FileTransferService.js";
 import { PickFolderAndUpload, PickFilesAndDownload } from "./FolderPicker.js";
 import { RemoteControlMode } from "./Enums/RemoteControlMode.js";
 import { GetDistanceBetween } from "./Utilities.js";
+import { InitChatPanel } from "./ChatPanel.js";
 import { ShowToast } from "./UI.js";
 var isDragging;
 var currentPointerDevice;
@@ -41,6 +42,7 @@ var suppressVKeyUp = false;
 var pointerMoveTimeout = -1;
 export function ApplyInputHandlers() {
     var _a, _b;
+    InitChatPanel();
     AudioButton.addEventListener("click", async (ev) => {
         AudioButton.classList.toggle("toggled");
         var toggleOn = AudioButton.classList.contains("toggled");
@@ -892,7 +894,11 @@ function SetToolbarOpen(open) {
 }
 /** Painel lateral com dados, terminal, scripts e envio de arquivo do computador (página do servidor). */
 export function ToggleSidePanel(show) {
-    var _a;
+    var _a, _b, _c;
+    if (show) {
+        (_a = document.getElementById("chatPanel")) === null || _a === void 0 ? void 0 : _a.classList.add("d-none");
+        (_b = document.getElementById("chatButton")) === null || _b === void 0 ? void 0 : _b.classList.remove("toggled");
+    }
     const frame = document.getElementById("sidePanelFrame");
     if (show && !ViewerApp.DeviceId) {
         return;
@@ -903,7 +909,7 @@ export function ToggleSidePanel(show) {
     SidePanel.classList.toggle("d-none", !show);
     PanelButton.classList.toggle("toggled", show);
     if (!show) {
-        (_a = ScreenViewer.focus) === null || _a === void 0 ? void 0 : _a.call(ScreenViewer);
+        (_c = ScreenViewer.focus) === null || _c === void 0 ? void 0 : _c.call(ScreenViewer);
     }
 }
 async function RestartRemote(mode) {

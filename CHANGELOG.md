@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.18.0 — 2026-11-27
+
+### Chat novo
+- **Chat dentro da sessão de acesso.** Botão **Chat** na barra do visualizador, com contador de mensagens não lidas, e botão **Chat** no painel da sessão na tela do usuário. Vai pelo mesmo canal da tela, então funciona durante o acesso (o chat antigo rodava num programa separado e não conversava com a sessão).
+- **Como os apps de mensagem de hoje:** balões, horário, **emojis** (seletor com rostos, gestos, TI e trabalho), mensagem só com emoji em tamanho grande, links clicáveis, "**digitando...**" e confirmação de **leitura** (✓✓ azul).
+- **Imagens e documentos** nos dois sentidos, até 25 MB cada e 10 por mensagem. No visualizador: clipe, **colar** (Ctrl+V no campo do chat) ou **arrastar** para o chat. Imagens aparecem na conversa; documentos com ícone, tamanho e download.
+- **Janela nova no computador do usuário**, no mesmo visual: cabeçalho com o técnico, emojis, clipe para anexar, arrastar arquivos, Enter para enviar (Shift+Enter quebra a linha), imagens na conversa e "Salvar" (em Downloads) ou "Abrir". Mensagem nova aparece na frente sem tirar o foco do que o usuário está digitando.
+- **Segurança:** no acesso pelo painel o app roda como SYSTEM; a janela de escolher arquivos, a pasta Downloads e o Explorador abrem como o **usuário logado**, nunca com poder de SYSTEM.
+- **Chat avulso** (botão de chat no card do dispositivo, fora da sessão) com o mesmo visual, emojis, anexos, "digitando" e leitura. Os anexos passam pelo servidor com um token temporário e ficam visíveis só para a organização do computador. Agentes antigos continuam recebendo o texto.
+
+### Correções
+- Arquivos enviados pelo agente sem organização falhavam ao salvar (organização vazia em vez de nula).
+
 ## v1.17.1 — 2026-11-27
 
 ### Modo de segurança com rede no Wi-Fi

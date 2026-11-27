@@ -1,72 +1,119 @@
-﻿@attribute [Authorize]
+@attribute [Authorize]
 @inherits AuthComponentBase
+@using Remotely.Shared.Models.Dtos
 
 <div class="chat-card @Session.ExpandedClass">
     <div class="chat-header" @onclick="HeaderClicked">
+        <div class="chat-avatar">@Initials</div>
         <div class="chat-title">
-            <i class="fa-regular fa-comment"></i>
             <span class="truncate">@Session.DeviceName</span>
-            @if (Session.MissedChats > 0)
+            <small>@(IsTyping ? "digitando..." : "Chat com o usuário")</small>
+        </div>
+        @if (Session.MissedChats > 0)
+        {
+            <span class="chat-unread">@Session.MissedChats</span>
+        }
+        <button class="btn btn-sm btn-ghost btn-icon chat-close" title="Encerrar o chat" @onclick="CloseChatCard" @onclick:stopPropagation>
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+    </div>
+
+    <div class="chat-body">
+        <div @ref="_chatMessagesWindow" class="chat-messages-window">
+            @if (Session.ChatHistory.IsEmpty)
             {
-                <span class="badge bg-danger rounded-pill">@Session.MissedChats</span>
+                <div class="chat-empty-hint">
+                    <i class="fa-regular fa-comments"></i>
+                    Converse com quem está no computador. A janela abre na tela dele com emojis, imagens e documentos.
+                </div>
+            }
+            @foreach (var item in Session.ChatHistory)
+            {
+                @if (item.Origin == ChatHistoryItemOrigin.System)
+                {
+                    <div @key="item.Id" class="chat-system">@item.Message</div>
+                }
+                else
+                {
+                    var mine = item.Origin == ChatHistoryItemOrigin.Self;
+                    <div @key="item.Id" class="chat-row @(mine ? "mine" : "theirs")">
+                        <div class="chat-msg">
+                            @if (!mine)
+                            {
+                                <div class="chat-msg-sender">@(string.IsNullOrWhiteSpace(item.SenderName) ? Session.DeviceName : item.SenderName)</div>
+                            }
+                            @foreach (var file in item.Attachments)
+                            {
+                                var url = FileUrl(file);
+                                @if (file.IsImage && url is not null)
+                                {
+                                    <a class="chat-msg-image" href="@url" target="_blank" rel="noopener" title="@file.FileName">
+                                        <img src="@url" alt="@file.FileName" loading="lazy" />
+                                    </a>
+                                }
+                                else
+                                {
+                                    <a class="chat-msg-file" href="@(url is null ? null : url + "?download=1")" title="Baixar">
+                                        <i class="fa-solid @FileIcon(file.FileName)"></i>
+                                        <span><strong>@file.FileName</strong><small>@ChatLimits.FormatSize(file.Size)</small></span>
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                }
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.Message))
+                            {
+                                <div class="chat-msg-text @(IsOnlyEmoji(item.Message) ? "emoji-only" : "")">@item.Message</div>
+                            }
+                            <div class="chat-msg-meta">
+                                @item.Timestamp.ToLocalTime().ToString("HH:mm")
+                                @if (mine)
+                                {
+                                    <i class="fa-solid fa-check-double @(item.IsRead ? "read" : "")" title="@(item.IsRead ? "Lida" : "Enviada")"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
             }
         </div>
-        <div class="text-end">
-            <button class="btn btn-sm btn-ghost btn-icon chat-close" title="Fechar" @onclick="CloseChatCard" @onclick:stopPropagation>
-                <i class="fa-solid fa-xmark pointer"></i>
+
+        @if (_pending.Count > 0 || _uploading)
+        {
+            <div class="chat-pending">
+                @foreach (var file in _pending)
+                {
+                    <span class="chat-pending-chip" @key="file.Id">
+                        <i class="fa-solid @FileIcon(file.FileName)"></i> @file.FileName
+                        <button type="button" title="Remover" @onclick="() => _pending.Remove(file)"><i class="fa-solid fa-xmark"></i></button>
+                    </span>
+                }
+                @if (_uploading)
+                {
+                    <span class="chat-pending-chip"><i class="fa-solid fa-spinner fa-spin"></i> Enviando anexo...</span>
+                }
+            </div>
+        }
+
+        <div class="chat-composer">
+            @if (_showEmojis)
+            {
+                <div class="chat-emoji-picker">
+                    @foreach (var emoji in Emojis)
+                    {
+                        <button type="button" @onclick="() => InsertEmoji(emoji)">@emoji</button>
+                    }
+                </div>
+            }
+            <button type="button" class="chat-tool" title="Emojis" @onclick="() => _showEmojis = !_showEmojis"><i class="fa-regular fa-face-smile"></i></button>
+            <label class="chat-tool" title="Anexar imagem ou documento (até 25 MB)" for="@_fileInputId">
+                <i class="fa-solid fa-paperclip"></i>
+            </label>
+            <InputFile id="@_fileInputId" class="d-none" multiple OnChange="OnFilesSelected" />
+            <input class="chat-input" maxlength="4000" placeholder="Mensagem" autocomplete="off"
+                   value="@_inputText" @oninput="OnTyping" @onkeydown="EvaluateInputKeydown" />
+            <button type="button" class="chat-send" title="Enviar (Enter)" @onclick="SendMessage" disabled="@_uploading">
+                <i class="fa-solid fa-paper-plane"></i>
             </button>
         </div>
     </div>
-    <div @ref="_chatMessagesWindow" class="chat-messages-window">
-        @foreach (var item in Session.ChatHistory)
-        {
-            @if (item.Origin == ChatHistoryItemOrigin.System)
-            {
-                <div @key="item" class="mt-1">
-                    <div class="chat-bubble d-inline-block text-white bg-warning">
-                        <div class="small">
-                            @item.Timestamp
-                        </div>
-                        <div class="font-weight-bold">
-                            @item.Message
-                        </div>
-                    </div>
-                </div>
-            }
-            else if (item.Origin == ChatHistoryItemOrigin.Self)
-            {
-                <div @key="item" class="text-end mt-1">
-                    <div class="chat-bubble d-inline-block bg-dark text-white">
-                        <div class="small">
-                            Você
-                            <span class="mx-1">@@</span>
-                            @item.Timestamp
-                        </div>
-                        <div class="font-weight-bold">
-                            @item.Message
-                        </div>
-                    </div>
-                </div>
-            }
-            else if (item.Origin == ChatHistoryItemOrigin.Device)
-            {
-                <div @key="item" class="mt-1">
-                    <div class="chat-bubble d-inline-block bg-primary text-white">
-                        <div class="small">
-                            @Session.DeviceName
-                            <span class="mx-1">@@</span>
-                            @item.Timestamp
-                        </div>
-                        <div class="font-weight-bold">
-                            @item.Message
-                        </div>
-                    </div>
-                </div>
-            }
-        }
-    </div>
-    <input class="chat-input"
-              @bind="_inputText"
-              @bind:event="oninput"
-              @onkeypress="EvaluateInputKeypress" />
 </div>

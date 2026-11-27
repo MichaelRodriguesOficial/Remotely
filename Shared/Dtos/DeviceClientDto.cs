@@ -14,6 +14,10 @@ public class DeviceClientDto
     [DataMember]
     public string? AgentKey { get; set; }
 
+    /// <summary>Recursos deste agente que versões antigas não têm (ex.: "chat2").</summary>
+    [DataMember]
+    public string[]? Features { get; set; }
+
     [DataMember]
     public double CpuUtilization { get; set; }
 

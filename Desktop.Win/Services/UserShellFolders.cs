@@ -163,8 +163,68 @@ public static class UserShellFolders
         }
     }
 
+    /// <summary>
+    /// Janela "Abrir" (vários arquivos) como o usuário logado. Como SYSTEM, o seletor nunca roda com
+    /// privilégio de SYSTEM: é um PowerShell aberto como o usuário que devolve os caminhos escolhidos.
+    /// </summary>
+    public static IReadOnlyList<string> PickFilesAsUser(string title)
+    {
+        var output = Path.Combine(Path.GetTempPath(), $"remotely-pick-{Guid.NewGuid():N}.txt");
+        if (GetUserToken() is var probe && probe != 0)
+        {
+            Kernel32.CloseHandle(probe);
+            output = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Temp", $"remotely-pick-{Guid.NewGuid():N}.txt");
+        }
+
+        var script =
+            "$ErrorActionPreference='SilentlyContinue';" +
+            "Add-Type -AssemblyName System.Windows.Forms;" +
+            "$owner=New-Object System.Windows.Forms.Form -Property @{TopMost=$true;ShowInTaskbar=$false;WindowState='Minimized'};" +
+            "$d=New-Object System.Windows.Forms.OpenFileDialog;" +
+            "$d.Multiselect=$true;" +
+            $"$d.Title='{title.Replace("'", "''")}';" +
+            "$d.InitialDirectory=[Environment]::GetFolderPath('Desktop');" +
+            "if($d.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK){" +
+            "[IO.File]::WriteAllLines('" + output.Replace("'", "''") + "',$d.FileNames,[Text.Encoding]::UTF8)}";
+        var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+        var powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+        var arguments = $"-NoProfile -NonInteractive -STA -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand {encoded}";
+
+        try
+        {
+            RunAsLoggedOnUser(powershell, arguments, TimeSpan.FromMinutes(10));
+            if (!File.Exists(output))
+            {
+                return [];
+            }
+            return File.ReadAllLines(output)
+                .Select(x => x.Trim().TrimStart('\uFEFF'))
+                .Where(x => Path.IsPathFullyQualified(x) && File.Exists(x))
+                .ToList();
+        }
+        catch
+        {
+            return [];
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(output);
+            }
+            catch
+            {
+                // Arquivo temporário.
+            }
+        }
+    }
+
+    /// <summary>Abre um programa visível como o usuário logado, sem esperar (Explorador, arquivo recebido...).</summary>
+    public static bool StartAsLoggedOnUser(string file, string arguments) =>
+        RunAsLoggedOnUser(file, arguments, TimeSpan.Zero, visible: true);
+
     /// <summary>Roda um programa oculto como o usuário logado (ou direto, se já somos o usuário).</summary>
-    private static bool RunAsLoggedOnUser(string file, string arguments, TimeSpan timeout)
+    private static bool RunAsLoggedOnUser(string file, string arguments, TimeSpan timeout, bool visible = false)
     {
         var token = GetUserToken();
         if (token == 0)
@@ -172,8 +232,12 @@ public static class UserShellFolders
             using var process = Process.Start(new ProcessStartInfo(file, arguments)
             {
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = !visible
             });
+            if (timeout == TimeSpan.Zero)
+            {
+                return process is not null;
+            }
             return process?.WaitForExit(timeout) == true;
         }
 
@@ -198,7 +262,7 @@ public static class UserShellFolders
                     ref security,
                     ref threadSecurity,
                     false,
-                    (uint)(ADVAPI32.NORMAL_PRIORITY_CLASS | ADVAPI32.CREATE_UNICODE_ENVIRONMENT | ADVAPI32.CREATE_NO_WINDOW),
+                    (uint)(ADVAPI32.NORMAL_PRIORITY_CLASS | ADVAPI32.CREATE_UNICODE_ENVIRONMENT | (visible ? 0 : ADVAPI32.CREATE_NO_WINDOW)),
                     environment,
                     null,
                     ref startupInfo,
@@ -209,6 +273,10 @@ public static class UserShellFolders
 
             try
             {
+                if (timeout == TimeSpan.Zero)
+                {
+                    return true;
+                }
                 return WaitForSingleObject(processInfo.hProcess, (uint)timeout.TotalMilliseconds) == 0;
             }
             finally

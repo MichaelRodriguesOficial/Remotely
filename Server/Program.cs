@@ -1,4 +1,5 @@
 ﻿using Microsoft.OpenApi.Models;
+using Remotely.Shared.Models.Dtos;
 using Remotely.Server.Extensions;
 using Bitbound.SimpleMessenger;
 using Microsoft.AspNetCore.Authorization;
@@ -568,6 +569,32 @@ app.MapPost("/api/viewer/reconnect", async (HttpContext http, ViewerReconnectReq
         url = $"/Viewer?mode=Unattended&sessionId={session.UnattendedSessionId}&accessKey={Uri.EscapeDataString(session.AccessKey)}&viewonly={request.ViewOnly}"
     });
 }).RequireAuthorization(PolicyNames.TwoFactorRequired).DisableAntiforgery();
+
+// Anexos do chat avulso (enviados pelo técnico ou pelo usuário), só para quem é da organização do arquivo.
+app.MapGet("/api/chat-files/{id}", async (HttpContext http, string id, IDataService dataService) =>
+{
+    if (http.User.Identity?.Name is not { } userName)
+    {
+        return Results.Unauthorized();
+    }
+
+    var userResult = await dataService.GetUserByName(userName);
+    var fileResult = await dataService.GetSharedFiled(id);
+    if (!userResult.IsSuccess || !fileResult.IsSuccess ||
+        fileResult.Value.OrganizationID != userResult.Value.OrganizationID)
+    {
+        return Results.NotFound();
+    }
+
+    var file = fileResult.Value;
+    var name = Path.GetFileName(file.FileName ?? "arquivo");
+    var contentType = ChatLimits.ContentTypeFor(name);
+    var inline = ChatLimits.IsImage(contentType, name) && !http.Request.Query.ContainsKey("download");
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return inline
+        ? Results.File(file.FileContents, contentType)
+        : Results.File(file.FileContents, "application/octet-stream", name);
+}).RequireAuthorization(PolicyNames.TwoFactorRequired);
 
 // Gravação de uma sessão remota (histórico de sessões). Só administradores da organização da sessão.
 app.MapGet("/api/recordings/{logId}", async (HttpContext http, string logId, IDataService dataService, IRemoteControlAuditService audit) =>

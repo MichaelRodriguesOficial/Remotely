@@ -166,6 +166,8 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
 
                 var device = await _deviceInfoService.CreateDevice(_connectionInfo.DeviceID, _connectionInfo.OrganizationID);
                 device.AgentKey = GetAgentKey();
+        device.Features = AgentFeatures;
+                device.Features = AgentFeatures;
 
                 var result = await _hubConnection.InvokeAsync<bool>("DeviceCameOnline", device);
 
@@ -674,6 +676,32 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
         }
     }
 
+    /// <summary>Recursos deste agente que o servidor só usa quando o agente avisa que tem.</summary>
+    private static readonly string[] AgentFeatures = ["chat2"];
+
+    /// <summary>Chat avulso com anexos, emojis, "digitando" e "lida".</summary>
+    public async Task SendChatMessageV2(ChatMessage message, string orgName, string orgId, string senderConnectionId)
+    {
+        try
+        {
+            EnsureHubConnection();
+
+            if (!_isServerVerified)
+            {
+                _logger.LogWarning("Chat attempted before server was verified.");
+                return;
+            }
+
+            await _chatService
+                .SendMessage(message, orgName, orgId, senderConnectionId, _hubConnection)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while handling chat message.");
+        }
+    }
+
     public async Task SendChatMessage(string senderName, string message, string orgName, string orgId, bool disconnected, string senderConnectionId)
     {
         try
@@ -713,6 +741,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
 
             var currentInfo = await _deviceInfoService.CreateDevice(_connectionInfo.DeviceID, _connectionInfo.OrganizationID);
             currentInfo.AgentKey = GetAgentKey();
+            currentInfo.Features = AgentFeatures;
             await _hubConnection
                 .SendAsync("DeviceHeartbeat", currentInfo)
                 .ConfigureAwait(false);
@@ -929,6 +958,7 @@ public class AgentHubConnection : IAgentHubConnection, IDisposable
             ChangeWindowsSession);
 
         _hubConnection.On<string, string, string, string, bool, string>(nameof(SendChatMessage), SendChatMessage);
+        _hubConnection.On<ChatMessage, string, string, string>(nameof(SendChatMessageV2), SendChatMessageV2);
 
         _hubConnection.On(nameof(InvokeCtrlAltDel), InvokeCtrlAltDel);
 

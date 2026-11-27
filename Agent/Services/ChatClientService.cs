@@ -17,6 +17,9 @@ namespace Remotely.Agent.Services;
 public interface IChatClientService
 {
     Task SendMessage(string senderName, string message, string orgName, string orgId, bool disconnected, string senderConnectionID, HubConnection hubConnection);
+
+    /// <summary>Mensagem completa (anexos, "digitando", "lida").</summary>
+    Task SendMessage(ChatMessage message, string orgName, string orgId, string senderConnectionID, HubConnection hubConnection);
 }
 
 public class ChatClientService : IChatClientService
@@ -56,15 +59,25 @@ public class ChatClientService : IChatClientService
         _logger = logger;
     }
 
-    public async Task SendMessage(
+    public Task SendMessage(
         string senderName,
         string message,
         string orgName,
         string orgId,
         bool disconnected,
         string senderConnectionID,
+        HubConnection hubConnection) =>
+        SendMessage(new ChatMessage(senderName, message, disconnected), orgName, orgId, senderConnectionID, hubConnection);
+
+    public async Task SendMessage(
+        ChatMessage chatMessage,
+        string orgName,
+        string orgId,
+        string senderConnectionID,
         HubConnection hubConnection)
     {
+        var senderName = chatMessage.SenderName;
+        var disconnected = chatMessage.Disconnected;
         if (!await _messageLock.WaitAsync(30000))
         {
             _logger.LogWarning("Timed out waiting for chat message lock.");
@@ -76,9 +89,9 @@ public class ChatClientService : IChatClientService
             ChatSession chatSession;
             if (!_chatClients.Contains(senderConnectionID))
             {
-                if (disconnected)
+                if (disconnected || chatMessage.Kind != "message")
                 {
-                    // Don't start a new session just to show a disconnected message.
+                    // Não abre o chat só para "saiu", "digitando" ou "lida".
                     return;
                 }
 
@@ -117,7 +130,6 @@ public class ChatClientService : IChatClientService
             }
 
             using var sw = new StreamWriter(chatSession.PipeStream, leaveOpen: true);
-            var chatMessage = new ChatMessage(senderName, message, disconnected);
             await sw.WriteLineAsync(JsonSerializer.Serialize(chatMessage));
             await sw.FlushAsync();
         }
@@ -140,7 +152,10 @@ public class ChatClientService : IChatClientService
             if (!string.IsNullOrWhiteSpace(messageJson))
             {
                 var chatMessage = JsonSerializer.Deserialize<ChatMessage>(messageJson);
-                await hubConnection.SendAsync("Chat", $"{chatMessage?.Message}", false, senderConnectionID);
+                if (chatMessage is not null)
+                {
+                    await hubConnection.SendAsync("ChatV2", chatMessage, senderConnectionID);
+                }
             }
         }
         await hubConnection.SendAsync("Chat", string.Empty, true, senderConnectionID);

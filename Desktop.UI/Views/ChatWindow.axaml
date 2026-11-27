@@ -3,82 +3,170 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:Remotely.Desktop.UI.ViewModels"
-		xmlns:fakes="clr-namespace:Remotely.Desktop.UI.ViewModels.Fakes"
-        xmlns:Models="clr-namespace:Remotely.Shared.Models;assembly=Shared"
-        mc:Ignorable="d" 
-		d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        mc:Ignorable="d"
+        d:DesignWidth="400" d:DesignHeight="580"
         x:Class="Remotely.Desktop.UI.Views.ChatWindow"
+        x:DataType="vm:ChatWindowViewModel"
+        x:CompileBindings="True"
+        Title="{Binding WindowTitle}"
         Icon="{Binding WindowIcon}"
-        BorderBrush="DimGray"
-        BorderThickness="1"
-        MinHeight="250"
-		x:CompileBindings="True"
-        MinWidth="200"
-        Topmost="True"
-		ShowActivated="True"
-		x:DataType="vm:IChatWindowViewModel"
-		x:Name="ChatWindowRef"
-        Title="Chat com o suporte" Height="450" Width="450">
+        Width="400" Height="580"
+        MinWidth="320" MinHeight="400"
+        Background="#F1F5F9"
+        WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True">
 
-	<Design.DataContext>
-		<fakes:FakeChatWindowViewModel />
-	</Design.DataContext>
+  <Grid RowDefinitions="Auto,*,Auto,Auto">
 
-	<Grid>
-		<Grid.RowDefinitions>
-			<RowDefinition Height="Auto" />
-			<RowDefinition />
-		</Grid.RowDefinitions>
+    <!-- Cabeçalho: com quem é a conversa e "digitando..." -->
+    <Border Grid.Row="0" Background="#4F46E5" Padding="14,12">
+      <Grid ColumnDefinitions="Auto,12,*">
+        <Border Width="40" Height="40" CornerRadius="20" Background="#E0E7FF">
+          <TextBlock Text="{Binding PeerInitials}" FontWeight="SemiBold" FontSize="14" Foreground="#3730A3"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <StackPanel Grid.Column="2" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Text="{Binding PeerName}" FontWeight="SemiBold" FontSize="15" Foreground="White"
+                     TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#C7D2FE" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Grid>
+    </Border>
 
-		<TextBlock Grid.Row="0"
-                   Text="{Binding ChatSessionHeader}"
-                   FontWeight="Bold"
-                   Foreground="DimGray"
-                   Margin="10,10,10,0"
-                   TextWrapping="Wrap">
-		</TextBlock>
+    <!-- Mensagens -->
+    <Panel Grid.Row="1">
+      <TextBlock IsVisible="{Binding HasNoMessages}"
+                 Text="Escreva para o suporte de TI. Você também pode mandar imagens e documentos pelo clipe 📎."
+                 TextWrapping="Wrap" TextAlignment="Center" Foreground="#64748B" FontSize="13"
+                 Margin="40" VerticalAlignment="Center" />
+      <ScrollViewer x:Name="MessagesScroll" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding Messages}" Margin="12,12,12,6">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <StackPanel Spacing="6" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:ChatItemViewModel">
+              <Border HorizontalAlignment="{Binding Alignment}"
+                      Background="{Binding BubbleBrush}"
+                      CornerRadius="{Binding BubbleCorners}"
+                      Padding="10,7,10,5"
+                      MaxWidth="300"
+                      BoxShadow="0 1 2 0 #1A0F172A">
+                <StackPanel Spacing="4">
+                  <TextBlock IsVisible="{Binding ShowSender}" Text="{Binding Sender}" FontSize="11.5"
+                             FontWeight="SemiBold" Foreground="#4F46E5" />
 
-		<Grid Grid.Row="1">
-			<Grid.RowDefinitions>
-				<RowDefinition />
-				<RowDefinition Height="5" />
-				<RowDefinition Height="50" />
-			</Grid.RowDefinitions>
+                  <ItemsControl ItemsSource="{Binding Attachments}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <StackPanel Spacing="4" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ChatAttachmentViewModel">
+                        <Panel>
+                          <Button IsVisible="{Binding HasImage}" Command="{Binding OpenCommand}"
+                                  Padding="0" Background="Transparent" BorderThickness="0" Cursor="Hand"
+                                  ToolTip.Tip="{Binding FileName}">
+                            <Border CornerRadius="10" ClipToBounds="True">
+                              <Image Source="{Binding Image}" MaxHeight="220" MaxWidth="276" Stretch="Uniform" />
+                            </Border>
+                          </Button>
+                          <Border IsVisible="{Binding ShowFileCard}" Background="{Binding CardBrush}"
+                                  CornerRadius="10" Padding="10,8">
+                            <Grid ColumnDefinitions="Auto,10,*">
+                              <TextBlock Text="{Binding Icon}" FontSize="22" VerticalAlignment="Center" />
+                              <StackPanel Grid.Column="2" Spacing="2">
+                                <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" FontSize="12.5"
+                                           Foreground="{Binding TextBrush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding SizeText}" FontSize="11" Foreground="{Binding SubtleBrush}" />
+                                <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding !IsMine}">
+                                  <Button Classes="Link" Content="Salvar" Command="{Binding SaveCommand}" Padding="0" FontSize="12"
+                                          ToolTip.Tip="Salva em Downloads e mostra na pasta" />
+                                  <Button Classes="Link" Content="Abrir" Command="{Binding OpenCommand}" Padding="0" FontSize="12" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{Binding SubtleBrush}" />
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </Panel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
 
-			<Border BorderBrush="Gray" BorderThickness="1" Margin="5">
-				<ScrollViewer x:Name="MessagesScrollViewer">
-					<ItemsControl x:Name="MessagesListBox" ItemsSource="{Binding ChatMessages}">
-						<ItemsControl.ItemTemplate>
-							<DataTemplate DataType="{x:Type Models:ChatMessage}">
-								<!-- TODO: Replace with Run when implemented. -->
-								<DockPanel Margin="5">
-									<TextBlock Text="{Binding SenderName}" FontWeight="Bold" TextWrapping="Wrap" FontSize="14">
-										<TextBlock.Styles>
-											<Style Selector="TextBlock[Text=You]">
-												<Style.Setters>
-													<Setter Property="Foreground" Value="SteelBlue"></Setter>
-												</Style.Setters>
-											</Style>
-										</TextBlock.Styles>
-									</TextBlock>
+                  <SelectableTextBlock IsVisible="{Binding HasText}" Text="{Binding Text}" TextWrapping="Wrap"
+                                       FontSize="{Binding TextSize}" Foreground="{Binding TextBrush}" />
 
-									<TextBlock TextWrapping="Wrap" FontSize="14" Margin="0,0,5,0">: </TextBlock>
-									<TextBlock Text="{Binding Message}" TextWrapping="Wrap" FontSize="14"></TextBlock>
-								</DockPanel>
-							</DataTemplate>
-						</ItemsControl.ItemTemplate>
-					</ItemsControl>
-				</ScrollViewer>
-			</Border>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="4">
+                    <TextBlock Text="{Binding TimeText}" FontSize="10.5" Foreground="{Binding MetaBrush}" />
+                    <TextBlock IsVisible="{Binding ShowStatus}" Text="{Binding StatusGlyph}" FontSize="10.5"
+                               Foreground="{Binding StatusBrush}" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+    </Panel>
 
-			<GridSplitter Grid.Row="1" Height="5" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" />
+    <!-- Anexos ainda não enviados -->
+    <ItemsControl Grid.Row="2" ItemsSource="{Binding Pending}" IsVisible="{Binding HasPending}" Margin="10,6,10,0">
+      <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+          <WrapPanel />
+        </ItemsPanelTemplate>
+      </ItemsControl.ItemsPanel>
+      <ItemsControl.ItemTemplate>
+        <DataTemplate x:DataType="vm:PendingAttachmentViewModel">
+          <Border Background="#E0E7FF" CornerRadius="8" Padding="8,4" Margin="0,0,6,6">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="{Binding Label}" FontSize="12" Foreground="#312E81" MaxWidth="240"
+                         TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+              <Button Content="✕" Command="{Binding RemoveCommand}" Padding="4,0" Background="Transparent"
+                      BorderThickness="0" FontSize="11" ToolTip.Tip="Remover" />
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
 
-			<TextBox Grid.Row="2"
-                x:Name="InputTextBox"
-                FontSize="14"
-                Margin="5"
-                Text="{Binding InputText, Mode=TwoWay}"
-                TextWrapping="Wrap"  />
-		</Grid>
-	</Grid>
+    <!-- Escrever -->
+    <Border Grid.Row="3" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="8">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+        <Button x:Name="EmojiButton" Grid.Column="0" Content="😊" FontSize="18" Classes="Ghost" Padding="8,4"
+                VerticalAlignment="Bottom" ToolTip.Tip="Emojis">
+          <Button.Flyout>
+            <Flyout Placement="TopEdgeAlignedLeft">
+              <ItemsControl ItemsSource="{Binding Emojis}" Width="312">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="sys:String">
+                    <Button Content="{Binding}" Click="Emoji_Click" Width="38" Height="36" FontSize="19"
+                            Background="Transparent" BorderThickness="0" Padding="0"
+                            HorizontalContentAlignment="Center" VerticalContentAlignment="Center" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Flyout>
+          </Button.Flyout>
+        </Button>
+        <Button Grid.Column="1" Content="📎" FontSize="17" Classes="Ghost" Padding="8,4" VerticalAlignment="Bottom"
+                Command="{Binding AttachCommand}" ToolTip.Tip="Anexar imagem ou documento (até 25 MB)" />
+        <TextBox Grid.Column="2" x:Name="InputBox" Text="{Binding InputText}" Watermark="Mensagem"
+                 AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="120" MinHeight="38" Margin="4,0"
+                 VerticalContentAlignment="Center" CornerRadius="18" Padding="12,8" FontSize="14" />
+        <Button Grid.Column="3" Classes="Primary" Content="➤" FontSize="16" Width="40" Height="38" CornerRadius="19"
+                Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                VerticalAlignment="Bottom" Command="{Binding SendCommand}" ToolTip.Tip="Enviar (Enter)" />
+      </Grid>
+    </Border>
+  </Grid>
 </Window>

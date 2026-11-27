@@ -72,5 +72,14 @@ public enum DtoType
     TogglePrivacyScreen = 34,
     /// <summary>Estado da tela preta (ligada, sem suporte...), do computador para o visualizador.</summary>
     [EnumMember]
-    PrivacyScreenState = 35
+    PrivacyScreenState = 35,
+    /// <summary>Mensagem do chat da sessão (nos dois sentidos).</summary>
+    [EnumMember]
+    ChatMessage = 36,
+    /// <summary>Chat: a outra pessoa está digitando.</summary>
+    [EnumMember]
+    ChatTyping = 37,
+    /// <summary>Chat: mensagens lidas até MessageId.</summary>
+    [EnumMember]
+    ChatRead = 38
 }

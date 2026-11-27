@@ -23,6 +23,10 @@ public interface ISessionIndicatorWindowViewModel : IBrandedViewModelBase
     ICommand CancelEndCommand { get; }
     ICommand HideCommand { get; }
     ICommand ShowCommand { get; }
+    ICommand OpenChatCommand { get; }
+    int UnreadChats { get; }
+    bool HasUnreadChats { get; }
+    string UnreadText { get; }
     Task PromptForExit();
 }
 
@@ -43,9 +47,12 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
         IShutdownService shutdownService,
         IDialogProvider dialogProvider,
         IAppState appState,
+        IChatUiService chatUi,
         ILogger<BrandedViewModelBase> logger)
         : base(brandingProvider, dispatcher, logger)
     {
+        OpenChatCommand = new RelayCommand(chatUi.OpenSessionChat);
+        chatUi.UnreadChanged += (_, count) => _dispatcher.Post(() => UnreadChats = count);
         _shutdownService = shutdownService;
         _dialogProvider = dialogProvider;
         _appState = appState;
@@ -107,6 +114,22 @@ public class SessionIndicatorWindowViewModel : BrandedViewModelBase, ISessionInd
     public ICommand CancelEndCommand { get; }
     public ICommand HideCommand { get; }
     public ICommand ShowCommand { get; }
+    public ICommand OpenChatCommand { get; }
+
+    public int UnreadChats
+    {
+        get => Get<int>();
+        private set
+        {
+            Set(value);
+            NotifyPropertyChanged(nameof(HasUnreadChats));
+            NotifyPropertyChanged(nameof(UnreadText));
+        }
+    }
+
+    public bool HasUnreadChats => UnreadChats > 0;
+
+    public string UnreadText => UnreadChats > 9 ? "9+" : UnreadChats.ToString();
 
     /// <summary>"Encerrar acesso" (ou fechar a janela): pede a confirmação no próprio painel.</summary>
     public Task PromptForExit()

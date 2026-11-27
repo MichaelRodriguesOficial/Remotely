@@ -245,6 +245,13 @@
                             <span class="rc-label">Arquivos</span>
                         </button>
 
+                        <button id="chatButton" class="rc-btn" aria-expanded="false"
+                                title="Chat com o usuário: mensagens, emojis, imagens e documentos.">
+                            <i class="fas fa-comment-dots"></i>
+                            <span class="rc-label">Chat</span>
+                            <span id="chatBadge" class="rc-badge d-none">0</span>
+                        </button>
+
                         <button id="panelButton" class="rc-btn d-none"
                                 title="Painel do computador: dados, terminal, scripts e envio de arquivos.">
                             <i class="fas fa-table-columns"></i>
@@ -298,6 +305,34 @@
                 </button>
             </div>
             <iframe id="sidePanelFrame" title="Painel do computador"></iframe>
+        </aside>
+
+        <aside id="chatPanel" class="d-none" aria-label="Chat com o usuário">
+            <div class="chat-head">
+                <div class="chat-head-title">
+                    <strong><i class="fas fa-comment-dots"></i> Chat</strong>
+                    <span id="chatTyping" class="chat-typing d-none"></span>
+                </div>
+                <button id="chatClose" class="side-panel-icon" title="Fechar o chat">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+            <div id="chatMessages" class="chat-messages" aria-live="polite">
+                <div class="chat-empty">
+                    <i class="far fa-comments"></i>
+                    <p>Converse com o usuário sem sair da sessão. Arraste ou cole imagens e documentos aqui.</p>
+                </div>
+            </div>
+            <div id="chatPending" class="chat-pending d-none"></div>
+            <div class="chat-composer">
+                <div id="chatEmojiPicker" class="chat-emoji-picker d-none"></div>
+                <button id="chatEmoji" class="chat-tool" type="button" title="Emojis"><i class="far fa-face-smile"></i></button>
+                <button id="chatAttach" class="chat-tool" type="button" title="Anexar imagem ou documento (até 25 MB)"><i class="fas fa-paperclip"></i></button>
+                <textarea id="chatInput" rows="1" maxlength="4000" placeholder="Mensagem" aria-label="Mensagem"></textarea>
+                <button id="chatSend" class="chat-send" type="button" title="Enviar (Enter)"><i class="fas fa-paper-plane"></i></button>
+                <input id="chatFileInput" type="file" multiple hidden />
+            </div>
+            <div class="chat-drop-hint"><i class="fas fa-paperclip"></i> Solte para anexar</div>
         </aside>
 
         <div id="waitOverlay" class="d-none" role="status" aria-live="polite">

@@ -206,6 +206,28 @@ export interface RemoteControlViewerOptions {
     DeviceOnWifi?: boolean;
 }
 
+export interface ChatAttachmentDto {
+    Id: string;
+    FileName: string;
+    ContentType: string;
+    Size: number;
+    Data: Uint8Array | null;
+    FileId: string | null;
+}
+
+export interface ChatMessageDto {
+    Id: string;
+    SenderName: string;
+    Text: string;
+    Timestamp: string;
+    Attachments: ChatAttachmentDto[];
+}
+
+export interface ChatSignalDto {
+    SenderName: string;
+    MessageId: string | null;
+}
+
 export class PrivacyScreenDto {
     constructor(enabled: boolean) {
         this.Enabled = enabled;

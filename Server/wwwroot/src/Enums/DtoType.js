@@ -31,5 +31,8 @@ export var DtoType;
     DtoType[DtoType["DownloadFilesRequest"] = 33] = "DownloadFilesRequest";
     DtoType[DtoType["TogglePrivacyScreen"] = 34] = "TogglePrivacyScreen";
     DtoType[DtoType["PrivacyScreenState"] = 35] = "PrivacyScreenState";
+    DtoType[DtoType["ChatMessage"] = 36] = "ChatMessage";
+    DtoType[DtoType["ChatTyping"] = 37] = "ChatTyping";
+    DtoType[DtoType["ChatRead"] = 38] = "ChatRead";
 })(DtoType || (DtoType = {}));
 //# sourceMappingURL=DtoType.js.map

@@ -29,5 +29,8 @@
     ClipboardFiles = 32,
     DownloadFilesRequest = 33,
     TogglePrivacyScreen = 34,
-    PrivacyScreenState = 35
+    PrivacyScreenState = 35,
+    ChatMessage = 36,
+    ChatTyping = 37,
+    ChatRead = 38
 }
