@@ -163,14 +163,6 @@ public class AgentHub : Hub<IAgentHubClient>
     {
         try
         {
-            // Uma conexão é um computador: não troca de identidade no meio.
-            if (Device is not null && Device.ID != device.ID)
-            {
-                _logger.LogWarning("Agent connection {connectionId} tried to switch from {old} to {new}.", Context.ConnectionId, Device.ID, device.ID);
-                Context.Abort();
-                return false;
-            }
-
             if (await CheckForDeviceBan(device.ID, device.DeviceName))
             {
                 return false;
@@ -185,6 +177,14 @@ public class AgentHub : Hub<IAgentHubClient>
 
             if (await CheckForDeviceBan(device.PublicIP))
             {
+                return false;
+            }
+
+            // Uma conexão é um computador: não troca de identidade no meio.
+            if (Context.Items.TryGetValue("Device", out var current) && current is Device existing && existing.ID != device.ID)
+            {
+                _logger.LogWarning("Agent connection {connectionId} tried to switch from {old} to {new}.", Context.ConnectionId, existing.ID, device.ID);
+                Context.Abort();
                 return false;
             }
 
