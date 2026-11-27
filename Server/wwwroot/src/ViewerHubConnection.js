@@ -103,6 +103,7 @@ export class ViewerHubConnection {
         }
         hide(UI.ClipboardSyncButton, options.AllowClipboard === false || noInput);
         hide(UI.TypeClipboardButton, noInput);
+        hide(UI.ShortcutsButton, noInput);
         hide(UI.RestartButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended);
         hide(UI.RestartSafeButton, noSystem || ViewerApp.Mode != RemoteControlMode.Unattended ||
             !(options.DevicePlatform || "").toLowerCase().includes("windows"));

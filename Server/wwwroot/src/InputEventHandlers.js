@@ -1,4 +1,4 @@
-import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, PromptText, RestartSafeButton, SessionEndedClose, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
+import { AudioButton, ChangeScreenButton, ScreenSelectMenu, ClipboardTransferButton, ClipboardTransferMenu, TypeClipboardButton, ConnectButton, CtrlAltDelButton, DisconnectButton, FileTransferButton, FileTransferInput, FitToScreenButton, ScreenViewer, BlockInputButton, InviteButton, KeyboardButton, TouchKeyboardInput, MenuFrame, MenuButton, ScreenViewerWrapper, WindowsSessionSelect, FileTransferMenu, FileUploadButtton, FileDownloadButton, ViewOnlyButton, FullScreenButton, RequesterNameInput, SessionIDInput, ConnectForm, CloseAllPopupMenus, ExtrasMenu, ExtrasMenuButton, WindowsSessionMenuButton, WindowsSessionMenu, MetricsButton, MetricsFrame, SetStatusMessage, PanelButton, SidePanel, SidePanelClose, RestartButton, ClipboardSyncButton, SendClipboardButton, WaitOverlayCancel, Confirm, PromptText, ShortcutsButton, ShortcutsMenu, RestartSafeButton, SessionEndedClose, ShowWaitOverlay, HideWaitOverlay, } from "./UI.js";
 import { SetSettings } from "./SettingsService.js";
 import { Sound } from "./Sound.js";
 import { ViewerApp } from "./App.js";
@@ -25,6 +25,17 @@ var lastScrollTouchY1;
 var lastScrollTouchY2;
 var lastPointerMove = Date.now();
 var pendingPaste = false;
+// Tecla Windows: só vai para o computador remoto junto com outra tecla (Win+E) ou sozinha ao soltar.
+// Se o Windows daqui capturar o atalho (Win+R abre o Executar aqui), a janela perde o foco e a tecla
+// é descartada, em vez de abrir o menu Iniciar lá.
+var metaHeld = false;
+// As teclas vão para o computador remoto na ordem em que foram apertadas (uma de cada vez).
+var keyQueue = Promise.resolve();
+function QueueKey(send) {
+    keyQueue = keyQueue.then(send).catch(() => { });
+    return keyQueue;
+}
+var metaSent = false;
 var pendingPasteTimer = -1;
 var suppressVKeyUp = false;
 var pointerMoveTimeout = -1;
@@ -204,7 +215,7 @@ export function ApplyInputHandlers() {
             ViewerApp.ClipboardWatcher.LastClipboardText = text;
             await ViewerApp.MessageSender.SendTextTransfer(text, false);
         }
-        await ViewerApp.MessageSender.SendKeyPress("v");
+        QueueKey(() => ViewerApp.MessageSender.SendKeyPress("v"));
     });
     FileTransferInput.addEventListener("change", (ev) => {
         const destination = ViewerApp.PendingUploadDestination;
@@ -365,6 +376,25 @@ export function ApplyInputHandlers() {
         }
         await ViewerApp.MessageSender.SendTextTransfer(text, false);
         ShowToast("Texto colocado na área de transferência do computador remoto. Use Ctrl+V lá.");
+    });
+    ShortcutsButton.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        CloseAllPopupMenus(ShortcutsMenu.id);
+        const rect = ShortcutsButton.getBoundingClientRect();
+        ShortcutsMenu.style.left = `${rect.left.toFixed(0)}px`;
+        ShortcutsMenu.style.top = `${rect.bottom.toFixed(0)}px`;
+        ShortcutsMenu.classList.toggle("open");
+        window.addEventListener("click", () => CloseAllPopupMenus(null), { once: true });
+    });
+    ShortcutsMenu.querySelectorAll("button[data-keys]").forEach(button => {
+        button.addEventListener("click", async () => {
+            CloseAllPopupMenus(null);
+            if (ViewerApp.ViewOnlyMode) {
+                ShowToast("O modo somente visualização está ativado.");
+                return;
+            }
+            await SendShortcut(button.dataset.keys);
+        });
     });
     MetricsButton.addEventListener("click", () => {
         MetricsFrame.classList.toggle("d-none");
@@ -689,7 +719,7 @@ export function ApplyInputHandlers() {
                 pendingPasteTimer = window.setTimeout(async () => {
                     if (pendingPaste) {
                         pendingPaste = false;
-                        await ViewerApp.MessageSender.SendKeyPress("v");
+                        QueueKey(() => ViewerApp.MessageSender.SendKeyPress("v"));
                     }
                 }, 400);
             }
@@ -698,7 +728,18 @@ export function ApplyInputHandlers() {
         if (!e.ctrlKey || !e.shiftKey || e.key.toLowerCase() != "i") {
             e.preventDefault();
         }
-        await ViewerApp.MessageSender.SendKeyDown(e.key);
+        if (e.key == "Meta" || e.key == "OS") {
+            if (!e.repeat) {
+                metaHeld = true;
+                metaSent = false;
+            }
+            return;
+        }
+        if (metaHeld && !metaSent) {
+            metaSent = true;
+            QueueKey(() => ViewerApp.MessageSender.SendKeyDown("Meta"));
+        }
+        QueueKey(() => ViewerApp.MessageSender.SendKeyDown(e.key));
     });
     window.addEventListener("keyup", async function (e) {
         if (document.querySelector("input:focus") ||
@@ -709,18 +750,37 @@ export function ApplyInputHandlers() {
         if (ViewerApp.ViewOnlyMode) {
             return;
         }
+        if (e.key == "Meta" || e.key == "OS") {
+            const wasSent = metaSent;
+            const wasHeld = metaHeld;
+            metaHeld = false;
+            metaSent = false;
+            if (wasSent) {
+                QueueKey(() => ViewerApp.MessageSender.SendKeyUp("Meta"));
+            }
+            else if (wasHeld) {
+                QueueKey(() => ViewerApp.MessageSender.SendKeyPress("Meta"));
+            }
+            return;
+        }
         if (suppressVKeyUp && e.key.toLowerCase() == "v") {
             // O "v" do Ctrl+V já foi mandado (tecla inteira) junto com o que foi colado.
             suppressVKeyUp = false;
             return;
         }
-        await ViewerApp.MessageSender.SendKeyUp(e.key);
+        QueueKey(() => ViewerApp.MessageSender.SendKeyUp(e.key));
     });
     window.addEventListener("blur", async () => {
         if (ViewerApp.ViewOnlyMode) {
             return;
         }
-        await ViewerApp.MessageSender.SendSetKeyStatesUp();
+        if (metaHeld && !metaSent) {
+            // O Windows daqui pegou o atalho (ex.: Win+R). Nada vai para o computador remoto.
+            ShowToast("Esse atalho abriu no seu computador. Use o menu Atalhos ou a tela cheia para mandar ao remoto.", 8000);
+        }
+        metaHeld = false;
+        metaSent = false;
+        QueueKey(() => ViewerApp.MessageSender.SendSetKeyStatesUp());
     });
     window.addEventListener("touchstart", () => {
         KeyboardButton.classList.remove("d-none");
@@ -844,5 +904,24 @@ async function Reconnect() {
     }
     button.disabled = false;
     button.innerHTML = '<i class="fas fa-rotate"></i> Reconectar';
+}
+/** "Meta+r" → Win pressionado, R, solta R, solta Win (com pequenas pausas, como uma pessoa). */
+async function SendShortcut(keys) {
+    const parts = (keys || "").split("+").filter(x => x);
+    if (parts.length == 0) {
+        return;
+    }
+    if (parts.length == 1) {
+        await ViewerApp.MessageSender.SendKeyPress(parts[0]);
+        return;
+    }
+    for (const key of parts) {
+        await ViewerApp.MessageSender.SendKeyDown(key);
+        await new Promise(resolve => window.setTimeout(resolve, 30));
+    }
+    for (const key of parts.slice().reverse()) {
+        await ViewerApp.MessageSender.SendKeyUp(key);
+        await new Promise(resolve => window.setTimeout(resolve, 20));
+    }
 }
 //# sourceMappingURL=InputEventHandlers.js.map

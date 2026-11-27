@@ -55,6 +55,22 @@
         <button id="sendClipboardButton" class="d-none"></button>
     </div>
 
+    <div id="shortcutsMenu" class="popup-menu">
+        <button id="ctrlAltDelButton" class="d-none" title="Tela de segurança do Windows (bloquear, trocar usuário, Gerenciador de Tarefas).">
+            <i class="fas fa-shield-halved"></i> Ctrl+Alt+Del
+        </button>
+        <button data-keys="Meta" title="Abre o menu Iniciar."><i class="fa-brands fa-windows"></i> Menu Iniciar <kbd>Win</kbd></button>
+        <button data-keys="Meta+r" title="Abre o Executar."><i class="fas fa-terminal"></i> Executar <kbd>Win+R</kbd></button>
+        <button data-keys="Meta+e" title="Abre o Explorador de Arquivos."><i class="fas fa-folder-open"></i> Explorador <kbd>Win+E</kbd></button>
+        <button data-keys="Meta+d" title="Mostra a Área de Trabalho."><i class="fas fa-display"></i> Área de Trabalho <kbd>Win+D</kbd></button>
+        <button data-keys="Control+Shift+Escape" title="Abre o Gerenciador de Tarefas."><i class="fas fa-list-check"></i> Gerenciador de Tarefas <kbd>Ctrl+Shift+Esc</kbd></button>
+        <button data-keys="Alt+Tab" title="Troca para a janela anterior."><i class="fas fa-clone"></i> Trocar janela <kbd>Alt+Tab</kbd></button>
+        <button data-keys="Alt+F4" title="Fecha a janela ativa."><i class="fas fa-xmark"></i> Fechar janela <kbd>Alt+F4</kbd></button>
+        <button data-keys="Meta+Shift+s" title="Ferramenta de recorte."><i class="fas fa-crop-simple"></i> Recorte de tela <kbd>Win+Shift+S</kbd></button>
+        <button data-keys="Meta+l" title="Bloqueia o computador remoto."><i class="fas fa-lock"></i> Bloquear <kbd>Win+L</kbd></button>
+        <div class="menu-note">Em tela cheia (Chrome/Edge) os atalhos do teclado vão direto para o computador remoto.</div>
+    </div>
+
     <div id="fileTransferMenu" class="popup-menu">
         <button id="fileUploadButton"><i class="fas fa-upload"></i> Enviar arquivos para o computador</button>
         <button id="fileDownloadButton"><i class="fas fa-download"></i> Baixar arquivos do computador</button>
@@ -196,10 +212,10 @@
                             <span class="rc-label">Bloquear usuário</span>
                         </button>
 
-                        <button id="ctrlAltDelButton" class="rc-btn d-none"
-                                title="Enviar Ctrl+Alt+Del ao computador remoto.">
+                        <button id="shortcutsButton" class="rc-btn"
+                                title="Atalhos do Windows (Win+R, Alt+Tab, Ctrl+Alt+Del...) para o computador remoto.">
                             <i class="fas fa-keyboard"></i>
-                            <span class="rc-label">Ctrl+Alt+Del</span>
+                            <span class="rc-label">Atalhos</span>
                         </button>
 
                         <button id="windowsSessionMenuButton" class="rc-btn d-none"

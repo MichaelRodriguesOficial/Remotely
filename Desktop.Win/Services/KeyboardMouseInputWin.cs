@@ -496,7 +496,8 @@ public class KeyboardMouseInputWin(
             "F10" => VirtualKey.F10,
             "F11" => VirtualKey.F11,
             "F12" => VirtualKey.F12,
-            "Meta" => VirtualKey.LWIN,
+            "Meta" or "OS" => VirtualKey.LWIN,
+            "PrintScreen" => VirtualKey.SNAPSHOT,
             "ContextMenu" => VirtualKey.APPS,
             _ => key.Length == 1 ?
                     (VirtualKey)VkKeyScan(Convert.ToChar(key)) :

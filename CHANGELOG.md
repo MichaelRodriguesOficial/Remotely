@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.16.0 — 2026-11-27
+
+### Copiar e colar
+- **Corrigido de vez**: no acesso pelo painel o app do usuário roda sem janela principal e a área de transferência dele ficava vazia, então nada era copiado em nenhum sentido. Agora o app usa a área de transferência do Windows direto (texto e arquivos copiados no Explorador), numa thread própria.
+
+### Teclado
+- **Menu Atalhos** na barra: Menu Iniciar, Executar (Win+R), Explorador (Win+E), Área de Trabalho (Win+D), Gerenciador de Tarefas, Alt+Tab, Alt+F4, Recorte de tela, Bloquear e Ctrl+Alt+Del. Fora da tela cheia o navegador não recebe esses atalhos (o Windows do técnico pega antes), então o menu manda a sequência certa ao computador remoto.
+- **Tecla Windows**: só vai ao computador remoto junto com outra tecla ou sozinha ao soltar. Quando o Windows do técnico captura o atalho (Win+R abre o Executar no computador do técnico), nada é enviado, em vez de abrir o menu Iniciar lá, e aparece a dica de usar o menu Atalhos ou a tela cheia.
+- As teclas chegam ao computador remoto sempre na ordem em que foram apertadas.
+- Print Screen passou a ser reconhecida.
+
 ## v1.15.0 — 2026-11-26
 
 Correções e pedidos do teste da v1.14.0.
