@@ -1,248 +1,226 @@
-# Remotely — fork MichaelRodriguesOficial
+<p align="center">
+  <img src="Assets/Remotely_Icon.png" alt="Remotely" width="96">
+</p>
 
-[![Tests](https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/run_tests.yml/badge.svg?branch=master)](https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/run_tests.yml)
-[![Release](https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/release.yml/badge.svg)](https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/release.yml)
-[![GitHub release](https://img.shields.io/github/v/release/MichaelRodriguesOficial/Remotely)](https://github.com/MichaelRodriguesOficial/Remotely/releases)
-[![Docker](https://img.shields.io/badge/docker-michechel10%2Fremotely-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/michechel10/remotely)
+<h1 align="center">Remotely</h1>
 
-Solução de **suporte remoto**, **acesso autônomo** e **execução remota de scripts**, feita em .NET, Blazor e SignalR.
+<p align="center">
+  <b>Acesso remoto, inventário e diagnóstico dos computadores da empresa, num painel em português.</b><br>
+  Controle a tela, rode scripts, descubra o que está errado e registre o atendimento no GLPI, tudo no seu próprio servidor.
+</p>
 
-Este repositório é um fork do [immense/Remotely](https://github.com/immense/Remotely), cujo desenvolvimento foi encerrado (arquivado em dez/2024). Aqui o projeto segue mantido por **Michael Rodrigues**, com correções de segurança, interface nova em português e tudo em **.NET 10** (servidor, agents e clientes de desktop).
+<p align="center">
+  <a href="https://github.com/MichaelRodriguesOficial/Remotely/releases/latest"><img src="https://img.shields.io/github/v/release/MichaelRodriguesOficial/Remotely?label=release&color=6366f1" alt="Última versão"></a>
+  <a href="https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/run_tests.yml"><img src="https://github.com/MichaelRodriguesOficial/Remotely/actions/workflows/run_tests.yml/badge.svg?branch=master" alt="Testes"></a>
+  <img src="https://img.shields.io/badge/.NET-10-512bd4" alt=".NET 10">
+  <a href="https://hub.docker.com/r/michechel10/remotely"><img src="https://img.shields.io/badge/docker-michechel10%2Fremotely-2496ED?logo=docker&logoColor=white" alt="Imagem Docker"></a>
+  <img src="https://img.shields.io/badge/interface-pt__BR-informational" alt="Interface em português">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licença-GPL--3.0-blue" alt="Licença GPL-3.0"></a>
+  <a href="https://github.com/sponsors/MichaelRodriguesOficial"><img src="https://img.shields.io/badge/apoie-%E2%9D%A4-db61a2?logo=githubsponsors" alt="Apoie o projeto"></a>
+</p>
 
-![Tela de dispositivos](.github/media/dispositivos.png)
+<p align="center">
+  <a href="#como-usar">Como usar</a> ·
+  <a href="#instalacao">Instalação</a> ·
+  <a href="#configuracao">Configuração</a> ·
+  <a href="#seguranca">Segurança</a> ·
+  <a href="#problemas">Solução de problemas</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="#apoie">Apoie ☕</a>
+</p>
 
-![Inventário com busca inteligente](.github/media/inventario-lista.png)
-
-<table>
-  <tr>
-    <td><img src=".github/media/inventario.png" alt="Aba Inventário com firmware, placa-mãe, processadores e memórias" /></td>
-    <td><img src=".github/media/detalhes.png" alt="Detalhes do dispositivo com tipo, fabricante, modelo, série, patrimônio e localização" /></td>
-  </tr>
-  <tr>
-    <td align="center">Inventário: componentes, volumes, softwares, rede e antivírus</td>
-    <td align="center">Detalhes: série, UUID, patrimônio e localização</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/diagnostico.png" alt="Aba Diagnóstico com testes de discos, bateria, rede e sistema" /></td>
-    <td><img src=".github/media/inventario-lista.png" alt="Lista do inventário com busca inteligente" /></td>
-  </tr>
-  <tr>
-    <td align="center">Diagnóstico: testes de componentes, histórico e exportação</td>
-    <td align="center">Inventário com busca inteligente e colunas configuráveis</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/inventario-softwares.png" alt="Softwares instalados com busca" /></td>
-    <td><img src=".github/media/dispositivo-aberto.png" alt="Card do dispositivo aberto com ações e identificação" /></td>
-  </tr>
-  <tr>
-    <td align="center">Softwares instalados, com busca e exportação</td>
-    <td align="center">Card aberto: ações, equipamento e identificação</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/diagnostico-lista.png" alt="Menu Diagnóstico com cards de saúde e o resultado de cada teste por computador" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Menu Diagnóstico: situação de todos os computadores, teste a teste, com execução em lote</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/diagnostico-executar.png" alt="Menu Executar com testes rápidos, completo e escolha de testes" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Executar e Reparos em vários computadores de uma vez</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/diagnostico-discos.png" alt="Saúde dos discos com veredito Bom ou Atenção lido direto do SMART" /></td>
-    <td><img src=".github/media/diagnostico-andamento.png" alt="Diagnóstico em andamento com opções de reiniciar e cancelar" /></td>
-  </tr>
-  <tr>
-    <td align="center">Discos com veredito (SMART direto do NVMe e do SATA)</td>
-    <td align="center">Um diagnóstico por vez, com Reiniciar e Cancelar</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/inventario-acoes.png" alt="Inventário com seleção de computadores e menu Ações" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Inventário: atualizar, ligar, reiniciar ou desligar vários computadores de uma vez</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/visualizador.png" alt="Visualizador do controle remoto com a barra nova agrupada" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Controle remoto: barra nova com monitores, copiar e colar, arquivos, painel e tela cheia</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/visualizador-painel.png" alt="Painel lateral do visualizador com terminal do computador" /></td>
-    <td><img src=".github/media/visualizador-reiniciar.png" alt="Reiniciar e voltar: o visualizador espera o computador ligar e reconecta" /></td>
-  </tr>
-  <tr>
-    <td align="center">Painel lateral: dados, terminal, scripts e envio de arquivo sem sair da tela</td>
-    <td align="center">Reiniciar e voltar: reconecta sozinho quando o computador liga</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/visualizador-enviar-pasta.png" alt="Enviar arquivos escolhendo a pasta do computador remoto" /></td>
-    <td><img src=".github/media/eventos.png" alt="Aba Eventos com o log de eventos do Windows filtrado por nível" /></td>
-  </tr>
-  <tr>
-    <td align="center">Enviar arquivos escolhendo a pasta no computador (ou arrastando para a pasta na tela)</td>
-    <td align="center">Eventos do Windows: Sistema, Aplicativo, Segurança e Instalação, com filtros e CSV</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/visualizador-baixar.png" alt="Baixar arquivos do computador remoto escolhendo os arquivos" /></td>
-    <td><img src=".github/media/visualizador-reconectar.png" alt="Sessão encerrada com o botão Reconectar" /></td>
-  </tr>
-  <tr>
-    <td align="center">Baixar arquivos: navegue pelo disco do computador e marque os arquivos</td>
-    <td align="center">Sessão encerrada: Reconectar abre uma sessão nova no mesmo computador</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/sessoes-remotas.png" alt="Histórico de sessões remotas com técnico, computador, duração e como terminou" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Sessões remotas: quem acessou, quando, por quanto tempo, como terminou, a anotação, o chamado do GLPI e a gravação</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/visualizador-tela-preta.png" alt="Tela preta ligada no visualizador: o usuário não vê a tela e fica com teclado e mouse bloqueados" /></td>
-    <td><img src=".github/media/visualizador-anotacao.png" alt="Encerrar o acesso com anotação e acompanhamento no chamado do GLPI" /></td>
-  </tr>
-  <tr>
-    <td align="center">Tela preta: o usuário vê um aviso de manutenção e você continua vendo a área de trabalho</td>
-    <td align="center">Ao encerrar: anote o que fez e registre como acompanhamento ou chamado novo no GLPI</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/config-glpi.png" alt="Configuração do GLPI com endereço, App-Token e token do usuário" /></td>
-    <td><img src=".github/media/config-chave-agente.png" alt="Segurança com a opção Exigir chave nos agentes" /></td>
-  </tr>
-  <tr>
-    <td align="center">GLPI: endereço e tokens da API</td>
-    <td align="center">Chave por computador: outro computador não se passa por ele</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/config-acesso-remoto.png" alt="Configuração do acesso remoto com aceite do usuário, sessão parada e avisos" /></td>
-    <td><img src=".github/media/grupos-aceite.png" alt="Grupos de dispositivos com regra de aceite e aviso de sessões" /></td>
-  </tr>
-  <tr>
-    <td align="center">Aceite do usuário, sessão parada e avisos de início</td>
-    <td align="center">Por grupo: aceite, tela preta, gravação e aviso de sessões</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/perfil-acesso-remoto.png" alt="Perfil de acesso com permissões da sessão de controle remoto" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Perfis de acesso: o que o técnico pode fazer dentro da sessão</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/enviar-arquivo.png" alt="Janela Enviar arquivo com escolha da pasta de destino" /></td>
-    <td><img src=".github/media/enviar-arquivo-salvo.png" alt="Confirmação com o caminho onde o arquivo foi salvo" /></td>
-  </tr>
-  <tr>
-    <td align="center">Enviar arquivo escolhendo a pasta de destino</td>
-    <td align="center">O caminho exato onde cada arquivo foi salvo</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/diagnostico-corrigir.png" alt="Diagnóstico com botão Corrigir nos itens com problema" /></td>
-    <td><img src=".github/media/reparo-reiniciar.png" alt="Confirmação do reparo de reinício com horário" /></td>
-  </tr>
-  <tr>
-    <td align="center">Diagnóstico com botão Corrigir</td>
-    <td align="center">Reparo com confirmação (reiniciar às 22:00)</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/terminal-dispositivo.png" alt="Terminal do dispositivo aberto pelo menu Mais" /></td>
-    <td><img src=".github/media/scripts-rapidos.png" alt="Scripts rápidos do dispositivo" /></td>
-  </tr>
-  <tr>
-    <td align="center">Terminal direto no dispositivo</td>
-    <td align="center">Scripts rápidos com um clique</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src=".github/media/historico-scripts.png" alt="Histórico de scripts do dispositivo em estilo terminal" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Histórico de scripts: saída em estilo terminal, filtros e executar de novo</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/relatorio-diagnostico.png" alt="Relatório do diagnóstico exportado em PDF/HTML" /></td>
-    <td><img src=".github/media/relatorio-email.png" alt="Envio do inventário filtrado por e-mail" /></td>
-  </tr>
-  <tr>
-    <td align="center">Relatório exportado (PDF, HTML, Excel ou JSON)</td>
-    <td align="center">Envio por e-mail com a planilha em anexo</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/configuracoes.png" alt="Configuração do servidor organizada por seções" /></td>
-    <td><img src=".github/media/organizacao.png" alt="Organização, grupos, usuários e perfis de acesso" /></td>
-  </tr>
-  <tr>
-    <td align="center">Configuração do servidor por seções</td>
-    <td align="center">Organização, grupos, usuários e perfis de acesso</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/login.png" alt="Tela de login" /></td>
-    <td><img src=".github/media/tema-claro.png" alt="Tema claro" /></td>
-  </tr>
-  <tr>
-    <td align="center">Login com downloads do cliente de suporte</td>
-    <td align="center">Tema claro</td>
-  </tr>
-  <tr>
-    <td><img src=".github/media/swagger.png" alt="Documentação da API no Swagger" /></td>
-    <td align="center"><img src=".github/media/celular.png" alt="Tela no celular" width="260" /></td>
-  </tr>
-  <tr>
-    <td align="center">API documentada no Swagger</td>
-    <td align="center">No celular</td>
-  </tr>
-</table>
-
-
-## O que muda neste fork
-
-- **Tudo em .NET 10**: servidor, agents (Windows, Linux, macOS) e clientes de desktop, compilados no CI deste repositório (o .NET 8 saiu do suporte em novembro de 2026).
-- **Interface nova em português (pt-BR)**: indicadores, busca e filtros numa barra só, cards com CPU/memória/disco e ações rápidas, login redesenhado, configurações por seções, temas escuro e claro e layout responsivo.
-- **Inventário de hardware e software** no estilo do GLPI Inventory: UUID, tipo (desktop, notebook, servidor, máquina virtual), fabricante, modelo, números de série do equipamento e do sistema, BIOS, placa-mãe, processadores e memórias (pela tabela SMBIOS, como o dmidecode), discos, placas de rede, vídeo e som, monitores, todas as controladoras PCI (com os nomes da base pci.ids), bateria, TPM, volumes (com BitLocker), softwares instalados, portas de rede e antivírus. Número de inventário (patrimônio) e localização são preenchidos à mão.
-- **Diagnóstico remoto** (aba ao lado do Inventário): saúde dos discos (SMART), bateria, dispositivos com erro e telas azuis, rede (ping, DNS, Wi-Fi), sistema (reinício pendente, atualizações, antivírus), velocidade do disco, estresse de CPU com temperatura e teste de memória do Windows, com histórico das execuções.
-- **Reparos remotos com um clique**: botão Corrigir nos itens do diagnóstico (reiniciar com aviso ou num horário, chkdsk, limpeza de disco, sfc/DISM, rede, Windows Update, firewall, Defender, relógio e dispositivos com erro), com re-teste automático e permissão própria nos perfis.
-- **Menu Diagnóstico**: cards de saúde, filtros e uma lista com o resultado de cada teste, pendências e último reparo de todos os computadores, com execução em lote (testes rápidos, completo ou escolhidos um a um, e reparos) e diagnóstico agendado.
-- **Inventário com colunas que você escolhe e reordena** (salvas por usuário) e **ações em lote**: atualizar o inventário, ligar (Wake-on-LAN), reiniciar ou desligar vários computadores de uma vez.
-- **Discos e bateria com veredito** (Bom / Atenção / Ruim): SMART lido direto do NVMe e do SATA (setores realocados e pendentes, vida útil, reserva, erros de mídia, limites do fabricante) e bateria pelo relatório do Windows (capacidade, ciclos, ritmo de desgaste e autonomia estimada).
-- **Enviar arquivo escolhendo o destino**: Downloads ou Área de Trabalho do usuário logado, Área de Trabalho pública, pasta temporária ou qualquer pasta, com o caminho exato de volta no painel.
-- **Histórico de sessões remotas**: técnico, computador, início, duração, IP e como a sessão terminou (pelo técnico, navegador fechado, conexão perdida, encerrada ou recusada no computador), com busca, filtros e exportação. Técnicos veem as próprias sessões; administradores, as de todos.
-- **Painel do usuário redesenhado** (Windows): fica no canto certo da tela com qualquer escala, mostra quem está conectado, o que está fazendo e há quanto tempo, com botão "Encerrar acesso", tudo em português.
-- **Aceite do usuário e regras de sessão**: perguntar e aceitar sozinho em X segundos, sempre exigir o aceite ou não perguntar, no servidor e por grupo de dispositivos; sessão parada encerrada sozinha; aviso por e-mail ou webhook (n8n) quando alguém acessa computadores de grupos sensíveis.
-- **Visualizador do controle remoto renovado**: barra agrupada com nome do computador e tempo de sessão, monitores direto na barra, tela cheia que manda Win e Alt+Tab ao computador remoto, copiar e colar automático (com botão para ligar e desligar), painel lateral com dados, terminal, scripts e envio de arquivo, e **Reiniciar e voltar**, que reinicia o computador e reconecta sozinho.
-- **Eventos do Windows no painel**: aba Eventos no dispositivo com os logs Sistema, Aplicativo, Segurança e Instalação (journal no Linux), filtro por nível, período e texto, mensagem completa e exportação em CSV.
-- **Copiar e colar entre os dois computadores**: Ctrl+C aqui e Ctrl+V na tela remota cola o texto ou os arquivos lá (na pasta aberta ou na Área de Trabalho); texto copiado lá chega aqui, e arquivos copiados lá podem ser baixados com um clique. O usuário vê uma janela com o progresso, o tempo estimado e o botão Cancelar.
-- **Arquivos no lugar certo**: arrastar para a tela remota salva na pasta (ou Área de Trabalho) onde o arquivo foi solto; o botão Enviar mostra as pastas do computador para escolher o destino.
-- **Reiniciar em modo de segurança com rede** pelo visualizador, com reconexão automática e volta ao modo normal no reinício seguinte.
-- **Tela preta** (Windows): o usuário vê só "Manutenção em andamento" e fica com teclado e mouse bloqueados, enquanto o técnico continua vendo e usando a área de trabalho. Por grupo: o técnico liga, liga sozinha ao conectar ou desativada.
-- **Gravação por grupo** das sessões remotas, com o vídeo no histórico (assistir ou baixar, só administradores).
-- **Anotação ao encerrar e GLPI**: o técnico anota o que fez; a anotação fica no histórico e pode virar acompanhamento de um chamado ou um chamado novo no GLPI, ligado ao computador.
-- **Chave por computador**: cada agente gera uma chave própria e o servidor guarda só o hash. Um computador infectado não consegue se passar por outro, e o painel avisa quando alguém tenta.
-- **Permissões da sessão por perfil**: controlar ou só ver, arquivos, área de transferência e Ctrl+Alt+Del/bloqueio de entrada, conferidos no servidor.
-- **Controle remoto mais seguro**: fechar o navegador sem clicar no X encerra a sessão no computador do usuário na hora, e "Bloquear teclado e mouse" passa a segurar também touchpad e tela de toque.
-- **Terminal e scripts rápidos por dispositivo**, direto no menu Mais do card, e histórico de scripts em estilo terminal (com busca, filtro de erros e "executar de novo").
-- **Relatórios para exportar ou enviar por e-mail**: diagnóstico, inventário de um dispositivo e a lista do inventário (respeitando o filtro) em PDF, Excel (CSV), HTML ou JSON. O e-mail leva o relatório no corpo e a planilha em anexo.
-- **Perfis de acesso**: defina o que cada usuário pode fazer (acesso remoto, scripts, gerenciar dispositivos) e quais grupos de dispositivos ele enxerga.
-- **Swagger** em `/swagger`, disponível só para usuários logados, com autenticação por chave de API.
-- **Segurança:** dezenas de correções. Entre elas:
-  - páginas administrativas protegidas também na navegação interativa;
-  - filtros de API que negam o acesso em caso de erro;
-  - bloqueio de conta após 5 tentativas e rate limit no login;
-  - validação do ID da organização nos instaladores (evita injeção de comandos);
-  - correção de XSS com dados vindos dos dispositivos;
-  - IDs de sessão com RNG criptográfico;
-  - cabeçalhos de segurança;
-  - documentação da API só para usuários logados;
-  - dependências vulneráveis atualizadas.
-- **Imagem Docker própria** (`michechel10/remotely`), sem root e com healthcheck.
-- **Release enxuto**: o pacote do servidor tem só o necessário para Linux x64 e os agents vêm num pacote separado, baixado pelo atualizador apenas quando mudam.
-- **Scripts de instalação e atualização** que usam os releases deste repositório e preservam banco, chaves e instaladores dos agents.
-
-Lista completa em [CHANGELOG.md](CHANGELOG.md) e nos [releases](https://github.com/MichaelRodriguesOficial/Remotely/releases).
+<p align="center">
+  <img src=".github/media/visao-geral.gif" width="880" alt="Visão geral: dispositivos, inventário, diagnóstico, sessões remotas e controle remoto">
+  <br><sub>Dispositivos, inventário, diagnóstico e histórico de sessões, e o controle remoto com atalhos, tela preta e painel do computador.</sub>
+</p>
 
 ---
 
-## Instalação com Docker (recomendada)
+Fork mantido do [immense/Remotely](https://github.com/immense/Remotely), cujo desenvolvimento foi encerrado em dezembro de 2024.
+Aqui o projeto continua com correções de segurança, interface nova em português, inventário, diagnóstico, integração com o GLPI e
+tudo em **.NET 10** (servidor, agentes e app do usuário).
+
+## ✨ Destaques
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🖥️ Controle remoto de verdade
+Copiar e colar texto e arquivos entre os dois computadores, menu de **atalhos** (Win+R, Ctrl+Alt+Del, Alt+Tab…),
+enviar e baixar arquivos escolhendo a pasta, **tela preta** para o usuário, **reiniciar e voltar** (também em modo de
+segurança) e painel lateral com os dados e o terminal do computador.
+
+</td>
+<td width="50%" valign="top">
+
+### 📦 Inventário no estilo do GLPI
+Fabricante, modelo, séries, BIOS, placa-mãe, processadores, memórias, discos, rede, monitores, softwares, antivírus e
+BitLocker, com **busca em tudo** (`fabricante:dell software:zoom -status:offline`), colunas que você escolhe e ações
+em lote.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🩺 Diagnóstico e reparo
+Saúde dos discos (SMART), bateria, dispositivos com erro, telas azuis, rede, atualizações e antivírus. Cada problema tem
+um botão **Corrigir** (chkdsk, limpeza, sfc/DISM, rede, Windows Update…) que testa de novo no fim. Também agenda.
+
+</td>
+<td width="50%" valign="top">
+
+### 🧾 Tudo registrado
+**Histórico de sessões**: quem acessou, quando, por quanto tempo e como terminou. Ao encerrar, o técnico **anota o que
+fez** e pode mandar como acompanhamento ou chamado novo no **GLPI**. Gravação das sessões por grupo.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ⚡ Scripts e terminal
+Biblioteca de scripts em pastas, execução em vários computadores ao mesmo tempo, agendamentos, **scripts rápidos** com
+um clique e terminal direto na tela de dispositivos. O histórico guarda a saída de cada execução.
+
+</td>
+<td width="50%" valign="top">
+
+### 🔐 Seguro por padrão
+**Chave por computador** (um computador não se passa por outro), aceite do usuário, perfis de acesso, 2FA, bloqueio
+após tentativas, permissões conferidas no servidor e dezenas de correções em relação ao projeto original.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 👥 Perfis e grupos
+Cada perfil define o que o técnico pode fazer (controlar ou só ver, arquivos, scripts, reparos) e quais grupos ele
+enxerga. Por grupo: **aceite do usuário**, tela preta, gravação e aviso por e-mail ou webhook (n8n).
+
+</td>
+<td width="50%" valign="top">
+
+### 🇧🇷 Em português e atualizado
+Interface toda em português, temas claro e escuro, .NET 10, imagem Docker sem root e scripts de instalação e atualização
+que preservam o banco e as chaves.
+
+</td>
+</tr>
+</table>
+
+### O que muda em relação ao Remotely original
+
+| | Remotely original | Este fork |
+|---|:---:|:---:|
+| Mantido e em .NET atual | ❌ arquivado, .NET 8 | ✅ .NET 10 |
+| Interface em português | — | ✅ |
+| Copiar e colar arquivos, atalhos do Windows, tela preta | — | ✅ |
+| Inventário de hardware e software com busca | — | ✅ |
+| Diagnóstico com reparo em um clique | — | ✅ |
+| Histórico de sessões, anotação e chamado no GLPI | — | ✅ |
+| Aceite do usuário e regras por grupo | só "pedir permissão" | ✅ aceita sozinho em X s, exige ou não pergunta |
+| Perfis de acesso por técnico | — | ✅ |
+| Um computador não consegue se passar por outro | — | ✅ chave por computador |
+| Scripts em pastas, agendamentos e scripts rápidos | básico | ✅ |
+
+<a id="como-usar"></a>
+
+## 🎬 Como usar, área por área
+
+Gravado num servidor de demonstração com dados fictícios.
+
+### 🏠 Dispositivos
+
+Todos os computadores em cards, com CPU, memória e disco ao vivo. Busque por nome, usuário, série ou patrimônio, filtre
+por grupo e abra o card para ver os detalhes. O menu **Mais** tem terminal, scripts rápidos, ligar (Wake-on-LAN),
+reiniciar, desligar e enviar arquivo. Marque vários e use o **Terminal** de baixo para rodar um comando em todos.
+
+<p align="center"><img src=".github/media/dispositivos.gif" width="880" alt="Dispositivos: busca, card aberto, menu Mais e terminal"></p>
+
+### 📦 Inventário
+
+A lista de todos os computadores, como a do GLPI. A busca procura em tudo, inclusive softwares e IPs:
+
+- texto livre: `chrome`, `"Windows 11"`, `PAT-001237`, `10.10.20.57`;
+- por campo: `tipo:notebook`, `fabricante:dell`, `software:zoom`, `local:matriz`, `status:offline`, `usuario:`, `patrimonio:`,
+  `serie:`, `modelo:`, `so:`, `cpu:`, `grupo:`, `ip:`, `mac:`, `antivirus:`;
+- excluir com `-` e combinar: `fabricante:dell software:chrome -status:offline`.
+
+Escolha e reordene as colunas, selecione computadores para **Ações** em lote, e exporte em PDF, Excel, HTML ou JSON (ou
+envie por e-mail). Dentro do computador: o inventário completo por seção e os **Eventos do Windows** com filtros.
+
+<p align="center"><img src=".github/media/inventario.gif" width="880" alt="Inventário: busca, filtros, colunas, ações em lote, inventário do computador e eventos"></p>
+
+### 🩺 Diagnóstico
+
+Cards de saúde e uma linha por computador com o resultado de cada teste. **Executar** roda testes rápidos, o completo
+(com estresse de CPU e teste de memória) ou os que você escolher, em um ou vários computadores. No computador, cada item
+com problema tem o botão **Corrigir**, com confirmação e novo teste no fim.
+
+<p align="center"><img src=".github/media/diagnostico.gif" width="880" alt="Diagnóstico: executar testes rápidos, ver o resultado e corrigir"></p>
+
+### 🖥️ Controle remoto
+
+**Conectar** no card abre a tela do computador. Conforme a regra do grupo, o usuário vê um pedido de permissão que aceita
+sozinho em 30 segundos.
+
+- **Atalhos:** Menu Iniciar, Executar (Win+R), Explorador, Gerenciador de Tarefas, Alt+Tab, Ctrl+Alt+Del, Bloquear…
+  (fora da tela cheia o seu Windows pegaria esses atalhos antes).
+- **Copiar e colar** automático, de texto e de arquivos, nos dois sentidos.
+- **Arquivos:** enviar escolhendo a pasta do computador (ou arrastando para a tela) e baixar navegando pelo disco. O usuário
+  vê o progresso e pode cancelar.
+- **Tela preta** (Windows): o usuário vê "Manutenção em andamento" e fica com teclado e mouse bloqueados; você continua
+  vendo a tela normalmente.
+- **Painel** lateral com os dados do computador, terminal, scripts e envio de arquivos.
+- **Reiniciar e voltar**, inclusive em **modo de segurança com rede**: a página espera o computador ligar e reconecta.
+- **Encerrar** pede a anotação do que foi feito e, com o GLPI configurado, registra como acompanhamento ou chamado novo.
+
+<p align="center"><img src=".github/media/controle-remoto.gif" width="880" alt="Controle remoto: atalhos, enviar arquivo, tela preta, painel e encerrar com anotação no GLPI"></p>
+
+### ⚡ Scripts
+
+Biblioteca em pastas (PowerShell, Windows PowerShell, CMD e Bash), públicos ou pessoais. **Executar** em grupos inteiros
+ou computadores avulsos, inclusive nos offline quando conectarem. **Agendamentos** para rotinas. Marque um script como
+**rápido** para ele aparecer no terminal da tela de dispositivos. A saída fica no **Histórico de scripts** de cada computador.
+
+<p align="center"><img src=".github/media/scripts.gif" width="880" alt="Scripts: biblioteca, executar num computador e ver o resultado no histórico"></p>
+
+### 🧾 Sessões remotas, grupos e configuração
+
+**Sessões remotas** mostra quem acessou cada computador, quando, por quanto tempo, como terminou, a anotação, o link do
+chamado e a gravação. Em **Organização**, cada grupo tem as próprias regras: aceite do usuário, tela preta, gravação e
+aviso de sessões. Em **Configuração** ficam o acesso remoto, o GLPI, a segurança, o e-mail e o diagnóstico agendado.
+
+<p align="center"><img src=".github/media/sessoes-e-configuracao.gif" width="880" alt="Sessões remotas, regras por grupo e configuração do servidor"></p>
+
+## 🧭 Como funciona
+
+```mermaid
+flowchart LR
+    T["Técnico<br>(navegador)"] -- painel e visualizador --> S["Servidor Remotely<br>Docker ou Ubuntu"]
+    S -- comandos, scripts,<br>inventário, diagnóstico --> A["Agente<br>(serviço no computador)"]
+    A -- abre quando há acesso --> D["App do usuário<br>(captura a tela)"]
+    D -- imagem e arquivos --> S
+    S -- tela ao vivo --> T
+    S -. anotação .-> G["GLPI"]
+    S -. avisos .-> N["E-mail / webhook (n8n)"]
+```
+
+1. O **agente** roda como serviço em cada computador e mantém uma conexão de saída com o servidor (nenhuma porta é aberta
+   no computador). Ele se identifica com a **chave** que só ele tem.
+2. No painel, o técnico vê os dispositivos, o inventário e o diagnóstico, e manda scripts e reparos.
+3. No acesso remoto, o agente abre o **app do usuário** na sessão de quem está logado, que pede o aceite (conforme o grupo)
+   e transmite a tela pelo servidor até o navegador do técnico.
+4. Tudo passa pelo servidor, que confere as permissões do técnico em cada ação e registra a sessão no histórico.
+
+<a id="instalacao"></a>
+
+## 📦 Instalação
+
+### Docker (recomendado)
 
 Requisitos: Docker e Docker Compose.
 
@@ -253,65 +231,55 @@ curl -fsSL https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/ma
 docker compose up -d
 ```
 
-Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta vira administradora do servidor e da organização. Depois disso, o cadastro público é desativado.
+Acesse `http://IP_DO_SERVIDOR:5000` e clique em **Cadastrar**. A primeira conta vira administradora do servidor e da
+organização, e o cadastro público é desativado em seguida.
 
-- **Dados:** os dados ficam no volume `remotely-data`, montado em `/app/AppData`. Lá estão o banco SQLite, os logs, as gravações e as chaves de criptografia.
-- **Pasta do host em vez do volume:** monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta`, porque o container roda com o usuário `app`.
-- **Versão:** defina `REMOTELY_TAG` no `.env` (ex.: `1.2.1` ou `latest`).
-- **Atualizar:** `docker compose pull && docker compose up -d`.
+| | |
+|---|---|
+| **Dados** | Volume `remotely-data`, montado em `/app/AppData`: banco SQLite, logs, gravações e chaves de criptografia. |
+| **Pasta do host** | Monte `/sua/pasta:/app/AppData` e rode `sudo chown -R 1654:1654 /sua/pasta` (o container roda como `app`). |
+| **Versão** | `REMOTELY_TAG` no `.env` (ex.: `1.17.0` ou `latest`). |
+| **Atualizar** | `docker compose pull && docker compose up -d` |
 
-A imagem também é publicada em `ghcr.io/michaelrodriguesoficial/remotely`.
+A imagem também está em `ghcr.io/michaelrodriguesoficial/remotely`.
 
-## Instalação no Ubuntu (sem Docker)
+### Ubuntu (sem Docker)
 
-Testado em Ubuntu 22.04 e 24.04. O script instala o ASP.NET Core Runtime 10 e o Nginx, com HTTPS opcional via Let's Encrypt. Depois baixa o servidor já compilado do último release e cria o serviço `remotely`.
+Testado no Ubuntu 22.04 e 24.04. O script instala o ASP.NET Core Runtime 10 e o Nginx (com HTTPS opcional pelo Let's
+Encrypt), baixa o servidor do último release e cria o serviço `remotely`.
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/MichaelRodriguesOficial/Remotely/master/remotely_install.sh
 chmod +x remotely_install.sh
-sudo ./remotely_install.sh
-# versão específica:
-sudo REMOTELY_VERSION=v1.2.1 ./remotely_install.sh
+sudo ./remotely_install.sh                              # ou: sudo REMOTELY_VERSION=v1.17.0 ./remotely_install.sh
 ```
 
 | Script | Para que serve |
 |---|---|
-| `remotely_install.sh` | Instalação completa (runtime, Nginx, SSL, serviço systemd). A opção 2 só verifica/renova o certificado. |
-| `remotely_upgrade.sh` | Atualiza para o último release (ou `--version vX.Y.Z`). Faz backup, preserva banco, chaves e configurações, e religa a versão anterior se algo falhar. Também tem `--list-backups` e `--rollback NOME`. |
-| `remotely_remove.sh` | Remove a instalação, com backup final do banco. |
+| `remotely_install.sh` | Instalação completa (runtime, Nginx, SSL, serviço). A opção 2 só verifica ou renova o certificado. |
+| `remotely_upgrade.sh` | Atualiza para o último release (ou `--version vX.Y.Z`), com backup, e volta à versão anterior se algo falhar. Também `--list-backups` e `--rollback NOME`. |
+| `remotely_remove.sh` | Remove a instalação, com um backup final do banco. |
 
-Os arquivos ficam em `/var/www/remotely`, com os dados em `/var/www/remotely/AppData`. O Kestrel escuta só em `127.0.0.1:5000`; o acesso externo é feito pelo Nginx.
+Os arquivos ficam em `/var/www/remotely` (dados em `AppData`). O servidor escuta só em `127.0.0.1:5000`; o acesso externo
+passa pelo Nginx. Cada release traz o servidor (`Remotely_Server_Linux-x64.zip`) e os agentes (`Remotely_Agents.zip`),
+que o script só baixa de novo quando mudam.
 
-Cada release traz dois pacotes:
+### Agentes nos computadores
 
-| Pacote | Conteúdo |
-|---|---|
-| `Remotely_Server_Linux-x64.zip` | Servidor (usa o ASP.NET Core Runtime 10 instalado). |
-| `Remotely_Agents.zip` | Agents e clientes de suporte instantâneo, extraídos em `wwwroot/Content`. |
+Os instaladores (Windows, Linux e macOS) e o cliente de suporte instantâneo estão em **Downloads**. A página **Implantar**
+traz o comando pronto para copiar e colar. Os agentes se atualizam sozinhos
+quando o servidor passa a distribuir uma versão nova.
 
-O `remotely_upgrade.sh` compara o SHA-256 do pacote de agents com o da instalação e só baixa de novo quando há agents novos.
+<details>
+<summary><b>HTTPS e proxy reverso (Nginx, aaPanel, Caddy, Cloudflare)</b></summary>
+<br>
 
-## HTTPS e proxy reverso
+Use um proxy reverso com HTTPS na frente do Remotely. Ele precisa repassar o `Host` original, os cabeçalhos
+`X-Forwarded-Proto` e `X-Forwarded-For` e suportar WebSockets. O `X-Forwarded-Host` é ignorado de propósito (evita que
+alguém troque o endereço dos links de e-mail).
 
-Use um proxy reverso (Nginx, Caddy, Traefik) com HTTPS na frente do Remotely. Ele precisa repassar o `Host` original e os cabeçalhos `X-Forwarded-Proto` e `X-Forwarded-For`, além de suportar WebSockets. O `X-Forwarded-Host` é ignorado de propósito (evita que alguém troque o endereço dos links de e-mail).
-
-O ASP.NET Core só aceita esses cabeçalhos de proxies conhecidos:
-
-- **loopback**: liberado automaticamente;
-- **gateway da rede Docker** (`172.28.0.1`): liberado automaticamente;
-- **outros proxies**: cadastre o IP em **Configuração do servidor → Proxies conhecidos**.
-
-Se o proxy não puder ser configurado direito, ative **Forçar HTTPS nos clientes**. Mesmo sem os cabeçalhos, os downloads do cliente feitos a partir do painel em `https://` já saem apontando para `https://`. O cliente baixado tem nome simples (`Remotely_Desktop_x64.exe`) e leva o endereço do servidor gravado no próprio arquivo.
-
-No **aaPanel**, o proxy já vem com WebSocket e `X-Forwarded-For`; falta só o esquema. Em **Site → (seu site) → Proxy de URL → Config**, no campo "Catálogo Proxy", coloque:
-
-```nginx
-proxy_set_header X-Forwarded-Proto $scheme;
-```
-
-Não use as "Configurações personalizadas" do bloco `server`: o nginx não repassa `proxy_set_header` para uma `location` que já define os seus.
-
-Exemplo completo para Nginx:
+O servidor só aceita esses cabeçalhos de proxies conhecidos: loopback e o gateway da rede Docker (`172.28.0.1`) são
+liberados sozinhos; outros, cadastre em **Configuração → Rede e registros → Proxies conhecidos**.
 
 ```nginx
 location / {
@@ -328,32 +296,55 @@ location / {
 }
 ```
 
-**Botões não respondem?** O painel usa uma conexão em tempo real (WebSocket em `/_blazor`). Se ela não sobe, as páginas abrem mas nenhum botão funciona, e o Remotely mostra um aviso vermelho no rodapé depois de alguns segundos. Confira, nessa ordem: os cabeçalhos `Upgrade`/`Connection` no proxy, cache do proxy desligado para o site e, no Cloudflare, WebSockets ativado e Rocket Loader desativado.
+**aaPanel:** o proxy já vem com WebSocket e `X-Forwarded-For`; falta o esquema. Em **Site → (seu site) → Proxy de URL →
+Config**, no campo "Catálogo Proxy", coloque `proxy_set_header X-Forwarded-Proto $scheme;`. Não use as "Configurações
+personalizadas" do bloco `server`: o Nginx não repassa `proxy_set_header` para uma `location` que já define os seus.
 
-## Configuração
+Se o proxy não puder ser configurado direito, ligue **Forçar HTTPS nos agentes**.
 
-O banco e as strings de conexão ficam nas variáveis de ambiente (`.env` / `docker-compose.yml`) ou no `appsettings.json`. O resto é configurado na página **Configuração do servidor**, logado como administrador do servidor.
+</details>
 
-Opções exclusivas deste fork (`ApplicationOptions`, ou variáveis `Remotely_ApplicationOptions__*`):
+<a id="configuracao"></a>
+
+## ⚙️ Configuração
+
+Quase tudo é configurado no painel, em **Configuração** (administrador do servidor) e **Organização** (administrador da
+organização).
+
+| Onde | O que configurar |
+|---|---|
+| **Configuração → Acesso remoto** | Aceite do usuário (aceita sozinho em X s, sempre exige ou não pergunta), encerrar sessão parada, aviso ao usuário, aviso por e-mail ou webhook quando alguém acessa grupos sensíveis. |
+| **Configuração → GLPI** | Endereço, App-Token e token do usuário da API REST do GLPI, para a anotação virar acompanhamento ou chamado. |
+| **Configuração → Segurança** | 2FA obrigatório, login exigido no controle remoto, HTTPS, HSTS e **Exigir chave nos agentes**. |
+| **Configuração → Diagnóstico agendado** | Testes que rodam sozinhos nos computadores, e quando. |
+| **Configuração → E-mail (SMTP)** | Servidor de e-mail para avisos, relatórios e redefinição de senha. |
+| **Organização → Grupos** | Por grupo: aceite do usuário, tela preta, gravação das sessões e aviso de sessões. |
+| **Organização → Perfis de acesso** | O que cada técnico pode fazer e quais grupos ele enxerga. |
+
+<details>
+<summary><b>Variáveis de ambiente (banco, Swagger, iframe, proxies)</b></summary>
+<br>
+
+O banco e as strings de conexão ficam no `.env` / `docker-compose.yml` ou no `appsettings.json`. `DbProvider` aceita
+`SQLite` (padrão), `SQLServer` ou `PostgreSQL`, com `ConnectionStrings__SQLite`, `ConnectionStrings__SQLServer` e
+`ConnectionStrings__PostgreSQL`.
+
+Opções deste fork (`Remotely_ApplicationOptions__*`):
 
 | Opção | Padrão | Descrição |
 |---|---|---|
-| `EnableSwagger` | `true` | Publica a documentação da API em `/swagger`. Só abre para usuários logados no painel. |
-| `AllowedFrameAncestors` | vazio | Origens que podem exibir o Remotely em `<iframe>` (ex.: `https://glpi.suaempresa.com.br`). Vazio = só o próprio Remotely. |
-| `TrustPrivateNetworkProxies` | automático | De quem aceitar `X-Forwarded-For` e `X-Forwarded-Proto`. Automático: no Docker, só da rede interna do contêiner (o proxy na mesma máquina). `true`: de qualquer rede privada (proxy em outra máquina da rede). `false`: só loopback e **Proxies conhecidos**. |
-| `AuthRateLimitPerMinute` | `20` | Tentativas de login/cadastro/redefinição por IP por minuto. |
+| `EnableSwagger` | `true` | Documentação da API em `/swagger`, só para quem está logado. |
+| `AllowedFrameAncestors` | vazio | Origens que podem exibir o Remotely em `<iframe>` (ex.: `https://glpi.suaempresa.com.br`). |
+| `TrustPrivateNetworkProxies` | automático | De quem aceitar `X-Forwarded-*`. Automático: no Docker, só da rede do contêiner. `true`: de qualquer rede privada. `false`: só loopback e proxies conhecidos. |
+| `AuthRateLimitPerMinute` | `20` | Tentativas de login, cadastro e redefinição por IP por minuto. |
 
-Banco de dados: `DbProvider` aceita `SQLite` (padrão), `SQLServer` ou `PostgreSQL`, com as strings de conexão `ConnectionStrings__SQLite`, `ConnectionStrings__SQLServer` e `ConnectionStrings__PostgreSQL`.
+</details>
 
-## Agents e clientes
+<details>
+<summary><b>API</b></summary>
+<br>
 
-Os instaladores dos agents (Windows, Linux, macOS) e os clientes de suporte instantâneo estão na página **Downloads**. A página **Implantar** traz um comando pronto para copiar e colar.
-
-Os agents e clientes de desktop são compilados em **.NET 10** pelo workflow de release (no Windows) e entram na imagem Docker e no pacote `Remotely_Agents.zip`. Agents já instalados de versões anteriores se atualizam sozinhos quando o servidor passa a distribuir os novos. A tela de dispositivos marca como **desatualizado** quem estiver com versão anterior à distribuída (`wwwroot/Content/AgentVersion.txt`).
-
-## API
-
-Crie uma chave em **Chaves de API** e envie no cabeçalho `X-Api-Key: {id-da-chave}:{segredo}`.
+Crie uma chave em **Chaves de API** e envie no cabeçalho `X-Api-Key: {id}:{segredo}`.
 
 ```http
 POST https://remotely.suaempresa.com.br/api/Scripting/ExecuteCommand/PSCore/{deviceId}
@@ -363,52 +354,165 @@ Content-Type: text/plain
 Get-Location
 ```
 
-A documentação interativa fica em `/swagger` (menu **Administração → API (Swagger)**). Ela abre para quem está logado; as chamadas feitas por lá usam a sua sessão, ou a chave informada em **Authorize**.
+- `GET /api/Devices/{id}/inventory`: o inventário completo de um computador (JSON), para integrar com o GLPI ou planilhas.
+- `POST /api/Alerts/Create`: cria alertas no painel, envia e-mails e chama webhooks (n8n, Chatwoot…).
+- Documentação interativa em `/swagger` (menu **API (Swagger)**), para quem está logado.
 
-### Busca no inventário
+</details>
 
-A página **Inventário** lista todos os computadores (como a lista de computadores do GLPI) e a busca procura em tudo, inclusive nos softwares instalados e nos IPs da rede:
+<a id="seguranca"></a>
 
-- texto livre: `chrome`, `"Windows 11"`, `PAT-001237`, `10.10.20.57`;
-- campo específico: `tipo:notebook`, `fabricante:dell`, `software:zoom`, `local:matriz`, `status:offline`, `usuario:michael`, `patrimonio:`, `serie:`, `modelo:`, `so:`, `cpu:`, `grupo:`, `ip:`, `mac:`, `antivirus:`;
-- excluir com `-`: `-tipo:servidor`;
-- combinar: `fabricante:dell software:chrome -status:offline`.
+## 🔐 Segurança
 
-O inventário completo de um dispositivo sai em `GET /api/Devices/{id}/inventory` (JSON), útil para integrar com o GLPI ou planilhas.
+| Preocupação | Como é tratada |
+|---|---|
+| **Um computador infectado se passar por outro** | Cada agente gera uma **chave secreta própria**; o servidor guarda só o hash. Com a chave registrada, só aquele computador conecta com aquele ID. Tentativas erradas são recusadas e geram alerta no painel. |
+| **Agentes e o servidor** | O agente só abre conexões de saída e só executa o que vem do servidor. Ele não acessa o servidor de outra forma. Use HTTPS e, se possível, deixe o servidor numa rede separada. |
+| **Quem pode fazer o quê** | Perfis de acesso por técnico (controlar ou só ver, arquivos, área de transferência, Ctrl+Alt+Del, scripts, reparos), conferidos no servidor em cada mensagem, não só escondendo botões. |
+| **Usuário do computador** | Aceite configurável por grupo, aviso de sessão na tela, botão "Encerrar acesso" e janela de progresso ao enviar ou baixar arquivos. |
+| **Login** | 2FA (opcional ou obrigatório), bloqueio após 5 tentativas, limite por IP, sessão com RNG criptográfico. |
+| **Registro** | Histórico de sessões com IP do técnico, anotação e gravação (assistir ou baixar só para administradores). |
+| **Painel** | Páginas administrativas protegidas também na navegação interativa, cabeçalhos de segurança, XSS corrigido nos dados vindos dos computadores, Swagger só para quem está logado. |
+| **Instaladores** | ID da organização validado (sem injeção de comandos), chave do agente mantida nas atualizações. |
 
-A API de alertas (`POST /api/Alerts/Create`) permite criar alertas no painel, enviar e-mails e chamar webhooks, como n8n ou Chatwoot.
+<a id="problemas"></a>
 
-## Desenvolvimento
+## 🛠️ Solução de problemas
 
-- **SDK:** .NET 10 para toda a solução.
-- **Windows:** necessário para compilar a solução inteira (`Desktop.Win`).
-- **Agents:** `pwsh Utilities/Build-Agents.ps1` gera os agents, os clientes de desktop e o `AgentVersion.txt` em `Server/wwwroot/Content`.
+<details>
+<summary><b>O painel abre, mas os botões não respondem</b></summary>
+<br>
+
+O painel usa uma conexão em tempo real (WebSocket em `/_blazor`). Se ela não sobe, as páginas abrem mas nada funciona, e
+aparece um aviso vermelho no rodapé. Confira os cabeçalhos `Upgrade`/`Connection` no proxy, o cache do proxy desligado para
+o site e, no Cloudflare, WebSockets ligado e Rocket Loader desligado.
+</details>
+
+<details>
+<summary><b>Um computador parou de conectar depois de formatado, restaurado ou clonado</b></summary>
+<br>
+
+A chave do agente mudou e o servidor ainda espera a antiga. O painel mostra o alerta "Conexão recusada". Nos detalhes do
+computador, use **Redefinir chave do agente**: o próximo agente que conectar com aquele ID registra a chave nova.
+</details>
+
+<details>
+<summary><b>Win+R abre o Executar no meu computador, não no remoto</b></summary>
+<br>
+
+Fora da tela cheia, o seu Windows pega os atalhos com a tecla Windows antes do navegador. Use o menu **Atalhos** da barra
+ou entre em tela cheia, que manda Win, Alt+Tab e afins ao computador remoto.
+</details>
+
+<details>
+<summary><b>A tela preta não liga</b></summary>
+<br>
+
+Ela precisa do Windows 10 versão 2004 ou mais novo (é o que permite esconder a cobertura da captura). Em versões antigas,
+Linux e macOS, o visualizador avisa e esconde o botão. O grupo do computador também pode ter a tela preta desativada.
+</details>
+
+<details>
+<summary><b>A anotação não chegou ao GLPI</b></summary>
+<br>
+
+A anotação fica salva no histórico mesmo assim, e o visualizador mostra o motivo. Confira em **Configuração → GLPI** o
+endereço, o App-Token e o token do usuário, e se a API REST está ligada no GLPI (**Configurar → Geral → API**). Para
+acompanhamento, o chamado precisa existir e o usuário da API precisa poder vê-lo.
+</details>
+
+<details>
+<summary><b>A gravação da sessão não aparece</b></summary>
+<br>
+
+A gravação é feita pelo navegador do técnico e enviada ao servidor durante a sessão. Ligue **Gravar sessões** no grupo do
+computador (ou **Gravar todas as sessões** em **Configuração → Acesso remoto**). As gravações ficam em `AppData/recordings` e só
+administradores da organização veem o link.
+</details>
+
+<details>
+<summary><b>O agente não aparece como online</b></summary>
+<br>
+
+Veja os logs do agente em **Detalhes → Logs do agente** (quando ele já conectou alguma vez). Confira se o computador alcança o endereço do servidor e se o ID da organização
+está certo. Com **Exigir chave nos agentes** ligado, agentes antigos são recusados até atualizarem.
+</details>
+
+## 🧪 Desenvolvimento
+
+<details>
+<summary><b>Compilar, testar e publicar</b></summary>
+<br>
+
+- **SDK:** .NET 10. O Windows é necessário para compilar a solução inteira (`Desktop.Win`).
+- **Agentes:** `pwsh Utilities/Build-Agents.ps1` gera os agentes, o app do usuário e o `AgentVersion.txt` em
+  `Server/wwwroot/Content`.
+- **Visualizador:** os `.ts` de `Server/wwwroot/src` são compilados para `.js` no build (requer Node.js); os `.js` também
+  ficam versionados.
 
 ```bash
 dotnet build Remotely.sln
 dotnet test
-# só o servidor:
-dotnet run --project Server
-# imagem Docker local:
+dotnet run --project Server                       # só o servidor
 docker build -f Server/Dockerfile -t remotely:dev .
 ```
 
-Os arquivos `.ts` do viewer (`Server/wwwroot/src`) são compilados para `.js` no build (requer Node.js) e os `.js` também ficam versionados.
+**CI:** a cada push e PR, os testes rodam e os agentes são compilados no Windows; a imagem Docker passa por um teste de
+fumaça (sobe o container, migra o banco, cadastra o primeiro usuário e confere login, permissões, Swagger e cabeçalhos).
 
-### CI e releases
+**Nova versão:** altere `VERSION`, adicione a seção no `CHANGELOG.md` e faça o push no `master`. O workflow cria a tag e o
+release com os pacotes (e SHA-256) e publica a imagem no Docker Hub e no GHCR.
 
-- **Tests:** compila a solução e roda os testes a cada push e PR.
-- **Release:** em PRs e pushes, compila os agents no Windows, monta a imagem Docker com eles e faz um teste de fumaça. O teste sobe o container, migra o banco, cadastra o primeiro usuário e verifica login, permissões, Swagger, cabeçalhos e os arquivos dos agents.
-- **Publicar uma nova versão:**
-  1. Altere o arquivo `VERSION` (ex.: `1.2.2`).
-  2. Adicione a seção `## v1.2.2` no `CHANGELOG.md`.
-  3. Faça o push no `master`. O workflow cria a tag e o release com as notas, anexa `Remotely_Server_Linux-x64.zip` e `Remotely_Agents.zip` (com SHA-256) e publica a imagem no Docker Hub (`michechel10/remotely`) e no GHCR.
-  - O Docker Hub exige os secrets `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN` no repositório.
+</details>
 
-## Créditos e licença
+<a id="apoie"></a>
 
-Fork mantido por [Michael Rodrigues](https://github.com/MichaelRodriguesOficial).
+## ☕ Apoie o projeto
 
-Projeto original: [immense/Remotely](https://github.com/immense/Remotely), de Jared Goodwin (Immense Networks) e colaboradores.
+<div align="center">
 
-Licença: [GPL-3.0](LICENSE), a mesma do projeto original. As bibliotecas de terceiros estão listadas na página **Créditos** do sistema.
+**Curtiu o Remotely?** É um projeto independente e de código aberto, mantido com cuidado para que equipes de TI tenham
+acesso remoto, inventário e diagnóstico no próprio servidor, sem licença por técnico. Se ele facilita o dia a dia da sua
+equipe, você pode me pagar um café 💚. É totalmente opcional: uma ⭐ no repositório, um relato de bug, uma ideia ou um PR
+ajudam tanto quanto.
+
+<table>
+<tr>
+<th width="50%">🌎 De qualquer lugar</th>
+<th width="50%">🇧🇷 Do Brasil, via Pix</th>
+</tr>
+<tr>
+<td align="center" valign="middle">
+
+<a href="https://github.com/sponsors/MichaelRodriguesOficial"><img src="https://img.shields.io/badge/Sponsor%20no%20GitHub-%E2%9D%A4-db61a2?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor no GitHub"></a>
+
+<sub>Uma vez ou todo mês, qualquer valor.<br>O GitHub não cobra taxa de patrocínios pessoais.</sub>
+
+</td>
+<td align="center" valign="middle">
+
+<img src=".github/media/pix-qrcode.png" alt="QR code Pix" width="180"><br>
+<sub>Aponte a câmera do app do seu banco</sub>
+
+<details>
+<summary><sub>Pix copia e cola</sub></summary>
+
+```
+00020126820014br.gov.bcb.pix01363d43ffaa-4b56-45ed-b038-ba7407c0a9750220Cafe para o Remotely5204000053039865802BR5917MICHAEL G R SILVA6009SAO PAULO62070503***63040BF1
+```
+
+</details>
+
+</td>
+</tr>
+</table>
+
+</div>
+
+## 📄 Créditos e licença
+
+Fork mantido por **Michael Rodrigues** · [github.com/MichaelRodriguesOficial](https://github.com/MichaelRodriguesOficial)
+
+Projeto original: [immense/Remotely](https://github.com/immense/Remotely), de Jared Goodwin (Immense Networks) e
+colaboradores. Licença [GPL-3.0](LICENSE), a mesma do projeto original. As bibliotecas de terceiros estão na página
+**Sobre** do sistema.
