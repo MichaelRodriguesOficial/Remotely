@@ -93,7 +93,7 @@ public partial class ChatText : SelectableTextBlock
             {
                 inlines.Add(new Run(text[last..match.Index]));
             }
-            inlines.Add(new Run(match.Value) { TextDecorations = TextDecorations.Underline });
+            inlines.Add(new Run(match.Value) { TextDecorations = Avalonia.Media.TextDecorations.Underline });
             _links.Add((match.Index, match.Index + match.Length, match.Value));
             last = match.Index + match.Length;
         }
